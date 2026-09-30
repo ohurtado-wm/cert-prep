@@ -1,0 +1,65 @@
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+
+const jsonText = <T>(name: string) => text(name, { mode: 'json' }).$type<T>()
+
+export const users = sqliteTable('users', {
+  gatewayUserId: text('gateway_user_id').primaryKey(),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+})
+
+export const certifications = sqliteTable('certifications', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  examCode: text('exam_code'),
+  sourceUrl: text('source_url').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+})
+
+export const certificationGuides = sqliteTable('certification_guides', {
+  certificationId: text('certification_id').primaryKey().references(() => certifications.id),
+  version: integer('version').notNull().default(1),
+  domains: jsonText<Array<{ id: string; name: string; weight: number }>>('domains').notNull(),
+  studyPath: jsonText<Array<{ title: string; url: string }>>('study_path').notNull(),
+  sourceHash: text('source_hash'),
+  lastSourceCheckedAt: integer('last_source_checked_at', { mode: 'timestamp_ms' }),
+  lastAiRefreshedAt: integer('last_ai_refreshed_at', { mode: 'timestamp_ms' }),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+})
+
+export const guideRefreshLeases = sqliteTable('guide_refresh_leases', {
+  certificationId: text('certification_id').primaryKey().references(() => certifications.id),
+  leaseToken: text('lease_token').notNull(),
+  expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+})
+
+export const simulationSessions = sqliteTable('simulation_sessions', {
+  id: text('id').primaryKey(),
+  gatewayUserId: text('gateway_user_id').notNull().references(() => users.gatewayUserId),
+  certificationId: text('certification_id').notNull().references(() => certifications.id),
+  mode: text('mode', { enum: ['practice', 'real'] }).notNull(),
+  state: jsonText<Record<string, unknown>>('state').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+})
+
+export const simulationResults = sqliteTable('simulation_results', {
+  id: text('id').primaryKey(),
+  gatewayUserId: text('gateway_user_id').notNull().references(() => users.gatewayUserId),
+  certificationId: text('certification_id').notNull().references(() => certifications.id),
+  mode: text('mode', { enum: ['practice', 'real'] }).notNull(),
+  score: integer('score').notNull(),
+  totalQuestions: integer('total_questions').notNull(),
+  correctAnswers: integer('correct_answers').notNull(),
+  topicBreakdown: jsonText<Record<string, { correct: number; total: number }>>('topic_breakdown').notNull(),
+  completedAt: integer('completed_at', { mode: 'timestamp_ms' }).notNull(),
+})
+
+export const studyPlans = sqliteTable('study_plans', {
+  id: text('id').primaryKey(),
+  gatewayUserId: text('gateway_user_id').notNull().references(() => users.gatewayUserId),
+  certificationId: text('certification_id').notNull().references(() => certifications.id),
+  content: jsonText<Record<string, unknown>>('content').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+})

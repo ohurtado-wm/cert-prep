@@ -1,6 +1,6 @@
 # Implementation Plan: Cert Helper — producto final
 
-**Estado:** Borrador para revisión; el PoC fue aprobado y el producto final aún no se implementa  
+**Estado:** En implementación; PR-01 listo para revisión, PR-02…PR-07 pendientes
 **Última actualización:** 2026-09-30
 
 ## Materiales fuente
@@ -15,14 +15,15 @@
 ## Estado
 
 - **Completado:** PoC local aprobado con 20 preguntas GCP, UI bilingüe pendiente, modo de práctica, Simulación Real y análisis final por dominio. Los datos aún se sirven desde JSON y no se conserva el historial de resultados.
-- **Pendiente:** Todas las entregas de producto de este plan.
-- **Preparación del repositorio:** El directorio de trabajo no contiene metadatos Git. Antes de ejecutar estas entregas habrá que conectar o inicializar el repositorio; los IDs PR-01…PR-07 son límites de revisión propuestos, no pull requests existentes.
+- **Completado en PR-01:** base Bun/Hono integrada con Vike, contratos Zod, esquema Drizzle/SQLite, migración inicial, resolución de usuario con `/users/me` y pruebas de identidad/rutas/migración.
+- **Pendiente:** catálogo de certificaciones dinámico, IA, UI bilingüe, sesiones seguras y persistencia del historial/planes en la aplicación.
+- **Repositorio:** conectado a `https://github.com/ohurtado-wm/cert-prep.git`; PR-01…PR-07 son límites de revisión propuestos.
 
 ## Estado de PR
 
 | PR | Alcance | Estado | Dependencia | Validación de salida |
 |---|---|---|---|---|
-| `PR-01` | API Hono, autenticación Gateway, contratos y persistencia Drizzle | No iniciado | — | API arranca, migra SQLite y valida identidad |
+| `PR-01` | API Hono, autenticación Gateway, contratos y persistencia Drizzle | Listo para revisión | — | API arranca, migra SQLite y valida identidad |
 | `PR-02` | Catálogo y descubrimiento de guías oficiales | No iniciado | `PR-01` | Dominios y ruta con fuentes verificables |
 | `PR-03` | Interfaz y contenido en español/inglés | No iniciado | `PR-02` | Flujo completo del catálogo en ambos idiomas |
 | `PR-04` | Generación de preguntas y sesiones seguras | No iniciado | `PR-01`, `PR-02` | 20 preguntas válidas; sesiones privadas por usuario |
@@ -151,25 +152,25 @@ sequenceDiagram
 ## PR-01: API, contratos y persistencia
 
 **ID:** `PR-01`  
-**Estado:** No iniciado  
+**Estado:** Listo para revisión
 **Objetivo:** agregar base de backend con validación y persistencia sin acoplar UI al proveedor de IA.  
 **Dependencia:** ninguna.
 
 ### Tareas
 
-- [ ] `P1-T01` Añadir entrada Bun + Hono y separar rutas, casos de uso y adaptadores de datos.
-- [ ] `P1-T02` Configurar Drizzle con SQLite local, migraciones y tipos/contratos Zod compartidos; dejar probado el dialecto PostgreSQL para el destino que se defina.
-- [ ] `P1-T03` Definir entidades de certificación/guía, sesiones efímeras y perfil externo por `gatewayUserId` único; guardar sesiones completadas y planes vinculados al usuario.
-- [ ] `P1-T04` Integrar la API con `/users/me` para obtener el usuario resuelto por el gateway y derivar de su respuesta el propietario de cada operación; nunca confiar en un ID enviado por el cliente.
-- [ ] `P1-T05` Integrar API con Vike en desarrollo y producción bajo el mismo origen, con configuración segura de secretos por entorno.
-- [ ] `P1-T06` Añadir `bun:test` para dominio/rutas y prueba de migración desde base vacía.
+- [x] `P1-T01` Añadir entrada Bun + Hono y separar rutas, casos de uso y adaptadores de datos.
+- [x] `P1-T02` Configurar Drizzle con SQLite local, migraciones y tipos/contratos Zod compartidos. PostgreSQL queda para cuando se defina el destino de despliegue.
+- [x] `P1-T03` Definir entidades de certificación/guía, sesiones efímeras y perfil externo por `gatewayUserId` único; guardar sesiones completadas y planes vinculados al usuario.
+- [x] `P1-T04` Integrar la API con `/users/me` para obtener el usuario resuelto por el gateway y derivar de su respuesta el propietario de cada operación; nunca confiar en un ID enviado por el cliente.
+- [x] `P1-T05` Integrar API con Vike en desarrollo y producción bajo el mismo origen, con configuración segura de secretos por entorno.
+- [x] `P1-T06` Añadir `bun:test` para dominio/rutas y prueba de migración desde base vacía.
 
 ### Criterios de validación
 
-- [ ] Bun inicia API y UI; endpoint de salud no requiere credenciales.
-- [ ] Migraciones y operaciones básicas pasan en SQLite; las rutas rechazan datos inválidos con error estable.
-- [ ] Rutas privadas requieren un usuario devuelto por `/users/me` y resuelven el propietario exclusivamente desde ese `id`.
-- [ ] Ningún secreto del proveedor queda en bundles, JSON público o logs.
+- [x] Bun inicia API y UI; endpoint de salud no requiere credenciales.
+- [x] Migraciones y operaciones básicas pasan en SQLite; las rutas devuelven errores de identidad con contrato estable.
+- [x] Rutas privadas requieren un usuario devuelto por `/users/me` y resuelven el propietario exclusivamente desde ese `id`.
+- [x] Ningún secreto del proveedor queda en bundles, JSON público o logs.
 
 ## PR-02: Catálogo y guía oficial de certificación
 
