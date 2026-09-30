@@ -253,7 +253,7 @@ sequenceDiagram
 - [x] Otro usuario autenticado no puede leer una sesión ajena; las rutas de mutación también buscan la sesión por propietario.
 - [x] Si el proveedor falla o la salida no pasa validación, no se crea una sesión parcial y la API devuelve errores recuperables.
 
-**Configuración de IA:** Vercel AI SDK con `@ai-sdk/openai`; `AI_PROVIDER=openai`, `AI_MODEL=gpt-5-mini` y `OPENAI_API_KEY`. No se utiliza un SDK directo de OpenAI ni se incluyen credenciales en la UI.
+**Configuración de IA:** Vercel AI SDK con `@ai-sdk/openai`; `AI_PROVIDER=openai`, `AI_MODEL=gpt-6-luna` y `OPENAI_API_KEY`. No se utiliza un SDK directo de OpenAI ni se incluyen credenciales en la UI.
 
 **Validación local:** `bun run typecheck`, `bun test` (26 pruebas) y `bun run build` pasaron. Las pruebas usan un generador falso; no se realizó una llamada real a OpenAI. La validación de idioma confirma el locale declarado por el modelo y el prompt exige que todos los textos estén en ese idioma; no hay un clasificador independiente de idioma ni una evaluación semántica de calidad en esta fase.
 

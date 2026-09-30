@@ -1,7 +1,7 @@
 import { createOpenAI } from '@ai-sdk/openai'
 import { ApiException } from '../errors'
 
-export const defaultAiModel = 'gpt-5-mini'
+export const defaultAiModel = 'gpt-6-luna'
 
 type AiEnvironment = Record<string, string | undefined>
 
