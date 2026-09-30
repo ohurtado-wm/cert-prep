@@ -19,19 +19,23 @@ Abre `http://localhost:3000` en el navegador. El banco se carga desde `public/da
 
 ## Recorrido
 
-- Inicia una sesión con las 20 preguntas, en el orden del banco.
+- El catálogo y la guía oficial de dominios/ruta se cargan desde la API. La pantalla principal muestra la certificación, temas, fuentes y estado de actualización de la guía.
+- El selector del encabezado permite usar español o inglés. La preferencia `cert-helper-locale` se guarda por separado de `cert-helper-theme`.
+- El banco de práctica conserva 20 preguntas en JSON: español en `public/data/certifications.json` e inglés en `public/data/certifications.en.json`. Ambos idiomas usan los mismos IDs y respuestas correctas.
+- Inicia una sesión con las preguntas locales, en el orden del banco.
 - La opción **Simulación Real** usa **Siguiente pregunta** para registrar la respuesta elegida y avanzar en un solo paso. Permite un intento por pregunta y muestra la nota y los dominios por repasar al final, sin revelar aciertos ni respuestas durante la sesión.
 - Una respuesta correcta al primer intento cuenta para el puntaje diagnóstico.
 - Las respuestas correctas después de reintentar y las respuestas reveladas aparecen por separado en el resultado.
-- El tema visual se puede cambiar entre claro y oscuro y la preferencia se conserva en este navegador.
+- El tema visual se puede cambiar entre claro y oscuro; el idioma y el tema se conservan de forma independiente en este navegador.
+- Los resultados solo viven en la sesión actual de la página. Su persistencia por usuario se implementará en una fase posterior.
 
 ## Alcance local
 
 La API Hono comparte origen con la aplicación Vike. `GET /api/healthz` informa disponibilidad y `GET /api/v1/me` consulta al gateway `/users/me`, usando la identidad devuelta por el gateway. La aplicación reenvía las cabeceras de sesión `cookie` y `authorization`; no crea ni almacena credenciales.
 
-Drizzle administra una base SQLite local en `./data/cert-prep.sqlite` (configurable con `DATABASE_PATH`). El esquema inicial deja preparadas guías, dominios/ruta, leases de actualización, sesiones efímeras, resultados por tema y planes de estudio. En esta fase la UI todavía usa el JSON existente y aún no escribe resultados en la base.
+Drizzle administra una base SQLite local en `./data/cert-prep.sqlite` (configurable con `DATABASE_PATH`). El esquema inicial deja preparadas guías, dominios/ruta, leases de actualización, sesiones efímeras, resultados por tema y planes de estudio. Las preguntas de la sesión todavía se cargan desde JSON; los resultados y planes aún no se escriben en la base.
 
-La API expone `GET /api/v1/certifications` y `GET /api/v1/certifications/:certificationId/guide`. Al solicitar una guía cuya renovación con IA tiene 7 días o más, vuelve a consultar las fuentes oficiales y las procesa con el Vercel AI SDK. Para activar esa llamada configura `AI_MODEL` y `AI_GATEWAY_API_KEY`; sin un modelo configurado la API devuelve un error recuperable y conserva la última guía válida. La UI del PoC todavía usa su banco JSON y consumirá este catálogo en una fase posterior.
+La API expone `GET /api/v1/certifications` y `GET /api/v1/certifications/:certificationId/guide`. Al solicitar una guía cuya renovación con IA tiene 7 días o más, vuelve a consultar las fuentes oficiales y las procesa con el Vercel AI SDK. Para activar esa llamada configura `AI_MODEL` y `AI_GATEWAY_API_KEY`; sin un modelo configurado la API devuelve un error recuperable y conserva la última guía válida. La UI muestra el error y no permite iniciar una sesión con una guía que no pudo verificarse. Las preguntas todavía proceden del banco JSON local; la generación de preguntas con IA pertenece a una fase posterior.
 
 El endpoint de identidad expone `id`, correo y avatar recibidos del gateway, pero en SQLite persiste únicamente el ID estable del usuario. No registra permisos. El banco JSON del PoC todavía se entrega al navegador e incluye respuestas correctas; la sesión segura del producto queda para una fase posterior.
 
