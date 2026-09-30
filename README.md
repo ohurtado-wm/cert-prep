@@ -15,7 +15,7 @@ bun run db:migrate
 bun run dev
 ```
 
-Abre `http://localhost:3000` en el navegador desde una sesión autenticada en el gateway de West Monroe. Sin una identidad válida, la aplicación mantiene deshabilitado el inicio de simulaciones.
+Abre `http://localhost:3000`. En desarrollo local se usa el usuario simulado `ohurtado` (`ohurtado@westmonroe.com`), sin depender del gateway. En otros entornos se requiere una sesión válida de West Monroe.
 
 ## Recorrido
 
@@ -24,13 +24,13 @@ Abre `http://localhost:3000` en el navegador desde una sesión autenticada en el
 - Cada simulación solicita al servidor 20 preguntas nuevas en el idioma elegido; el navegador recibe opciones sin claves de respuesta.
 - En **Simulación Real**, **Siguiente pregunta** registra la selección y avanza en un clic. El resultado y el desglose por dominio, tema y foco aparecen al finalizar.
 - En práctica puedes reintentar o revelar la respuesta y su explicación. El resultado diferencia aciertos iniciales, aciertos tras reintento y respuestas reveladas.
-- Los últimos 20 resultados se guardan en SQLite bajo la identidad verificada por el gateway. El historial se vuelve a cargar tras una recarga y se puede borrar junto con los planes de estudio.
+- Los últimos 20 resultados se guardan en SQLite bajo el usuario simulado en desarrollo o la identidad verificada por el gateway en otros entornos. El historial se vuelve a cargar tras una recarga y se puede borrar junto con los planes de estudio.
 - El tema visual se puede cambiar entre claro y oscuro; el idioma y el tema se conservan de forma independiente en este navegador.
 - `localStorage` se usa únicamente para las preferencias de idioma y tema; sesiones, resultados e historial se guardan en el backend.
 
 ## Alcance local
 
-La API Hono comparte origen con la aplicación Vike. `GET /api/healthz` informa disponibilidad y `GET /api/v1/me` consulta al gateway `/users/me`, usando la identidad devuelta por el gateway. La aplicación reenvía las cabeceras de sesión `cookie` y `authorization`; no crea ni almacena credenciales.
+La API Hono comparte origen con la aplicación Vike. `GET /api/healthz` informa disponibilidad. `GET /api/v1/me` usa el usuario simulado cuando `NODE_ENV=development`; en otros entornos consulta al gateway `/users/me` y reenvía las cabeceras de sesión `cookie` y `authorization`. La aplicación no crea ni almacena credenciales.
 
 Drizzle administra una base SQLite local en `./data/cert-prep.sqlite` (configurable con `DATABASE_PATH`). El esquema incluye guías, dominios/ruta, leases de actualización, sesiones efímeras, resultados agregados por usuario, planes y registros operativos de inicios para mantener el límite horario aunque se borre el historial.
 
@@ -40,7 +40,7 @@ El backend genera sesiones de 20 preguntas en inglés o español con cobertura p
 
 La generación usa Vercel AI SDK con el adaptador `@ai-sdk/openai`, salida estructurada con Zod y una reparación máxima cuando el resultado no cumple el contrato. La instrumentación registra únicamente modelo, certificación, latencia, tokens y estado; no incluye claves, prompts ni respuestas. Las pruebas usan un generador falso y no consumen llamadas ni créditos de OpenAI.
 
-El endpoint de identidad expone `id`, correo y avatar recibidos del gateway, pero en SQLite persiste únicamente el ID estable del usuario. No registra permisos. Los antiguos bancos JSON se conservan como fixtures de pruebas fuera de los assets públicos y no se descargan al navegador.
+`/api/v1/me` expone ID, correo y avatar: en desarrollo usa `ohurtado`, y en otros entornos usa los datos del gateway. En SQLite persiste únicamente el ID estable y no registra permisos. Los antiguos bancos JSON se conservan como fixtures de pruebas fuera de los assets públicos y no se descargan al navegador.
 
 ## Comandos disponibles
 

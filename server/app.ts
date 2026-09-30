@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import type { DatabaseHandle } from './db/client'
 import { ApiException } from './errors'
-import { createGatewayUserProvider, type UserProvider } from './gateway/user-provider'
+import { createEnvironmentUserProvider, type UserProvider } from './gateway/user-provider'
 import { healthRoutes } from './routes/health'
 import { createMeRoutes } from './routes/me'
 import { createCertificationRoutes } from './routes/certifications'
@@ -21,7 +21,7 @@ type AppDependencies = {
   simulationService?: ReturnType<typeof createSimulationService>
 }
 
-export function createApp({ db, userProvider = createGatewayUserProvider(), guideService, sourceReader, guideGenerator, simulationService }: AppDependencies) {
+export function createApp({ db, userProvider = createEnvironmentUserProvider(), guideService, sourceReader, guideGenerator, simulationService }: AppDependencies) {
   const app = new Hono()
   const certificationGuideService = guideService ?? createCertificationGuideService(db, { sourceReader, guideGenerator })
   const sessions = simulationService ?? createSimulationService(db, { guideService: certificationGuideService })

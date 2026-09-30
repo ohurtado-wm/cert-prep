@@ -4,6 +4,20 @@ import { GatewayUserSchema, type GatewayUser } from '../contracts'
 export type UserProvider = (request: Request) => Promise<GatewayUser>
 type GatewayFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
+const developmentUser: GatewayUser = {
+  id: 'ohurtado',
+  email: 'ohurtado@westmonroe.com',
+  permissions: [],
+}
+
+export function createEnvironmentUserProvider(nodeEnvironment = process.env.NODE_ENV): UserProvider {
+  if (nodeEnvironment === 'development') {
+    return async () => developmentUser
+  }
+
+  return createGatewayUserProvider()
+}
+
 export function createGatewayUserProvider(
   endpoint = process.env.GATEWAY_USERS_ME_URL ?? 'https://westmonroe-cloud.com/users/me',
   fetcher: GatewayFetch = fetch,
