@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { AiTokenUsageSchema, type AiTokenUsage } from '../../src/api/ai-usage-contracts'
 import {
   CertificationGuideResponseSchema,
   GuideDomainSchema,
@@ -90,10 +91,20 @@ function toResponse(
     domains: guide.domains,
     studyPath: guide.studyPath,
     sources: certification.sources,
+    aiUsage: guide.aiUsage ?? null,
     freshness: {
       aiRefreshedAt: guide.lastAiRefreshedAt.toISOString(),
     },
   })
+}
+
+function unwrapGuideGeneration(value: unknown): { draft: unknown; aiUsage: AiTokenUsage | null } {
+  if (typeof value !== 'object' || value === null || !('output' in value)) {
+    return { draft: value, aiUsage: null }
+  }
+  const generated = value as { output: unknown; usage?: unknown }
+  const usage = AiTokenUsageSchema.safeParse(generated.usage)
+  return { draft: generated.output, aiUsage: usage.success ? usage.data : null }
 }
 
 function sleep(durationMs: number) {
@@ -154,14 +165,21 @@ export function createCertificationGuideService(db: DatabaseHandle, options: Gui
 
     const refreshStartedAt = Date.now()
     let stage = 'ai_generation'
+    let aiUsage: AiTokenUsage | null = null
     try {
       let generated: unknown
       const generationStartedAt = Date.now()
       try {
         generated = await guideGenerator({ certification })
+        const generation = unwrapGuideGeneration(generated)
+        generated = generation.draft
+        aiUsage = generation.aiUsage
         logServerEvent('info', 'guide_ai_generation_completed', {
           certificationId,
           durationMs: Date.now() - generationStartedAt,
+          inputTokens: aiUsage?.inputTokens ?? null,
+          outputTokens: aiUsage?.outputTokens ?? null,
+          totalTokens: aiUsage?.totalTokens ?? null,
         })
       } catch (error) {
         if (error instanceof ApiException) throw error
@@ -181,6 +199,7 @@ export function createCertificationGuideService(db: DatabaseHandle, options: Gui
       await publishGuide(db, {
         certificationId,
         ...normalized,
+        aiUsage,
         now: publishedAt,
         leaseToken,
       })

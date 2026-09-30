@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import type { AiTokenUsage as AiTokenUsageData } from '../api/ai-usage-contracts'
 import type { CertificationGuideResponse, GuideDomain, Locale } from '../api/certification-contracts'
+import { AiTokenUsage } from './AiTokenUsage'
 import {
   SimulationApiError,
 } from '../api/simulations'
@@ -21,6 +23,7 @@ export function QuizScreen({
   questions,
   questionIndex,
   simulationMode,
+  aiUsage,
   submitting,
   revealing,
   advancing,
@@ -36,6 +39,7 @@ export function QuizScreen({
   questions: SimulationQuestion[]
   questionIndex: number
   simulationMode: SimulationMode
+  aiUsage: AiTokenUsageData | null
   submitting: boolean
   revealing: boolean
   advancing: boolean
@@ -80,6 +84,7 @@ export function QuizScreen({
       >
         <span style={{ width: `${progress}%` }} />
       </div>
+      <AiTokenUsage locale={locale} usage={aiUsage} compact />
 
       <div className={`quiz-grid ${simulationMode === 'real' ? 'quiz-grid-real' : ''}`}>
         <QuestionCard
@@ -319,6 +324,7 @@ export function ResultsScreen({
   guide,
   result,
   simulationMode,
+  aiUsage,
   restarting,
   startError,
   onHome,
@@ -329,6 +335,7 @@ export function ResultsScreen({
   guide: CertificationGuideResponse | undefined
   result: SimulationResult
   simulationMode: SimulationMode
+  aiUsage: AiTokenUsageData | null
   restarting: boolean
   startError: unknown | null
   onHome: () => void
@@ -356,6 +363,7 @@ export function ResultsScreen({
       <p className="eyebrow">{text('sessionComplete')}</p>
       <h1>{simulationMode === 'real' ? text('realResultTitle') : text('practiceResultTitle')}</h1>
       <p className="results-certification-name">{certificationName}</p>
+      <AiTokenUsage locale={locale} usage={aiUsage} compact />
 
       <section className="results-summary" aria-label={text('resultsSummary')}>
         <div className="score-panel">

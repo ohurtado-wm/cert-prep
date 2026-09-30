@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { AiTokenUsageSchema, type AiTokenUsage } from '../../src/api/ai-usage-contracts'
 import { and, count, desc, eq, gt, gte, inArray, lte } from 'drizzle-orm'
 import {
   SimulationAnswerResponseSchema,
@@ -69,7 +70,35 @@ function toSnapshot(row: SessionRow, state: StoredSimulationState): SimulationSn
     expiresAt: row.expiresAt.toISOString(),
     currentQuestion: state.status === 'active' ? publicQuestion(state.questions[state.currentIndex]!) : null,
     result: state.status === 'completed' ? state.result : null,
+    aiUsage: state.aiUsage ?? null,
   })
+}
+
+function unwrapQuestionGeneration(value: unknown): { questions: unknown; aiUsage: AiTokenUsage | null } {
+  if (typeof value !== 'object' || value === null || !('output' in value)) {
+    return { questions: value, aiUsage: null }
+  }
+  const generated = value as { output: unknown; usage?: unknown }
+  const usage = AiTokenUsageSchema.safeParse(generated.usage)
+  return { questions: generated.output, aiUsage: usage.success ? usage.data : null }
+}
+
+function aggregateTokenUsage(usages: AiTokenUsage[]): AiTokenUsage | null {
+  if (usages.length === 0) return null
+  const sumKnown = (key: keyof AiTokenUsage) => {
+    const values = usages.map((usage) => usage[key])
+    return values.every((value): value is number => value !== null)
+      ? values.reduce((total, value) => total + value, 0)
+      : null
+  }
+  const inputTokens = sumKnown('inputTokens')
+  const outputTokens = sumKnown('outputTokens')
+  const reportedTotal = sumKnown('totalTokens')
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens: reportedTotal ?? (inputTokens !== null && outputTokens !== null ? inputTokens + outputTokens : null),
+  }
 }
 
 function isActiveState(value: unknown) {
@@ -107,7 +136,11 @@ function calculateResult(questions: StoredSimulationQuestion[]): SimulationResul
   })
 }
 
-function completeState(language: StoredSimulationState['language'], result: SimulationResult): StoredSimulationState {
+function completeState(
+  language: StoredSimulationState['language'],
+  result: SimulationResult,
+  aiUsage: AiTokenUsage | null | undefined,
+): StoredSimulationState {
   return StoredSimulationStateSchema.parse({
     version: 1,
     language,
@@ -115,6 +148,7 @@ function completeState(language: StoredSimulationState['language'], result: Simu
     currentIndex: 20,
     questions: [],
     result,
+    aiUsage: aiUsage ?? null,
   })
 }
 
@@ -260,17 +294,20 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
       let questions: StoredSimulationQuestion[] | undefined
       let feedback: string | undefined
       let lastValidationError: unknown
+      const generationUsages: AiTokenUsage[] = []
 
       for (let attempt = 0; attempt < MAX_QUESTION_GENERATION_ATTEMPTS; attempt += 1) {
-        const raw = await questionGenerator({
+        const generated = await questionGenerator({
           guide,
           language: request.language,
           requiredQuestionsByDomain,
           ...(feedback ? { validationFeedback: feedback } : {}),
         })
+        const generation = unwrapQuestionGeneration(generated)
+        if (generation.aiUsage) generationUsages.push(generation.aiUsage)
         try {
           questions = validateGeneratedQuestions({
-            value: raw,
+            value: generation.questions,
             guide,
             language: request.language,
             requiredQuestionsByDomain,
@@ -299,6 +336,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
         status: 'active',
         currentIndex: 0,
         questions,
+        aiUsage: aggregateTokenUsage(generationUsages),
       })
       const rowValues = {
         id: sessionId,
@@ -370,7 +408,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
 
       if (index === 19) {
         const result = calculateResult(updatedQuestions)
-        const completed = completeState(state.language, result)
+        const completed = completeState(state.language, result, state.aiUsage)
         await saveCompletedState(row, userId, state, completed, result)
         return SimulationAnswerResponseSchema.parse({ mode: 'real', status: 'completed', result })
       }
@@ -440,7 +478,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
 
     if (state.currentIndex === 19) {
       const result = calculateResult(state.questions)
-      const completed = completeState(state.language, result)
+      const completed = completeState(state.language, result, state.aiUsage)
       await saveCompletedState(row, userId, state, completed, result)
       return toSnapshot({ ...row, state: completed }, completed)
     }

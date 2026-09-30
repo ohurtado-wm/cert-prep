@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { LocaleSchema } from './certification-contracts'
+import { AiTokenUsageSchema } from './ai-usage-contracts'
 
 export const SimulationModeSchema = z.enum(['practice', 'real'])
 export const MAX_SIMULATION_HISTORY_ITEMS = 20
@@ -73,6 +74,7 @@ export const SimulationSnapshotSchema = z.object({
   expiresAt: z.string().datetime(),
   currentQuestion: SimulationQuestionSchema.nullable(),
   result: SimulationResultSchema.nullable(),
+  aiUsage: AiTokenUsageSchema.nullable().optional(),
 })
 
 const PracticeAnswerResponseSchema = z.object({

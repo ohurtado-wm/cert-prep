@@ -1,5 +1,6 @@
 import { generateText, Output } from 'ai'
 import { z } from 'zod'
+import type { AiTokenUsage } from '../../src/api/ai-usage-contracts'
 import type { CertificationCatalogItem } from '../../src/api/certification-contracts'
 import { ApiException } from '../errors'
 import { createAiModel } from '../ai/model-provider'
@@ -25,7 +26,10 @@ export const GuideDraftSchema = z.object({
 })
 
 export type GuideDraft = z.infer<typeof GuideDraftSchema>
-export type GuideGenerator = (input: { certification: CertificationCatalogItem }) => Promise<GuideDraft>
+export type GuideGenerator = (input: { certification: CertificationCatalogItem }) => Promise<GuideDraft | {
+  output: GuideDraft
+  usage: AiTokenUsage
+}>
 
 function buildPrompt(certification: CertificationCatalogItem) {
   return [
@@ -51,7 +55,16 @@ export function createAiGuideGenerator(modelName = process.env.AI_MODEL): GuideG
         abortSignal: AbortSignal.timeout(60_000),
       })
       if (!result.output) throw new Error('The model returned no structured guide.')
-      return result.output
+      const inputTokens = result.usage.inputTokens ?? null
+      const outputTokens = result.usage.outputTokens ?? null
+      return {
+        output: result.output,
+        usage: {
+          inputTokens,
+          outputTokens,
+          totalTokens: result.usage.totalTokens ?? (inputTokens !== null && outputTokens !== null ? inputTokens + outputTokens : null),
+        },
+      }
     } catch (error) {
       if (error instanceof ApiException) throw error
       throw new ApiException(503, 'GUIDE_AI_UNAVAILABLE', 'No se pudo renovar la guía con IA. Intenta de nuevo.')

@@ -2,6 +2,7 @@ import { and, eq, gte, lte } from 'drizzle-orm'
 import type { DatabaseHandle } from '../db/client'
 import { certificationGuides, certifications, guideRefreshLeases } from '../db/schema'
 import type { CertificationCatalogItem, GuideDomain, StudyPathStep } from '../../src/api/certification-contracts'
+import type { AiTokenUsage } from '../../src/api/ai-usage-contracts'
 
 export async function syncCertificationCatalog(
   db: DatabaseHandle,
@@ -82,6 +83,7 @@ export async function publishGuide(
     certificationId: string
     domains: GuideDomain[]
     studyPath: StudyPathStep[]
+    aiUsage?: AiTokenUsage | null
     now: Date
     leaseToken: string
   },
@@ -100,6 +102,7 @@ export async function publishGuide(
       version,
       domains: input.domains,
       studyPath: input.studyPath,
+      aiUsage: input.aiUsage ?? null,
       sourceHash: null,
       sourceSnapshot: null,
       lastSourceCheckedAt: null,
@@ -111,6 +114,7 @@ export async function publishGuide(
         version,
         domains: input.domains,
         studyPath: input.studyPath,
+        aiUsage: input.aiUsage ?? null,
         sourceHash: null,
         sourceSnapshot: null,
         lastSourceCheckedAt: null,

@@ -488,6 +488,114 @@ select:focus-visible,
   animation: guide-progress 1.6s ease-in-out infinite alternate;
 }
 
+.ai-processing-backdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(7, 1, 84, 0.62);
+  backdrop-filter: blur(5px);
+}
+
+.ai-processing-dialog {
+  display: grid;
+  width: min(100%, 520px);
+  gap: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: clamp(24px, 5vw, 40px);
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.28);
+}
+
+.ai-processing-dialog .eyebrow {
+  margin: 0;
+  color: var(--link-hover);
+}
+
+.ai-processing-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ai-processing-heading h2 {
+  margin: 0;
+  font-family: 'IBM Plex Sans', Arial, Helvetica, sans-serif;
+  font-size: clamp(23px, 5vw, 30px);
+  line-height: 1.2;
+}
+
+.ai-processing-dialog .guide-loading-spinner {
+  width: 22px;
+  height: 22px;
+  flex-basis: 22px;
+  border-color: var(--border);
+  border-top-color: var(--progress);
+}
+
+.ai-processing-detail,
+.ai-processing-elapsed {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.ai-processing-detail {
+  animation: guide-status-enter 240ms ease-out both;
+}
+
+.ai-processing-elapsed {
+  font-size: 12px;
+}
+
+.ai-processing-dialog .guide-loading-track {
+  margin-top: 4px;
+  background: var(--border);
+}
+
+.ai-token-usage {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 16px 0 0;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  color: var(--text-muted);
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ai-token-usage-mark {
+  flex: 0 0 auto;
+  color: var(--link);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.ai-token-usage-compact {
+  margin-top: 4px;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+
+.certification-panel .ai-token-usage {
+  border-color: rgba(255, 255, 255, 0.36);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.certification-panel .ai-token-usage-mark {
+  color: var(--wm-highlight-magenta);
+}
+
 @keyframes guide-spinner {
   to { transform: rotate(360deg); }
 }

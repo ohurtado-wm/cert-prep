@@ -1,5 +1,6 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import type { GuideDomain, StudyPathStep } from '../../src/api/certification-contracts'
+import type { AiTokenUsage } from '../../src/api/ai-usage-contracts'
 import type { CachedOfficialSources } from '../catalog/source-types'
 import type { StoredSimulationState } from '../simulations/state'
 
@@ -29,6 +30,7 @@ export const certificationGuides = sqliteTable('certification_guides', {
   studyPath: jsonText<StudyPathStep[]>('study_path').notNull(),
   sourceHash: text('source_hash'),
   sourceSnapshot: jsonText<CachedOfficialSources>('source_snapshot'),
+  aiUsage: jsonText<AiTokenUsage | null>('ai_usage'),
   lastSourceCheckedAt: integer('last_source_checked_at', { mode: 'timestamp_ms' }),
   lastAiRefreshedAt: integer('last_ai_refreshed_at', { mode: 'timestamp_ms' }),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),

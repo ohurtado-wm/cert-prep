@@ -1,5 +1,6 @@
 import { generateText, Output } from 'ai'
 import { z } from 'zod'
+import type { AiTokenUsage } from '../../src/api/ai-usage-contracts'
 import { LocaleSchema, type CertificationGuideResponse, type Locale } from '../../src/api/certification-contracts'
 import { createAiModel } from '../ai/model-provider'
 import { ApiException } from '../errors'
@@ -134,7 +135,16 @@ export function createAiQuestionGenerator(options: {
         outcome: 'success',
       })
       if (!result.output) throw new Error('Structured question output is missing.')
-      return result.output
+      const inputTokens = result.usage.inputTokens ?? null
+      const outputTokens = result.usage.outputTokens ?? null
+      return {
+        output: result.output,
+        usage: {
+          inputTokens,
+          outputTokens,
+          totalTokens: result.usage.totalTokens ?? (inputTokens !== null && outputTokens !== null ? inputTokens + outputTokens : null),
+        } satisfies AiTokenUsage,
+      }
     } catch (error) {
       reportSafely(reporter, {
         operation: 'simulation_questions',

@@ -28,6 +28,7 @@ import type {
 import type { CurrentUserResponse } from '../../src/api/contracts'
 import { translate } from '../../src/i18n/messages'
 import { readLocalePreference, writeLocalePreference } from '../../src/i18n/preferences'
+import { AiTokenUsage } from '../../src/components/AiTokenUsage'
 import { QuizScreen, ResultsScreen, simulationErrorMessage } from '../../src/components/SimulationScreens'
 import '../../src/styles.css'
 
@@ -54,6 +55,7 @@ function CertificationApp() {
   const [selectedCertificationId, setSelectedCertificationId] = useState('')
   const [questionIndex, setQuestionIndex] = useState(0)
   const [activeSession, setActiveSession] = useState<SimulationSnapshot | null>(null)
+  const [simulationLoadingSeconds, setSimulationLoadingSeconds] = useState(0)
   const [sessionQuestions, setSessionQuestions] = useState<SimulationQuestion[]>([])
   const [sessionResult, setSessionResult] = useState<SimulationResult | null>(null)
   const previousUserId = useRef<string | null>(null)
@@ -114,6 +116,14 @@ function CertificationApp() {
     },
     onError: clearHistoryIfUnauthenticated,
   })
+  useEffect(() => {
+    if (!startMutation.isPending) {
+      setSimulationLoadingSeconds(0)
+      return
+    }
+    const timer = window.setInterval(() => setSimulationLoadingSeconds((seconds) => seconds + 1), 1_000)
+    return () => window.clearInterval(timer)
+  }, [startMutation.isPending])
   const answerMutation = useMutation({ mutationFn: (input: { questionId: string; answerId: string }) => {
     if (!activeSession) throw new SimulationApiError('SIMULATION_NOT_FOUND')
     return submitSimulationAnswer(activeSession.sessionId, input.questionId, input.answerId)
@@ -316,6 +326,7 @@ function CertificationApp() {
           questions={sessionQuestions}
           questionIndex={questionIndex}
           simulationMode={activeSession.mode}
+          aiUsage={activeSession.aiUsage ?? null}
           submitting={answerMutation.isPending}
           revealing={revealMutation.isPending}
           advancing={nextMutation.isPending}
@@ -333,6 +344,7 @@ function CertificationApp() {
           guide={guideQuery.data}
           result={sessionResult}
           simulationMode={activeSession?.mode ?? simulationMode}
+          aiUsage={activeSession?.aiUsage ?? null}
           restarting={startMutation.isPending}
           startError={startMutation.error ?? null}
           onHome={() => {
@@ -344,6 +356,33 @@ function CertificationApp() {
           onRestart={startSession}
         />
       )}
+      {startMutation.isPending && (
+        <SimulationProcessingOverlay locale={locale} elapsedSeconds={simulationLoadingSeconds} />
+      )}
+    </div>
+  )
+}
+
+function SimulationProcessingOverlay({ locale, elapsedSeconds }: { locale: Locale; elapsedSeconds: number }) {
+  const slow = elapsedSeconds >= 25
+  const text = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values)
+
+  return (
+    <div className="ai-processing-backdrop">
+      <div className="ai-processing-dialog" role="status" aria-live="polite" aria-busy="true">
+        <p className="eyebrow">{text('simulationLoadingEyebrow')}</p>
+        <div className="ai-processing-heading">
+          <span className="guide-loading-spinner" aria-hidden="true" />
+          <h2>{text('simulationLoadingTitle')}</h2>
+        </div>
+        <p key={slow ? 'slow' : 'detail'} className="ai-processing-detail">
+          {text(slow ? 'simulationLoadingSlow' : 'simulationLoadingDetail')}
+        </p>
+        <span className="ai-processing-elapsed" aria-hidden="true">
+          {text('guideLoadingElapsed', { seconds: elapsedSeconds })}
+        </span>
+        <div className="guide-loading-track" aria-hidden="true"><span /></div>
+      </div>
     </div>
   )
 }
@@ -599,6 +638,7 @@ function HomeScreen({
             <div className="guide-freshness">
               <strong>{text('guideVersion', { version: guide.version })}</strong>
               <span>{text('aiRefreshed')}: {formatDate(guide.freshness.aiRefreshedAt, locale)}</span>
+              <AiTokenUsage locale={locale} usage={guide.aiUsage} compact />
             </div>
           )}
         </section>
