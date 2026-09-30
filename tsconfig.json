@@ -17,5 +17,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["pages", "src", "env.d.ts", "vite.config.ts"]
+  "include": ["pages", "src", "server", "tests", "+server.ts", "drizzle.config.ts", "env.d.ts", "vite.config.ts"]
 }
