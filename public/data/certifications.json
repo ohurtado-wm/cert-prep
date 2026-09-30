@@ -1,0 +1,314 @@
+{
+  "certifications": [
+    {
+      "id": "gcp-professional-cloud-developer",
+      "name": "Google Cloud Professional Cloud Developer",
+      "language": "es",
+      "source": "https://cloud.google.com/learn/certification/guides/cloud-developer?hl=es-419",
+      "topics": [
+        {
+          "id": "design",
+          "name": "Diseñar aplicaciones nativas de la nube con escalabilidad, disponibilidad y confiabilidad",
+          "weight": 33
+        },
+        {
+          "id": "build_test",
+          "name": "Compilar y probar aplicaciones",
+          "weight": 26
+        },
+        {
+          "id": "deploy",
+          "name": "Implementar aplicaciones",
+          "weight": 19
+        },
+        {
+          "id": "integrate",
+          "name": "Integrar aplicaciones en los servicios de Google Cloud",
+          "weight": 22
+        }
+      ],
+      "questions": [
+        {
+          "id": "gcpd-001",
+          "topicId": "design",
+          "focus": "Elegir una plataforma de ejecución",
+          "service": "Cloud Run",
+          "question": "Un equipo despliega una API HTTP en contenedores. El tráfico varía mucho durante el día y quieren evitar administrar nodos y clústeres. ¿Qué plataforma encaja mejor?",
+          "answers": [
+            { "id": "a", "text": "Google Kubernetes Engine, porque todo contenedor debe ejecutarse en un clúster administrado.", "isCorrect": false },
+            { "id": "b", "text": "Cloud Run, que ejecuta contenedores HTTP y escala según las solicitudes.", "isCorrect": true },
+            { "id": "c", "text": "Compute Engine, creando una máquina virtual por cada réplica de la API.", "isCorrect": false },
+            { "id": "d", "text": "Cloud Storage, publicando la imagen del contenedor como un sitio estático.", "isCorrect": false }
+          ],
+          "explanation": "Cloud Run permite desplegar una imagen de contenedor sin administrar un clúster y escala el servicio según la demanda. GKE sería apropiado si el equipo necesitara control directo de Kubernetes o capacidades específicas de orquestación."
+        },
+        {
+          "id": "gcpd-002",
+          "topicId": "design",
+          "focus": "Desacoplar servicios con mensajería asíncrona",
+          "service": "Pub/Sub",
+          "question": "Al confirmar una compra, un servicio debe notificar a varios consumidores independientes. El productor no debe conocer sus direcciones ni esperar a que terminen. ¿Qué patrón conviene?",
+          "answers": [
+            { "id": "a", "text": "Llamar de forma síncrona a cada consumidor mediante HTTP.", "isCorrect": false },
+            { "id": "b", "text": "Guardar la compra en Cloud Storage y pedir a cada consumidor que sondee el archivo.", "isCorrect": false },
+            { "id": "c", "text": "Publicar un mensaje en Pub/Sub para que los consumidores lo reciban mediante suscripciones.", "isCorrect": true },
+            { "id": "d", "text": "Ejecutar todos los consumidores dentro del mismo proceso del productor.", "isCorrect": false }
+          ],
+          "explanation": "Pub/Sub separa productores y consumidores mediante temas y suscripciones. Así pueden escalar y desplegarse de manera independiente sin bloquear la respuesta al usuario."
+        },
+        {
+          "id": "gcpd-003",
+          "topicId": "design",
+          "focus": "Seleccionar el estilo de API",
+          "service": "gRPC",
+          "question": "Dos servicios internos se comunican con contratos tipados y necesitan intercambio eficiente de mensajes. El equipo controla ambos extremos y puede generar clientes desde una definición compartida. ¿Qué opción es la más adecuada?",
+          "answers": [
+            { "id": "a", "text": "gRPC con contratos Protocol Buffers.", "isCorrect": true },
+            { "id": "b", "text": "Una API REST sin esquema ni definición de recursos.", "isCorrect": false },
+            { "id": "c", "text": "Una hoja de cálculo compartida como contrato de integración.", "isCorrect": false },
+            { "id": "d", "text": "Un bucket de Cloud Storage sondeado continuamente por ambos servicios.", "isCorrect": false }
+          ],
+          "explanation": "gRPC usa contratos Protocol Buffers y genera código de cliente y servidor. Es una opción adecuada para comunicación entre servicios cuando ambos lados controlan el contrato; REST sigue siendo útil para APIs públicas y clientes web."
+        },
+        {
+          "id": "gcpd-004",
+          "topicId": "design",
+          "focus": "Almacenar y rotar secretos",
+          "service": "Secret Manager",
+          "question": "Una aplicación necesita leer una contraseña de base de datos y el equipo debe poder rotarla sin reconstruir la imagen del contenedor. ¿Dónde debe almacenarla?",
+          "answers": [
+            { "id": "a", "text": "En una variable de entorno versionada dentro del repositorio.", "isCorrect": false },
+            { "id": "b", "text": "En el código fuente, cifrada con una clave escrita en el mismo archivo.", "isCorrect": false },
+            { "id": "c", "text": "En Cloud KMS como si la contraseña fuera una clave criptográfica administrada.", "isCorrect": false },
+            { "id": "d", "text": "En Secret Manager, concediendo a la identidad de ejecución acceso al secreto necesario.", "isCorrect": true }
+          ],
+          "explanation": "Secret Manager está diseñado para almacenar y versionar secretos de aplicaciones. Cloud KMS administra claves criptográficas; no sustituye al almacén de contraseñas y tokens."
+        },
+        {
+          "id": "gcpd-005",
+          "topicId": "design",
+          "focus": "Aplicar mínimo privilegio a una carga de trabajo",
+          "service": "IAM",
+          "question": "Un servicio desplegado en Cloud Run solo necesita leer objetos de un bucket concreto. ¿Cómo se le debe conceder acceso?",
+          "answers": [
+            { "id": "a", "text": "Asignar el rol de propietario del proyecto a todos los usuarios del servicio.", "isCorrect": false },
+            { "id": "b", "text": "Usar una cuenta de servicio dedicada y otorgarle solo el permiso de lectura necesario en ese bucket.", "isCorrect": true },
+            { "id": "c", "text": "Descargar una clave JSON de una cuenta con acceso a todos los buckets y guardarla en la imagen.", "isCorrect": false },
+            { "id": "d", "text": "Hacer público el bucket para evitar configurar IAM.", "isCorrect": false }
+          ],
+          "explanation": "Una identidad dedicada para el servicio permite otorgar permisos mínimos en el recurso requerido. Evitar claves de larga duración reduce el riesgo de filtración y rotación manual."
+        },
+        {
+          "id": "gcpd-006",
+          "topicId": "design",
+          "focus": "Agregar una caché administrada",
+          "service": "Memorystore",
+          "question": "Varias instancias de una aplicación necesitan consultar rápidamente datos temporales compartidos, como sesiones con tiempo de expiración. ¿Qué servicio es el mejor ajuste?",
+          "answers": [
+            { "id": "a", "text": "Memorystore, usando una caché administrada compatible con Redis.", "isCorrect": true },
+            { "id": "b", "text": "Cloud Storage, guardando cada lectura en un archivo independiente.", "isCorrect": false },
+            { "id": "c", "text": "Artifact Registry, publicando cada sesión como una imagen.", "isCorrect": false },
+            { "id": "d", "text": "Cloud Scheduler, creando un trabajo programado por cada sesión.", "isCorrect": false }
+          ],
+          "explanation": "Memorystore proporciona una caché en memoria administrada que varias instancias pueden compartir. No debe tratarse como el almacén durable principal para información que no puede reconstruirse."
+        },
+        {
+          "id": "gcpd-007",
+          "topicId": "design",
+          "focus": "Elegir almacenamiento para datos relacionales",
+          "service": "Cloud SQL",
+          "question": "Una aplicación mantiene órdenes con relaciones entre clientes, productos y pagos, y necesita transacciones SQL y restricciones relacionales. ¿Qué tipo de almacenamiento conviene evaluar primero?",
+          "answers": [
+            { "id": "a", "text": "Cloud Storage, porque los objetos admiten relaciones y transacciones SQL.", "isCorrect": false },
+            { "id": "b", "text": "Bigtable, como base relacional general para consultas JOIN.", "isCorrect": false },
+            { "id": "c", "text": "Cloud SQL, para una base de datos relacional administrada.", "isCorrect": true },
+            { "id": "d", "text": "Memorystore, como registro durable de todas las órdenes.", "isCorrect": false }
+          ],
+          "explanation": "Cloud SQL ofrece motores relacionales administrados y es una opción natural cuando el modelo requiere SQL, relaciones y transacciones. La decisión final también debe considerar escala, disponibilidad, consistencia y patrones de acceso."
+        },
+        {
+          "id": "gcpd-008",
+          "topicId": "build_test",
+          "focus": "Conectarse de forma segura durante el desarrollo local",
+          "service": "Cloud SQL Auth Proxy",
+          "question": "Una desarrolladora necesita probar localmente una aplicación contra una instancia de Cloud SQL sin abrir la base de datos a cualquier IP ni administrar manualmente certificados TLS. ¿Qué herramienta puede usar?",
+          "answers": [
+            { "id": "a", "text": "Cloud SQL Auth Proxy, autenticado con sus credenciales de desarrollo y con acceso IAM apropiado.", "isCorrect": true },
+            { "id": "b", "text": "Cloud Scheduler, que crea un túnel de base de datos permanente.", "isCorrect": false },
+            { "id": "c", "text": "Artifact Registry, que convierte la instancia en una base local.", "isCorrect": false },
+            { "id": "d", "text": "Una IP pública sin reglas de firewall ni autenticación de base de datos.", "isCorrect": false }
+          ],
+          "explanation": "Cloud SQL Auth Proxy crea una conexión segura y verifica la identidad y autorización de la conexión a la instancia. La aplicación todavía necesita autenticación de base de datos, salvo que también se configure autenticación IAM de base de datos."
+        },
+        {
+          "id": "gcpd-009",
+          "topicId": "build_test",
+          "focus": "Construir y almacenar artefactos de CI",
+          "service": "Cloud Build y Artifact Registry",
+          "question": "Cada cambio aprobado debe activar una compilación de contenedor y dejar la imagen versionada en un registro privado para su despliegue. ¿Qué combinación administra directamente este flujo?",
+          "answers": [
+            { "id": "a", "text": "Cloud Scheduler para compilar y Cloud Storage para ejecutar la imagen.", "isCorrect": false },
+            { "id": "b", "text": "Cloud Build para ejecutar la compilación y Artifact Registry para almacenar la imagen.", "isCorrect": true },
+            { "id": "c", "text": "Secret Manager para compilar y Memorystore para versionar imágenes.", "isCorrect": false },
+            { "id": "d", "text": "Cloud SQL para almacenar las capas del contenedor.", "isCorrect": false }
+          ],
+          "explanation": "Cloud Build automatiza pasos de integración continua y puede producir imágenes de contenedor. Artifact Registry almacena y administra los artefactos para que los entornos de despliegue los consuman."
+        },
+        {
+          "id": "gcpd-010",
+          "topicId": "build_test",
+          "focus": "Emular servicios durante pruebas de integración",
+          "service": "Firestore Emulator",
+          "question": "Una suite de integración debe validar lecturas y escrituras de Firestore en la máquina de desarrollo, sin modificar datos del proyecto compartido. ¿Qué opción reduce mejor ese riesgo?",
+          "answers": [
+            { "id": "a", "text": "Ejecutar las pruebas contra la base de producción y borrar los datos después.", "isCorrect": false },
+            { "id": "b", "text": "Reemplazar todas las llamadas de base de datos por pruebas unitarias que no ejerciten el cliente.", "isCorrect": false },
+            { "id": "c", "text": "Usar el emulador de Firestore para ejecutar esas pruebas localmente.", "isCorrect": true },
+            { "id": "d", "text": "Guardar los resultados de las pruebas en Artifact Registry.", "isCorrect": false }
+          ],
+          "explanation": "El emulador de Firestore permite probar el comportamiento de la aplicación sin escribir en una instancia remota. Las pruebas de integración siguen ejercitando la interacción con el servicio emulado."
+        },
+        {
+          "id": "gcpd-011",
+          "topicId": "build_test",
+          "focus": "Separar pruebas unitarias y de integración",
+          "service": "Estrategia de pruebas",
+          "question": "Una función pura calcula el impuesto de una orden a partir de su subtotal y ubicación. El equipo quiere detectar rápidamente errores de reglas sin depender de red ni servicios de Google Cloud. ¿Qué prueba es la más adecuada?",
+          "answers": [
+            { "id": "a", "text": "Una prueba unitaria de la función con entradas y resultados esperados.", "isCorrect": true },
+            { "id": "b", "text": "Una prueba de carga que envíe miles de solicitudes al servicio desplegado.", "isCorrect": false },
+            { "id": "c", "text": "Una prueba de caos que detenga la base de datos.", "isCorrect": false },
+            { "id": "d", "text": "Una prueba manual desde la consola sin conservar los casos de prueba.", "isCorrect": false }
+          ],
+          "explanation": "Una prueba unitaria verifica una unidad de lógica con dependencias controladas, por lo que es rápida y determinista. Las pruebas de integración se reservan para validar la interacción entre componentes."
+        },
+        {
+          "id": "gcpd-012",
+          "topicId": "build_test",
+          "focus": "Validar recuperación ante fallos",
+          "service": "Pruebas de fallos y resiliencia",
+          "question": "Antes de una migración, el equipo quiere comprobar que un servicio degrada de forma segura cuando una dependencia deja de responder y que se recupera al restaurarla. ¿Qué estrategia prueba directamente ese comportamiento?",
+          "answers": [
+            { "id": "a", "text": "Una prueba unitaria que solo cubra el camino exitoso.", "isCorrect": false },
+            { "id": "b", "text": "Una prueba de carga que aumente solicitudes sin inyectar fallos.", "isCorrect": false },
+            { "id": "c", "text": "Una revisión de formato de código estático.", "isCorrect": false },
+            { "id": "d", "text": "Una prueba controlada de fallos o ingeniería del caos, con criterios y recuperación definidos.", "isCorrect": true }
+          ],
+          "explanation": "Las pruebas controladas de fallos comprueban la respuesta ante indisponibilidad, latencia u otras interrupciones. Deben ejecutarse con límites y observabilidad adecuados para validar resiliencia sin causar impactos inesperados."
+        },
+        {
+          "id": "gcpd-013",
+          "topicId": "deploy",
+          "focus": "Lanzar una nueva versión gradualmente",
+          "service": "Cloud Run",
+          "question": "Una nueva revisión de una API está lista, pero el equipo desea comenzar enviándole solo una parte pequeña del tráfico y aumentar la proporción si las métricas se mantienen saludables. ¿Qué capacidad ayuda?",
+          "answers": [
+            { "id": "a", "text": "Crear una nueva cuenta de servicio para cada solicitud.", "isCorrect": false },
+            { "id": "b", "text": "Cambiar el DNS de todos los clientes al mismo tiempo.", "isCorrect": false },
+            { "id": "c", "text": "Dividir el tráfico entre revisiones de Cloud Run y ajustar la distribución gradualmente.", "isCorrect": true },
+            { "id": "d", "text": "Deshabilitar los registros hasta que termine el despliegue.", "isCorrect": false }
+          ],
+          "explanation": "Cloud Run permite dirigir porcentajes de tráfico a distintas revisiones. Esto facilita un despliegue gradual y una reversión rápida si la revisión nueva presenta problemas."
+        },
+        {
+          "id": "gcpd-014",
+          "topicId": "deploy",
+          "focus": "Activar procesamiento sin servidor por eventos",
+          "service": "Eventarc",
+          "question": "Al finalizar la carga de un objeto en Cloud Storage, debe iniciarse un servicio HTTP en Cloud Run. El procesamiento no debe depender de sondeos periódicos. ¿Qué opción corresponde?",
+          "answers": [
+            { "id": "a", "text": "Configurar un activador de Eventarc para el evento de Cloud Storage y dirigirlo al servicio de Cloud Run.", "isCorrect": true },
+            { "id": "b", "text": "Ejecutar Cloud Scheduler cada segundo para revisar todo el bucket.", "isCorrect": false },
+            { "id": "c", "text": "Guardar el objeto dentro de la imagen del servicio y volver a compilarla.", "isCorrect": false },
+            { "id": "d", "text": "Configurar una suscripción de correo para avisar al equipo después de cada carga.", "isCorrect": false }
+          ],
+          "explanation": "Eventarc enruta eventos de servicios de Google Cloud a destinos como Cloud Run. El servicio puede escalar cuando recibe eventos sin sondear el bucket continuamente."
+        },
+        {
+          "id": "gcpd-015",
+          "topicId": "deploy",
+          "focus": "Autenticar cargas de trabajo en GKE sin claves",
+          "service": "Workload Identity Federation for GKE",
+          "question": "Un pod de GKE debe acceder a una API de Google Cloud y la política prohíbe guardar claves de cuentas de servicio en secretos de Kubernetes. ¿Qué mecanismo conviene configurar?",
+          "answers": [
+            { "id": "a", "text": "Montar una clave JSON con permisos de propietario en cada pod.", "isCorrect": false },
+            { "id": "b", "text": "Hacer que el pod use las credenciales personales de quien lo desplegó.", "isCorrect": false },
+            { "id": "c", "text": "Deshabilitar IAM en el proyecto mientras el pod esté activo.", "isCorrect": false },
+            { "id": "d", "text": "Asociar la identidad de Kubernetes del workload con una cuenta de servicio de Google Cloud mediante Workload Identity Federation for GKE.", "isCorrect": true }
+          ],
+          "explanation": "Workload Identity Federation for GKE permite que una carga de trabajo obtenga una identidad de Google Cloud sin distribuir claves de larga duración. La cuenta de servicio asociada debe tener solo los permisos requeridos."
+        },
+        {
+          "id": "gcpd-016",
+          "topicId": "deploy",
+          "focus": "Definir recursos de una carga de trabajo",
+          "service": "Google Kubernetes Engine",
+          "question": "Una carga de trabajo en GKE se programa en nodos con recursos limitados. El equipo quiere reservar capacidad de CPU y memoria de manera explícita y evitar que un contenedor consuma recursos sin límite. ¿Qué debe definir?",
+          "answers": [
+            { "id": "a", "text": "Solo una etiqueta de Kubernetes con el nombre del equipo propietario.", "isCorrect": false },
+            { "id": "b", "text": "Solicitudes y límites de CPU y memoria en la especificación del contenedor.", "isCorrect": true },
+            { "id": "c", "text": "Una política de retención de Cloud Storage para cada pod.", "isCorrect": false },
+            { "id": "d", "text": "Un rol IAM de administrador para que el scheduler asigne recursos.", "isCorrect": false }
+          ],
+          "explanation": "Las solicitudes ayudan al scheduler a ubicar pods según la capacidad disponible; los límites restringen el consumo máximo del contenedor. Deben elegirse a partir del perfil observado de la aplicación."
+        },
+        {
+          "id": "gcpd-017",
+          "topicId": "integrate",
+          "focus": "Administrar conexiones a una base de datos",
+          "service": "Cloud SQL",
+          "question": "Una aplicación en Cloud Run abre una conexión nueva a Cloud SQL para cada petición y el número de instancias puede crecer rápidamente. ¿Qué cambio reduce el riesgo de agotar las conexiones de la base?",
+          "answers": [
+            { "id": "a", "text": "Mantener un conjunto de conexiones reutilizable por instancia y limitar la concurrencia o escala total según la capacidad de la base.", "isCorrect": true },
+            { "id": "b", "text": "Aumentar indefinidamente las conexiones máximas sin revisar el tamaño de la instancia.", "isCorrect": false },
+            { "id": "c", "text": "Abrir otra conexión sin cerrarla cada vez que se consulta una fila.", "isCorrect": false },
+            { "id": "d", "text": "Guardar los sockets de base de datos en archivos de Cloud Storage.", "isCorrect": false }
+          ],
+          "explanation": "Los pools reutilizan conexiones y evitan crear una por operación. También se debe limitar la concurrencia o el número de instancias para que el máximo agregado sea compatible con la capacidad de Cloud SQL."
+        },
+        {
+          "id": "gcpd-018",
+          "topicId": "integrate",
+          "focus": "Orquestar tareas diferidas con reintentos",
+          "service": "Cloud Tasks",
+          "question": "Un servicio debe ejecutar una tarea HTTP en un momento futuro, con reintentos si el endpoint no está disponible. Cada tarea debe llegar a un destino específico. ¿Qué servicio se ajusta mejor?",
+          "answers": [
+            { "id": "a", "text": "Cloud Logging, que agenda solicitudes HTTP para el futuro.", "isCorrect": false },
+            { "id": "b", "text": "Cloud Tasks, que entrega tareas a un destino y administra reintentos y programación.", "isCorrect": true },
+            { "id": "c", "text": "Cloud Storage, que reintenta automáticamente las llamadas HTTP del consumidor.", "isCorrect": false },
+            { "id": "d", "text": "Cloud KMS, que mantiene una cola de solicitudes pendientes.", "isCorrect": false }
+          ],
+          "explanation": "Cloud Tasks es adecuado para trabajo asíncrono dirigido a un endpoint con programación y reintentos configurables. Pub/Sub es preferible cuando se desea distribuir eventos a suscriptores desacoplados."
+        },
+        {
+          "id": "gcpd-019",
+          "topicId": "integrate",
+          "focus": "Manejar paginación y errores transitorios de API",
+          "service": "Google Cloud APIs",
+          "question": "Una llamada a una API de Google Cloud devuelve páginas de resultados y ocasionalmente responde con un error temporal de límite de solicitudes. ¿Qué comportamiento debería implementar el cliente?",
+          "answers": [
+            { "id": "a", "text": "Solicitar solo la primera página y tratarla como el conjunto completo.", "isCorrect": false },
+            { "id": "b", "text": "Reintentar de inmediato en un bucle sin límite y descartar el token de página.", "isCorrect": false },
+            { "id": "c", "text": "Seguir el token de página y reintentar errores transitorios con retroceso exponencial y un límite de intentos.", "isCorrect": true },
+            { "id": "d", "text": "Convertir el error temporal en una respuesta exitosa vacía.", "isCorrect": false }
+          ],
+          "explanation": "La paginación permite recorrer todos los resultados sin solicitar una respuesta desproporcionada. El retroceso exponencial reduce la presión durante errores transitorios; los reintentos deben tener límites y distinguir errores permanentes."
+        },
+        {
+          "id": "gcpd-020",
+          "topicId": "integrate",
+          "focus": "Instrumentar aplicaciones para observabilidad",
+          "service": "Google Cloud Observability",
+          "question": "El equipo de soporte necesita relacionar errores de una petición con los registros de la aplicación y observar latencia y dependencias entre servicios. ¿Qué debería instrumentar el equipo?",
+          "answers": [
+            { "id": "a", "text": "Solo mensajes de texto libres, sin marcas de tiempo ni identificadores de correlación.", "isCorrect": false },
+            { "id": "b", "text": "Métricas únicamente en una hoja local que no recibe datos de producción.", "isCorrect": false },
+            { "id": "c", "text": "Registros estructurados, métricas y trazas, integrados con Google Cloud Observability.", "isCorrect": true },
+            { "id": "d", "text": "Capturas de pantalla de la consola después de cada error.", "isCorrect": false }
+          ],
+          "explanation": "Los registros estructurados ayudan a filtrar y correlacionar eventos; las métricas muestran tendencias y las trazas siguen una solicitud entre servicios. Juntas ofrecen evidencia para diagnosticar problemas de latencia y confiabilidad."
+        }
+      ]
+    }
+  ]
+}
