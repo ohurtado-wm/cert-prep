@@ -2,6 +2,7 @@ import { generateText, Output } from 'ai'
 import { z } from 'zod'
 import type { CertificationCatalogItem } from '../../src/api/certification-contracts'
 import { ApiException } from '../errors'
+import { createAiModel } from '../ai/model-provider'
 import type { CachedOfficialSources } from './source-types'
 
 const LocalizedText = z.object({ en: z.string().min(1), es: z.string().min(1) })
@@ -47,14 +48,9 @@ function buildPrompt(certification: CertificationCatalogItem, sources: CachedOff
 
 export function createAiGuideGenerator(modelName = process.env.AI_MODEL): GuideGenerator {
   return async ({ certification, sources }) => {
-    const model = modelName?.trim()
-    if (!model) {
-      throw new ApiException(503, 'AI_NOT_CONFIGURED', 'El modelo de IA no está configurado para renovar esta guía.')
-    }
-
     try {
       const result = await generateText({
-        model,
+        model: createAiModel({ ...process.env, AI_MODEL: modelName }),
         output: Output.object({ schema: GuideDraftSchema }),
         prompt: buildPrompt(certification, sources),
         maxOutputTokens: 6_000,
