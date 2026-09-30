@@ -23,8 +23,8 @@
 
 | PR | Alcance | Estado | Dependencia | Validación de salida |
 |---|---|---|---|---|
-| `PR-01` | API Hono, autenticación Gateway, contratos y persistencia Drizzle | Listo para revisión | — | API arranca, migra SQLite y valida identidad |
-| `PR-02` | Catálogo y descubrimiento de guías oficiales | No iniciado | `PR-01` | Dominios y ruta con fuentes verificables |
+| `PR-01` | API Hono, autenticación Gateway, contratos y persistencia Drizzle | Merged | — | API arranca, migra SQLite y valida identidad |
+| `PR-02` | Catálogo y descubrimiento de guías oficiales | Listo para revisión | `PR-01` | Dominios y ruta con fuentes verificables |
 | `PR-03` | Interfaz y contenido en español/inglés | No iniciado | `PR-02` | Flujo completo del catálogo en ambos idiomas |
 | `PR-04` | Generación de preguntas y sesiones seguras | No iniciado | `PR-01`, `PR-02` | 20 preguntas válidas; sesiones privadas por usuario |
 | `PR-05` | Sesiones web e historial por usuario en backend | No iniciado | `PR-01`, `PR-03`, `PR-04` | Práctica y Simulación Real guardan resultados autenticados |
@@ -152,7 +152,7 @@ sequenceDiagram
 ## PR-01: API, contratos y persistencia
 
 **ID:** `PR-01`  
-**Estado:** Listo para revisión
+**Estado:** Merged
 **Objetivo:** agregar base de backend con validación y persistencia sin acoplar UI al proveedor de IA.  
 **Dependencia:** ninguna.
 
@@ -175,28 +175,30 @@ sequenceDiagram
 ## PR-02: Catálogo y guía oficial de certificación
 
 **ID:** `PR-02`  
-**Estado:** No iniciado  
+**Estado:** Listo para revisión
 **Objetivo:** convertir fuentes oficiales en dominios/ruta bilingües con procedencia verificable.  
 **Dependencia:** `PR-01`.
 
 ### Tareas
 
-- [ ] `P2-T01` Crear catálogo con ID estable, nombre, idioma, código de examen y URL oficial permitida; incluir Professional Cloud Developer y agregar AWS cuando se elija su nivel/código.
-- [ ] `P2-T02` Implementar adaptadores acotados por proveedor para consultar guías oficiales, registrar URL, `lastSourceCheckedAt`, `lastAiRefreshedAt`, hash y versión; usar `ETag`/`If-Modified-Since` cuando estén disponibles.
-- [ ] `P2-T03` Al seleccionar una certificación cuya última renovación con IA ocurrió hace 7 días o más, intentar reclamar lease atómica con vencimiento e iniciar el actualizador; peticiones concurrentes esperan o comparten el mismo trabajo.
-- [ ] `P2-T04` En cada renovación semanal, procesar la guía con Vercel AI SDK y salida estructurada Zod aunque el hash oficial siga igual; validar y publicar cambios de dominios/ruta atómicamente, y registrar ambas fechas tras una renovación exitosa.
-- [ ] `P2-T05` Si falla la fuente o IA, conservar la última versión válida pero marcarla desactualizada; informar al usuario y bloquear nuevas sesiones con esa guía hasta verificarla.
-- [ ] `P2-T06` Exponer consulta de catálogo y detalle; devolver enlaces/versión de fuente para que la UI explique de dónde salen los temas.
-- [ ] `P2-T07` Añadir fixtures oficiales y evaluaciones para versión fresca, contenido sin cambio, guía modificada, actualizaciones concurrentes y fallos; comprobar que contenido idéntico también se renueva con IA una vez por periodo semanal compartido.
+- [x] `P2-T01` Crear catálogo con ID estable, nombre, idioma, código de examen y URL oficial permitida; incluir Professional Cloud Developer y agregar AWS cuando se elija su nivel/código.
+- [x] `P2-T02` Implementar adaptadores acotados por proveedor para consultar guías oficiales, registrar URL, `lastSourceCheckedAt`, `lastAiRefreshedAt`, hash y versión; usar `ETag`/`If-Modified-Since` cuando estén disponibles.
+- [x] `P2-T03` Al seleccionar una certificación cuya última renovación con IA ocurrió hace 7 días o más, intentar reclamar lease atómica con vencimiento e iniciar el actualizador; peticiones concurrentes esperan o comparten el mismo trabajo.
+- [x] `P2-T04` En cada renovación semanal, procesar la guía con Vercel AI SDK y salida estructurada Zod aunque el hash oficial siga igual; validar y publicar cambios de dominios/ruta atómicamente, y registrar ambas fechas tras una renovación exitosa.
+- [x] `P2-T05` Si falla la fuente o IA, conservar la última versión válida pero marcarla desactualizada; informar al usuario y bloquear nuevas sesiones con esa guía hasta verificarla.
+- [x] `P2-T06` Exponer consulta de catálogo y detalle; devolver enlaces/versión de fuente para que la UI explique de dónde salen los temas.
+- [x] `P2-T07` Añadir fixtures determinísticos y evaluaciones para versión fresca, contenido sin cambio, guía modificada, actualizaciones concurrentes y fallos; comprobar que contenido idéntico también se renueva con IA una vez por periodo semanal compartido.
 
 ### Criterios de validación
 
-- [ ] Respuestas válidas siempre incluyen certificación, dominios, ruta y fuentes; respuesta inválida o fuente caída produce error recuperable.
-- [ ] Una guía renovada con IA hace menos de 7 días se sirve de SQLite; a partir de los 7 días cualquier selección intenta disparar su actualización.
-- [ ] Cada actualización exitosa vuelve a procesar la fuente con IA; cambios de dominios/ruta publican nueva versión y una salida equivalente solo renueva las fechas.
-- [ ] Solicitudes concurrentes causan como máximo una revalidación y una llamada de IA por certificación y periodo de renovación.
-- [ ] Si la renovación falla, se conserva la versión previa marcada como obsoleta, no se etiqueta como actual y se bloquea generación con ella.
-- [ ] CI corre contra fixtures, no depende de una descarga pública ni de credenciales AI.
+- [x] Respuestas válidas siempre incluyen certificación, dominios, ruta y fuentes; respuesta inválida o fuente caída produce error recuperable.
+- [x] Una guía renovada con IA hace menos de 7 días se sirve de SQLite; a partir de los 7 días cualquier selección intenta disparar su actualización.
+- [x] Cada actualización exitosa vuelve a procesar la fuente con IA; cambios de dominios/ruta publican nueva versión y una salida equivalente solo renueva las fechas.
+- [x] Solicitudes concurrentes causan como máximo una revalidación y una llamada de IA por certificación y periodo de renovación.
+- [x] Si la renovación falla, se conserva la versión previa marcada como obsoleta, no se etiqueta como actual y se bloquea generación con ella.
+- [x] CI corre contra fixtures, no depende de una descarga pública ni de credenciales AI.
+
+**Validación local:** `bun run typecheck`, `bun test` (21 pruebas), `bun run db:generate` (sin cambios de esquema), `bun run db:migrate`, `bun run build` y smoke HTTP de `/` y `GET /api/v1/certifications` pasaron. La ruta de Google Skills redirige a su dominio canónico `skills.google`, permitido por el lector. La guía devuelve 503 recuperable mientras `AI_MODEL` no esté configurado; no se hizo una llamada real a IA.
 
 ### Riesgos / preguntas
 

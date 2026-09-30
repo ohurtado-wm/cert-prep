@@ -1,4 +1,6 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import type { GuideDomain, StudyPathStep } from '../../src/api/certification-contracts'
+import type { CachedOfficialSources } from '../catalog/source-types'
 
 const jsonText = <T>(name: string) => text(name, { mode: 'json' }).$type<T>()
 
@@ -13,6 +15,8 @@ export const certifications = sqliteTable('certifications', {
   name: text('name').notNull(),
   examCode: text('exam_code'),
   sourceUrl: text('source_url').notNull(),
+  certificationUrl: text('certification_url').notNull().default(''),
+  learningPathUrl: text('learning_path_url').notNull().default(''),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
 })
@@ -20,9 +24,10 @@ export const certifications = sqliteTable('certifications', {
 export const certificationGuides = sqliteTable('certification_guides', {
   certificationId: text('certification_id').primaryKey().references(() => certifications.id),
   version: integer('version').notNull().default(1),
-  domains: jsonText<Array<{ id: string; name: string; weight: number }>>('domains').notNull(),
-  studyPath: jsonText<Array<{ title: string; url: string }>>('study_path').notNull(),
+  domains: jsonText<GuideDomain[]>('domains').notNull(),
+  studyPath: jsonText<StudyPathStep[]>('study_path').notNull(),
   sourceHash: text('source_hash'),
+  sourceSnapshot: jsonText<CachedOfficialSources>('source_snapshot'),
   lastSourceCheckedAt: integer('last_source_checked_at', { mode: 'timestamp_ms' }),
   lastAiRefreshedAt: integer('last_ai_refreshed_at', { mode: 'timestamp_ms' }),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),

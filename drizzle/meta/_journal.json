@@ -15,6 +15,13 @@
       "when": 1790788386438,
       "tag": "0001_puzzling_sunset_bain",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790789792103,
+      "tag": "0002_dusty_valkyrie",
+      "breakpoints": true
     }
   ]
 }
