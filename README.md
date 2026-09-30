@@ -31,6 +31,8 @@ La API Hono comparte origen con la aplicación Vike. `GET /api/healthz` informa 
 
 Drizzle administra una base SQLite local en `./data/cert-prep.sqlite` (configurable con `DATABASE_PATH`). El esquema inicial deja preparadas guías, dominios/ruta, leases de actualización, sesiones efímeras, resultados por tema y planes de estudio. En esta fase la UI todavía usa el JSON existente y aún no escribe resultados en la base.
 
+La API expone `GET /api/v1/certifications` y `GET /api/v1/certifications/:certificationId/guide`. Al solicitar una guía cuya renovación con IA tiene 7 días o más, vuelve a consultar las fuentes oficiales y las procesa con el Vercel AI SDK. Para activar esa llamada configura `AI_MODEL` y `AI_GATEWAY_API_KEY`; sin un modelo configurado la API devuelve un error recuperable y conserva la última guía válida. La UI del PoC todavía usa su banco JSON y consumirá este catálogo en una fase posterior.
+
 El endpoint de identidad expone `id`, correo y avatar recibidos del gateway, pero en SQLite persiste únicamente el ID estable del usuario. No registra permisos. El banco JSON del PoC todavía se entrega al navegador e incluye respuestas correctas; la sesión segura del producto queda para una fase posterior.
 
 ## Comandos disponibles
