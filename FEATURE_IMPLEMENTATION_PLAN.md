@@ -1,6 +1,6 @@
 # Implementation Plan: Cert Helper — producto final
 
-**Estado:** PR-01…PR-04 integrados; PR-05 implementado con validación pendiente; PR-06/PR-07 pendientes
+**Estado:** PR-01…PR-04 integrados; PR-05 abierto, con pruebas específicas pendientes; PR-06/PR-07 pendientes
 **Última actualización:** 2026-09-30
 
 ## Materiales fuente
@@ -28,7 +28,7 @@
 | `PR-02` | Catálogo y descubrimiento de guías oficiales | Merged | `PR-01` | Dominios y ruta con fuentes verificables |
 | `PR-03` | Interfaz y contenido en español/inglés | Merged | `PR-02` | Flujo completo del catálogo en ambos idiomas |
 | `PR-04` | Generación de preguntas y sesiones seguras | Merged | `PR-01`, `PR-02` | 20 preguntas válidas; sesiones privadas por usuario |
-| `PR-05` | Sesiones web e historial por usuario en backend | Implementación lista; validación pendiente | `PR-01`, `PR-03`, `PR-04` | Práctica y Simulación Real guardan resultados autenticados |
+| `PR-05` | Sesiones web e historial por usuario en backend | Abierto; pruebas específicas pendientes | `PR-01`, `PR-03`, `PR-04` | Práctica y Simulación Real guardan resultados autenticados |
 | `PR-06` | Plan de estudio personalizado con IA | No iniciado | `PR-05` | Recomendaciones ligadas a resultados y fuentes |
 | `PR-07` | Simulación enfocada en temas débiles | No iniciado | `PR-05` | Solo incluye temas aún no superados |
 
@@ -263,7 +263,7 @@ sequenceDiagram
 ## PR-05: Sesión web e historial por usuario
 
 **ID:** `PR-05`  
-**Estado:** Implementación lista; validación pendiente
+**Estado:** PR #5 abierto; pruebas específicas pendientes
 **Objetivo:** conectar la UI bilingüe al generador y conservar resultados recientes por dominio/tema.  
 **Dependencias:** `PR-01`, `PR-03` y `PR-04`.
 
