@@ -15,7 +15,7 @@ bun run db:migrate
 bun run dev
 ```
 
-Abre `http://localhost:3000` en el navegador. El banco se carga desde `public/data/certifications.json`; para agregar o editar preguntas, conserva la estructura y una respuesta correcta por pregunta.
+Abre `http://localhost:3000` en el navegador. La UI todavía presenta el banco PoC de `public/data/certifications.json`; la generación y las sesiones seguras ya están disponibles en la API y la UI se conectará a ellas en PR-05.
 
 ## Recorrido
 
@@ -33,11 +33,15 @@ Abre `http://localhost:3000` en el navegador. El banco se carga desde `public/da
 
 La API Hono comparte origen con la aplicación Vike. `GET /api/healthz` informa disponibilidad y `GET /api/v1/me` consulta al gateway `/users/me`, usando la identidad devuelta por el gateway. La aplicación reenvía las cabeceras de sesión `cookie` y `authorization`; no crea ni almacena credenciales.
 
-Drizzle administra una base SQLite local en `./data/cert-prep.sqlite` (configurable con `DATABASE_PATH`). El esquema inicial deja preparadas guías, dominios/ruta, leases de actualización, sesiones efímeras, resultados por tema y planes de estudio. Las preguntas de la sesión todavía se cargan desde JSON; los resultados y planes aún no se escriben en la base.
+Drizzle administra una base SQLite local en `./data/cert-prep.sqlite` (configurable con `DATABASE_PATH`). El esquema incluye guías, dominios/ruta, leases de actualización, sesiones efímeras, resultados por tema y planes de estudio. La UI todavía inicia simulaciones desde JSON y aún no persiste su historial; las sesiones generadas desde la API se guardan temporalmente en SQLite.
 
-La API expone `GET /api/v1/certifications` y `GET /api/v1/certifications/:certificationId/guide`. Al solicitar una guía cuya renovación con IA tiene 7 días o más, vuelve a consultar las fuentes oficiales y las procesa con el Vercel AI SDK. Para activar esa llamada configura `AI_MODEL` y `AI_GATEWAY_API_KEY`; sin un modelo configurado la API devuelve un error recuperable y conserva la última guía válida. La UI muestra el error y no permite iniciar una sesión con una guía que no pudo verificarse. Las preguntas todavía proceden del banco JSON local; la generación de preguntas con IA pertenece a una fase posterior.
+La API expone `GET /api/v1/certifications` y `GET /api/v1/certifications/:certificationId/guide`. Al solicitar una guía cuya renovación con IA tiene 7 días o más, vuelve a consultar las fuentes oficiales y las procesa con el Vercel AI SDK. Configura `AI_PROVIDER=openai`, `AI_MODEL` y `OPENAI_API_KEY` en `.env`; sin esos valores, la API devuelve un error recuperable y conserva la última guía válida. El modelo predeterminado es `gpt-5-mini` y se puede cambiar mediante `AI_MODEL`. La UI muestra el error y no permite iniciar una sesión con una guía que no pudo verificarse.
 
-El endpoint de identidad expone `id`, correo y avatar recibidos del gateway, pero en SQLite persiste únicamente el ID estable del usuario. No registra permisos. El banco JSON del PoC todavía se entrega al navegador e incluye respuestas correctas; la sesión segura del producto queda para una fase posterior.
+El backend genera sesiones de 20 preguntas en inglés o español con cobertura proporcional a los pesos de la guía. Los endpoints autenticados son `POST /api/v1/simulations`, `GET /api/v1/simulations/:sessionId`, `POST /api/v1/simulations/:sessionId/answers`, `POST /api/v1/simulations/:sessionId/reveal` y `POST /api/v1/simulations/:sessionId/next`. En Simulación Real cada respuesta registra la selección y avanza en un solo paso; la API no expone la opción correcta ni la explicación durante la sesión. En práctica ofrece reintento, explicación y revelado de respuesta. Las sesiones vencen en dos horas, cada usuario puede tener hasta dos activas e iniciar hasta tres por hora. Al completar una sesión, el backend elimina las preguntas y claves y conserva solo los resultados agregados en el estado de esa sesión.
+
+La generación usa Vercel AI SDK con el adaptador `@ai-sdk/openai`, salida estructurada con Zod y una reparación máxima cuando el resultado no cumple el contrato. La instrumentación registra únicamente modelo, certificación, latencia, tokens y estado; no incluye claves, prompts ni respuestas. Las pruebas usan un generador falso y no consumen llamadas ni créditos de OpenAI.
+
+El endpoint de identidad expone `id`, correo y avatar recibidos del gateway, pero en SQLite persiste únicamente el ID estable del usuario. No registra permisos. El banco JSON del PoC todavía se entrega al navegador e incluye respuestas correctas; la integración de la UI con las sesiones privadas del servidor está planificada para PR-05.
 
 ## Comandos disponibles
 

@@ -8,6 +8,8 @@ import { createCertificationRoutes } from './routes/certifications'
 import { createCertificationGuideService } from './use-cases/certification-guide-service'
 import type { OfficialSourceReader } from './catalog/source-reader'
 import type { GuideGenerator } from './catalog/guide-generator'
+import { createSimulationService } from './use-cases/simulation-service'
+import { createSimulationRoutes } from './routes/simulations'
 
 type AppDependencies = {
   db: DatabaseHandle
@@ -15,15 +17,18 @@ type AppDependencies = {
   guideService?: ReturnType<typeof createCertificationGuideService>
   sourceReader?: OfficialSourceReader
   guideGenerator?: GuideGenerator
+  simulationService?: ReturnType<typeof createSimulationService>
 }
 
-export function createApp({ db, userProvider = createGatewayUserProvider(), guideService, sourceReader, guideGenerator }: AppDependencies) {
+export function createApp({ db, userProvider = createGatewayUserProvider(), guideService, sourceReader, guideGenerator, simulationService }: AppDependencies) {
   const app = new Hono()
   const certificationGuideService = guideService ?? createCertificationGuideService(db, { sourceReader, guideGenerator })
+  const sessions = simulationService ?? createSimulationService(db, { guideService: certificationGuideService })
 
   app.route('/api', healthRoutes)
   app.route('/api/v1', createMeRoutes({ db, userProvider }))
   app.route('/api/v1', createCertificationRoutes(certificationGuideService))
+  app.route('/api/v1', createSimulationRoutes({ db, userProvider, simulationService: sessions }))
 
   app.onError((error, context) => {
     if (error instanceof ApiException) {

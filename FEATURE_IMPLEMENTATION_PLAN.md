@@ -26,8 +26,8 @@
 |---|---|---|---|---|
 | `PR-01` | API Hono, autenticación Gateway, contratos y persistencia Drizzle | Merged | — | API arranca, migra SQLite y valida identidad |
 | `PR-02` | Catálogo y descubrimiento de guías oficiales | Merged | `PR-01` | Dominios y ruta con fuentes verificables |
-| `PR-03` | Interfaz y contenido en español/inglés | Listo para revisión | `PR-02` | Flujo completo del catálogo en ambos idiomas |
-| `PR-04` | Generación de preguntas y sesiones seguras | No iniciado | `PR-01`, `PR-02` | 20 preguntas válidas; sesiones privadas por usuario |
+| `PR-03` | Interfaz y contenido en español/inglés | Merged | `PR-02` | Flujo completo del catálogo en ambos idiomas |
+| `PR-04` | Generación de preguntas y sesiones seguras | Listo para revisión | `PR-01`, `PR-02` | 20 preguntas válidas; sesiones privadas por usuario |
 | `PR-05` | Sesiones web e historial por usuario en backend | No iniciado | `PR-01`, `PR-03`, `PR-04` | Práctica y Simulación Real guardan resultados autenticados |
 | `PR-06` | Plan de estudio personalizado con IA | No iniciado | `PR-05` | Recomendaciones ligadas a resultados y fuentes |
 | `PR-07` | Simulación enfocada en temas débiles | No iniciado | `PR-05` | Solo incluye temas aún no superados |
@@ -208,7 +208,7 @@ sequenceDiagram
 ## PR-03: Interfaz y experiencia bilingüe
 
 **ID:** `PR-03`  
-**Estado:** Listo para revisión
+**Estado:** Merged
 **Objetivo:** permitir navegar el producto completo en español o inglés y mostrar el catálogo dinámico.  
 **Dependencia:** `PR-02`; puede avanzar en paralelo con `PR-04` al congelar los contratos de la API.
 
@@ -231,27 +231,33 @@ sequenceDiagram
 ## PR-04: Generación de preguntas y sesión segura
 
 **ID:** `PR-04`  
-**Estado:** No iniciado  
+**Estado:** Listo para revisión
 **Objetivo:** generar bancos de sesión desde dominios oficiales y proteger la clave de Simulación Real.  
 **Dependencias:** `PR-01` y `PR-02`.
 
 ### Tareas
 
-- [ ] `P4-T01` Definir esquema de pregunta: dominio/tema estable, foco, servicio, enunciado, cuatro opciones, única correcta, explicación y fuente de respaldo.
-- [ ] `P4-T02` Generar exactamente 20 preguntas en el idioma solicitado, con cobertura proporcional a los pesos de la guía, usando Vercel AI SDK y `Output.object`/Zod.
-- [ ] `P4-T03` Validar cardinalidad, IDs repetidos, una respuesta correcta, coherencia del dominio y nivel de idioma; permitir reparación acotada y cancelar si sigue inválido.
-- [ ] `P4-T04` Guardar temporalmente preguntas y clave en servidor, asociadas al `gatewayUserId` verificado. El endpoint real devuelve opciones sin clave; solo el propietario puede avanzar y al final recibe calificación por tema/dominio.
-- [ ] `P4-T05` Mantener la ruta de práctica que entrega retroalimentación, explicación y opción para reintentar.
-- [ ] `P4-T06` Limitar duración, tokens, intentos, concurrencia y frecuencia; instrumentar costo/latencia sin registrar prompts, claves ni respuestas.
-- [ ] `P4-T07` Añadir prueba con proveedor falso y canary de calidad para cobertura, respuestas, duplicados y ambos idiomas.
+- [x] `P4-T01` Definir esquema de pregunta: dominio/tema estable, foco, servicio, enunciado, cuatro opciones, única correcta, explicación y fuente de respaldo.
+- [x] `P4-T02` Generar exactamente 20 preguntas en el idioma solicitado, con cobertura proporcional a los pesos de la guía, usando Vercel AI SDK y `Output.object`/Zod.
+- [x] `P4-T03` Validar cardinalidad, IDs, una respuesta correcta, coherencia dominio/tema/fuente e idioma declarado; permitir una reparación acotada y cancelar si sigue inválido.
+- [x] `P4-T04` Guardar temporalmente preguntas y clave en servidor, asociadas al `gatewayUserId` verificado. El endpoint real devuelve opciones sin clave; solo el propietario puede avanzar y al final recibe calificación por tema/dominio. Al completar, purgar las preguntas y claves.
+- [x] `P4-T05` Mantener la ruta de práctica que entrega retroalimentación, explicación y opción para reintentar.
+- [x] `P4-T06` Limitar duración, intentos, concurrencia y frecuencia; instrumentar tokens/latencia sin registrar prompts, claves ni respuestas.
+- [x] `P4-T07` Añadir pruebas con generador falso para cobertura, privacidad de respuestas, aislamiento, reintentos, reparación, concurrencia y ES/EN.
 
 ### Criterios de validación
 
-- [ ] No se inicia sesión si no hay exactamente 20 preguntas que pasan el esquema.
-- [ ] Prueba HTTP demuestra que la respuesta inicial real y las preguntas subsecuentes no contienen clave, explicación ni indicador correcto.
-- [ ] El servidor acepta solo una respuesta por pregunta y calcula resultados correctos al cerrar la sesión.
-- [ ] Otro usuario autenticado no puede leer, avanzar ni finalizar una sesión ajena.
-- [ ] Si el proveedor falla o excede límites, UI puede reintentar sin quedar en una sesión parcial y las claves permanecen en servidor.
+- [x] No se inicia sesión si no hay exactamente 20 preguntas que pasan el esquema.
+- [x] Prueba HTTP demuestra que la respuesta inicial real y las preguntas subsecuentes no contienen clave, explicación ni indicador correcto.
+- [x] El servidor acepta solo una respuesta por pregunta y calcula resultados correctos al cerrar la sesión; la comparación optimista evita dobles envíos concurrentes.
+- [x] Otro usuario autenticado no puede leer una sesión ajena; las rutas de mutación también buscan la sesión por propietario.
+- [x] Si el proveedor falla o la salida no pasa validación, no se crea una sesión parcial y la API devuelve errores recuperables.
+
+**Configuración de IA:** Vercel AI SDK con `@ai-sdk/openai`; `AI_PROVIDER=openai`, `AI_MODEL=gpt-5-mini` y `OPENAI_API_KEY`. No se utiliza un SDK directo de OpenAI ni se incluyen credenciales en la UI.
+
+**Validación local:** `bun run typecheck`, `bun test` (26 pruebas) y `bun run build` pasaron. Las pruebas usan un generador falso; no se realizó una llamada real a OpenAI. La validación de idioma confirma el locale declarado por el modelo y el prompt exige que todos los textos estén en ese idioma; no hay un clasificador independiente de idioma ni una evaluación semántica de calidad en esta fase.
+
+**Límites de operación:** sesiones con TTL de 2 horas, hasta 2 sesiones activas por usuario y 3 inicios por hora. El bloqueo de generación es local al proceso y los contadores de inicios fallidos viven en memoria; una instalación con varias instancias requerirá un lease/limitador compartido.
 
 ## PR-05: Sesión web e historial por usuario
 

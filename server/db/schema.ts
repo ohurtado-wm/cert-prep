@@ -1,6 +1,7 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import type { GuideDomain, StudyPathStep } from '../../src/api/certification-contracts'
 import type { CachedOfficialSources } from '../catalog/source-types'
+import type { StoredSimulationState } from '../simulations/state'
 
 const jsonText = <T>(name: string) => text(name, { mode: 'json' }).$type<T>()
 
@@ -44,7 +45,7 @@ export const simulationSessions = sqliteTable('simulation_sessions', {
   gatewayUserId: text('gateway_user_id').notNull().references(() => users.gatewayUserId),
   certificationId: text('certification_id').notNull().references(() => certifications.id),
   mode: text('mode', { enum: ['practice', 'real'] }).notNull(),
-  state: jsonText<Record<string, unknown>>('state').notNull(),
+  state: jsonText<StoredSimulationState>('state').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
 })
