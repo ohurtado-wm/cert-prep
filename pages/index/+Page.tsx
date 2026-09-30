@@ -486,6 +486,21 @@ function HomeScreen({
 }) {
   const text = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values)
   const domains = guide?.domains ?? []
+  const [guideLoadingSeconds, setGuideLoadingSeconds] = useState(0)
+
+  useEffect(() => {
+    if (!guideLoading) {
+      setGuideLoadingSeconds(0)
+      return
+    }
+
+    const startedAt = Date.now()
+    const interval = window.setInterval(() => {
+      setGuideLoadingSeconds(Math.floor((Date.now() - startedAt) / 1_000))
+    }, 1_000)
+    return () => window.clearInterval(interval)
+  }, [guideLoading])
+
   const sourceLabels = {
     'exam-guide': text('sourceExamGuide'),
     certification: text('sourceCertification'),
@@ -559,7 +574,25 @@ function HomeScreen({
           <button className="button button-inverse" type="button" onClick={onStart} disabled={!canStart}>
             {startingSimulation ? text('startingSimulation') : text('startSession')} <span aria-hidden="true">→</span>
           </button>
-          <p className={`panel-note ${guideError || userError || startError ? 'has-error' : ''}`} role={guideError || userError || startError ? 'alert' : 'status'} aria-live="polite">{startStatus}</p>
+          {guideLoading ? (
+            <div className="guide-loading" role="status" aria-live="polite" aria-busy="true">
+              <div className="guide-loading-heading">
+                <span className="guide-loading-spinner" aria-hidden="true" />
+                <span key={guideLoadingSeconds < 25 ? 'initial' : 'taking-longer'} className="guide-loading-message">
+                  {text(guideLoadingSeconds < 25 ? 'guideLoading' : 'guideLoadingSlow')}
+                </span>
+              </div>
+              <p className="guide-loading-detail">{text('guideLoadingDetail')}</p>
+              {guideLoadingSeconds > 0 && (
+                <span className="guide-loading-elapsed" aria-hidden="true">
+                  {text('guideLoadingElapsed', { seconds: guideLoadingSeconds })}
+                </span>
+              )}
+              <div className="guide-loading-track" aria-hidden="true"><span /></div>
+            </div>
+          ) : (
+            <p className={`panel-note ${guideError || userError || startError ? 'has-error' : ''}`} role={guideError || userError || startError ? 'alert' : 'status'} aria-live="polite">{startStatus}</p>
+          )}
           {(userError || (!userLoading && !user)) && <button className="button button-text guide-retry" type="button" onClick={onUserRetry}>{text('retry')}</button>}
           {Boolean(guideError) && <button className="button button-text guide-retry" type="button" onClick={onGuideRetry}>{text('guideRetry')}</button>}
           {guide && !guideError && (

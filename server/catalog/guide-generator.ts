@@ -55,7 +55,7 @@ export function createAiGuideGenerator(modelName = process.env.AI_MODEL): GuideG
         prompt: buildPrompt(certification, sources),
         maxOutputTokens: 6_000,
         maxRetries: 0,
-        abortSignal: AbortSignal.timeout(30_000),
+        abortSignal: AbortSignal.timeout(60_000),
       })
       if (!result.output) throw new Error('The model returned no structured guide.')
       return result.output

@@ -85,6 +85,13 @@ export async function refreshLeaseIsActive(db: DatabaseHandle, certificationId: 
   return lease !== undefined
 }
 
+export async function releaseRefreshLease(db: DatabaseHandle, certificationId: string, leaseToken: string) {
+  await db.delete(guideRefreshLeases).where(and(
+    eq(guideRefreshLeases.certificationId, certificationId),
+    eq(guideRefreshLeases.leaseToken, leaseToken),
+  ))
+}
+
 export async function publishGuide(
   db: DatabaseHandle,
   input: {

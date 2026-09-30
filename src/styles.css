@@ -432,6 +432,76 @@ select:focus-visible,
   text-align: center;
 }
 
+.guide-loading {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  padding: 14px 16px;
+  color: var(--wm-white);
+  text-align: left;
+}
+
+.guide-loading-heading {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 10px;
+}
+
+.guide-loading-spinner {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  border: 2px solid rgba(255, 255, 255, 0.42);
+  border-top-color: var(--progress);
+  border-radius: 50%;
+  animation: guide-spinner 800ms linear infinite;
+}
+
+.guide-loading-message {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+  animation: guide-status-enter 240ms ease-out both;
+}
+
+.guide-loading-detail,
+.guide-loading-elapsed {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.guide-loading-track {
+  height: 3px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.guide-loading-track span {
+  display: block;
+  width: 36%;
+  height: 100%;
+  background: var(--progress);
+  animation: guide-progress 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes guide-spinner {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes guide-progress {
+  from { transform: translateX(-20%); }
+  to { transform: translateX(190%); }
+}
+
+@keyframes guide-status-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .panel-note.has-error {
   border-left: 3px solid var(--wm-highlight-magenta);
   padding-left: 10px;

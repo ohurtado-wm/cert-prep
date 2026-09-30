@@ -15,6 +15,7 @@ import {
   acquireRefreshLease,
   getCertificationGuide as readCertificationGuide,
   publishGuide,
+  releaseRefreshLease,
   refreshLeaseIsActive,
   saveSourceCheck,
   syncCertificationCatalog,
@@ -22,6 +23,7 @@ import {
 import { createAiGuideGenerator, GuideDraftSchema, type GuideGenerator } from '../catalog/guide-generator'
 import { createOfficialSourceReader, type OfficialSourceReader } from '../catalog/source-reader'
 import type { CachedOfficialSources } from '../catalog/source-types'
+import { logServerEvent } from '../logger'
 
 const GUIDE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1_000
 const LEASE_DURATION_MS = 90 * 1_000
@@ -120,7 +122,7 @@ export function createCertificationGuideService(db: DatabaseHandle, options: Gui
   const sourceReader = options.sourceReader ?? createOfficialSourceReader()
   const guideGenerator = options.guideGenerator ?? createAiGuideGenerator()
   const now = options.now ?? (() => new Date())
-  const peerWaitMs = options.peerWaitMs ?? 45_000
+  const peerWaitMs = options.peerWaitMs ?? 80_000
   const peerPollMs = options.peerPollMs ?? 150
 
   async function syncCatalog() {
@@ -146,9 +148,14 @@ export function createCertificationGuideService(db: DatabaseHandle, options: Gui
     const current = await readCertificationGuide(db, certificationId)
     const requestTime = now()
     if (isFresh(current?.lastAiRefreshedAt ?? null, requestTime) && current) {
+      logServerEvent('info', 'guide_cache_hit', { certificationId, version: current.version })
       return toResponse(certification, current)
     }
 
+    logServerEvent('info', 'guide_refresh_started', {
+      certificationId,
+      reason: current ? 'stale' : 'missing',
+    })
     const leaseToken = randomUUID()
     const leaseAcquired = await acquireRefreshLease(
       db,
@@ -158,34 +165,50 @@ export function createCertificationGuideService(db: DatabaseHandle, options: Gui
       leaseToken,
     )
     if (!leaseAcquired) {
+      logServerEvent('info', 'guide_refresh_waiting', { certificationId, waitLimitMs: peerWaitMs })
       const shared = await waitForPeerRefresh(certificationId)
       if (shared && isFresh(shared.lastAiRefreshedAt, now())) return toResponse(certification, shared)
       throw new ApiException(503, 'GUIDE_REFRESH_IN_PROGRESS', 'La guía se está actualizando. Intenta de nuevo en unos segundos.')
     }
 
+    const refreshStartedAt = Date.now()
+    let stage = 'official_sources'
     try {
       const previous = await readCertificationGuide(db, certificationId)
+      const sourceStartedAt = Date.now()
       const sourceResult = await sourceReader(certification, previous?.sourceSnapshot)
+      logServerEvent('info', 'guide_sources_ready', {
+        certificationId,
+        durationMs: Date.now() - sourceStartedAt,
+      })
       const checkedAt = now()
       if (previous) {
         await saveSourceCheck(db, certificationId, sourceResult.hash, sourceResult.snapshot, checkedAt)
       }
 
       let generated: unknown
+      stage = 'ai_generation'
+      const generationStartedAt = Date.now()
       try {
         generated = await guideGenerator({ certification, sources: sourceResult.snapshot })
+        logServerEvent('info', 'guide_ai_generation_completed', {
+          certificationId,
+          durationMs: Date.now() - generationStartedAt,
+        })
       } catch (error) {
         if (error instanceof ApiException) throw error
         throw new ApiException(503, 'GUIDE_AI_UNAVAILABLE', 'No se pudo renovar la guía con IA. Intenta de nuevo.')
       }
 
       let normalized: { domains: GuideDomain[]; studyPath: StudyPathStep[] }
+      stage = 'guide_validation'
       try {
         normalized = normalizeDraft(certification, sourceResult.snapshot, generated)
       } catch {
         throw new ApiException(502, 'GUIDE_AI_INVALID', 'La guía generada no coincide con las fuentes oficiales. Intenta de nuevo.')
       }
 
+      stage = 'guide_publish'
       const publishedAt = now()
       await publishGuide(db, {
         certificationId,
@@ -197,10 +220,27 @@ export function createCertificationGuideService(db: DatabaseHandle, options: Gui
       })
       const updated = await readCertificationGuide(db, certificationId)
       if (!updated) throw new ApiException(503, 'GUIDE_STALE', 'No se pudo publicar la guía renovada.')
+      logServerEvent('info', 'guide_refresh_completed', {
+        certificationId,
+        version: updated.version,
+        durationMs: Date.now() - refreshStartedAt,
+      })
       return toResponse(certification, updated)
     } catch (error) {
+      logServerEvent('error', 'guide_refresh_failed', {
+        certificationId,
+        stage,
+        durationMs: Date.now() - refreshStartedAt,
+        code: error instanceof ApiException ? error.code : 'UNEXPECTED_ERROR',
+      })
       if (error instanceof ApiException) throw error
       throw new ApiException(503, 'GUIDE_REFRESH_FAILED', 'No se pudo renovar la guía oficial. Intenta de nuevo.')
+    } finally {
+      try {
+        await releaseRefreshLease(db, certificationId, leaseToken)
+      } catch {
+        logServerEvent('warn', 'guide_refresh_lease_release_failed', { certificationId })
+      }
     }
   }
 
