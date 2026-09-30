@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { AiTokenUsageSchema } from './ai-usage-contracts'
 
 export const LocaleSchema = z.enum(['en', 'es'])
 export const LocalizedTextSchema = z.object({ en: z.string().min(1), es: z.string().min(1) })
@@ -49,8 +50,8 @@ export const CertificationGuideResponseSchema = z.object({
   domains: z.array(GuideDomainSchema).min(1),
   studyPath: z.array(StudyPathStepSchema).min(1),
   sources: z.array(CertificationSourceSchema).min(1),
+  aiUsage: AiTokenUsageSchema.nullable().optional(),
   freshness: z.object({
-    sourceCheckedAt: z.string().datetime(),
     aiRefreshedAt: z.string().datetime(),
   }),
 })

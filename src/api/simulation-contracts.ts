@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import { LocaleSchema } from './certification-contracts'
+import { AiTokenUsageSchema } from './ai-usage-contracts'
 
 export const SimulationModeSchema = z.enum(['practice', 'real'])
+export const MAX_SIMULATION_HISTORY_ITEMS = 20
 
 export const StartSimulationRequestSchema = z.object({
   certificationId: z.string().regex(/^[a-z0-9-]+$/),
@@ -40,6 +42,25 @@ export const SimulationResultSchema = z.object({
   incorrectAnswers: z.number().int().min(0).max(20),
   domainBreakdown: z.array(SimulationBreakdownSchema),
   topicBreakdown: z.array(SimulationBreakdownSchema),
+  focusBreakdown: z.array(SimulationBreakdownSchema).default([]),
+})
+
+export const SimulationHistoryItemSchema = z.object({
+  id: z.string().min(1),
+  certificationId: z.string().min(1),
+  guideVersion: z.number().int().positive(),
+  mode: SimulationModeSchema,
+  language: LocaleSchema,
+  completedAt: z.string().datetime(),
+  ...SimulationResultSchema.shape,
+})
+
+export const SimulationHistoryResponseSchema = z.object({
+  sessions: z.array(SimulationHistoryItemSchema).max(MAX_SIMULATION_HISTORY_ITEMS),
+})
+export const ClearSimulationHistoryResponseSchema = z.object({
+  deletedSessions: z.number().int().min(0),
+  deletedPlans: z.number().int().min(0),
 })
 
 export const SimulationSnapshotSchema = z.object({
@@ -53,6 +74,7 @@ export const SimulationSnapshotSchema = z.object({
   expiresAt: z.string().datetime(),
   currentQuestion: SimulationQuestionSchema.nullable(),
   result: SimulationResultSchema.nullable(),
+  aiUsage: AiTokenUsageSchema.nullable().optional(),
 })
 
 const PracticeAnswerResponseSchema = z.object({
@@ -87,6 +109,8 @@ export type SubmitAnswerRequest = z.infer<typeof SubmitAnswerRequestSchema>
 export type SimulationAnswerOption = z.infer<typeof SimulationAnswerOptionSchema>
 export type SimulationQuestion = z.infer<typeof SimulationQuestionSchema>
 export type SimulationResult = z.infer<typeof SimulationResultSchema>
+export type SimulationHistoryItem = z.infer<typeof SimulationHistoryItemSchema>
+export type SimulationHistoryResponse = z.infer<typeof SimulationHistoryResponseSchema>
 export type SimulationSnapshot = z.infer<typeof SimulationSnapshotSchema>
 export type SimulationAnswerResponse = z.infer<typeof SimulationAnswerResponseSchema>
 export type SimulationRevealResponse = z.infer<typeof SimulationRevealResponseSchema>

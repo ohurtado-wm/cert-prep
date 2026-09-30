@@ -1,57 +1,40 @@
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef, useState } from 'react'
 import {
   type CertificationCatalogItem,
   type CertificationGuideResponse,
   type Locale,
 } from '../../src/api/certification-contracts'
 import { CertificationApiError, loadCertificationCatalog, loadCertificationGuide } from '../../src/api/certifications'
-import { loadCertifications, QuestionBankLoadError } from '../../src/data/load-certification'
-import type { Certification, CertificationQuestion, CertificationTopic } from '../../src/data/certification-schema'
+import {
+  advancePracticeSimulation,
+  cancelSimulation,
+  clearSimulationHistory,
+  loadCurrentUser,
+  loadSimulationHistory,
+  revealSimulationAnswer,
+  SimulationApiError,
+  startSimulation,
+  submitSimulationAnswer,
+} from '../../src/api/simulations'
+import type {
+  SimulationAnswerResponse,
+  SimulationHistoryItem,
+  SimulationMode,
+  SimulationQuestion,
+  SimulationResult,
+  SimulationSnapshot,
+} from '../../src/api/simulation-contracts'
+import type { CurrentUserResponse } from '../../src/api/contracts'
 import { translate } from '../../src/i18n/messages'
 import { readLocalePreference, writeLocalePreference } from '../../src/i18n/preferences'
+import { AiTokenUsage } from '../../src/components/AiTokenUsage'
+import { QuizScreen, ResultsScreen, simulationErrorMessage } from '../../src/components/SimulationScreens'
 import '../../src/styles.css'
 
 type Theme = 'light' | 'dark'
 type Screen = 'home' | 'quiz' | 'results'
-type SimulationMode = 'practice' | 'real'
-type Outcome = 'first_try' | 'retry' | 'revealed' | 'incorrect'
-type SavedResponse = { outcome: Outcome; wrongAttempts: number }
-
 const topicColors = ['#F900D3', '#00E8FA', '#1DD566', '#FFC700']
-const sectionByQuestionTopic: Record<string, number> = {
-  design: 1,
-  build_test: 2,
-  deploy: 3,
-  integrate: 4,
-}
-
-function createSessionCertification(
-  bank: Certification | undefined,
-  item: CertificationCatalogItem | undefined,
-  guide: CertificationGuideResponse | undefined,
-  locale: Locale,
-): Certification | null {
-  if (!bank || !item || !guide || guide.domains.length !== bank.topics.length) return null
-  const examGuide = guide.sources.find((source) => source.kind === 'exam-guide')
-  if (!examGuide) return null
-
-  const topics: CertificationTopic[] = []
-  for (const topic of bank.topics) {
-    const sourceSectionNumber = sectionByQuestionTopic[topic.id]
-    const domain = guide.domains.find((candidate) => candidate.sourceSectionNumber === sourceSectionNumber)
-    if (!domain) return null
-    topics.push({ ...topic, name: domain.name[locale], weight: domain.weight })
-  }
-
-  return {
-    ...bank,
-    name: item.name[locale],
-    language: locale,
-    source: examGuide.url,
-    topics: topics as CertificationTopic[],
-  }
-}
 
 export default function Page() {
   const [queryClient] = useState(() => new QueryClient())
@@ -64,26 +47,33 @@ export default function Page() {
 }
 
 function CertificationApp() {
+  const queryClient = useQueryClient()
   const [theme, setTheme] = useState<Theme>('light')
   const [locale, setLocale] = useState<Locale>('es')
   const [screen, setScreen] = useState<Screen>('home')
   const [simulationMode, setSimulationMode] = useState<SimulationMode>('practice')
   const [selectedCertificationId, setSelectedCertificationId] = useState('')
   const [questionIndex, setQuestionIndex] = useState(0)
-  const [responses, setResponses] = useState<Record<string, SavedResponse>>({})
+  const [activeSession, setActiveSession] = useState<SimulationSnapshot | null>(null)
+  const [simulationLoadingSeconds, setSimulationLoadingSeconds] = useState(0)
+  const [sessionQuestions, setSessionQuestions] = useState<SimulationQuestion[]>([])
+  const [sessionResult, setSessionResult] = useState<SimulationResult | null>(null)
+  const previousUserId = useRef<string | null>(null)
+  const userQuery = useQuery({
+    queryKey: ['current-user'],
+    queryFn: () => loadCurrentUser(),
+    staleTime: 60_000,
+    retry: false,
+  })
+  const historyQuery = useQuery({
+    queryKey: ['simulation-history', userQuery.data?.id],
+    queryFn: () => loadSimulationHistory(),
+    enabled: Boolean(userQuery.data?.id && !userQuery.isError),
+    retry: false,
+  })
   const catalogQuery = useQuery({
     queryKey: ['certification-catalog'],
     queryFn: () => loadCertificationCatalog(),
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-    retry: false,
-  })
-  const bankQuery = useQuery({
-    queryKey: ['question-banks'],
-    queryFn: async () => {
-      const [es, en] = await Promise.all([loadCertifications('es'), loadCertifications('en')])
-      return { es, en }
-    },
     staleTime: Infinity,
     refetchOnWindowFocus: false,
     retry: false,
@@ -99,11 +89,69 @@ function CertificationApp() {
     refetchOnWindowFocus: false,
     retry: false,
   })
-  const bankCertification = bankQuery.data?.[locale].find((item) => item.id === selectedCertification?.id)
   const guideReady = Boolean(guideQuery.data && !guideQuery.isError && !guideQuery.isFetching)
-  const certification = guideReady
-    ? createSessionCertification(bankCertification, selectedCertification, guideQuery.data, locale)
-    : null
+
+  useEffect(() => {
+    const nextUserId = userQuery.data?.id ?? null
+    const previous = previousUserId.current
+    if (previous && previous !== nextUserId) {
+      queryClient.removeQueries({ queryKey: ['simulation-history', previous] })
+    }
+    const signedOut = userQuery.isError || (historyQuery.error instanceof SimulationApiError && historyQuery.error.code === 'UNAUTHENTICATED')
+    if (signedOut) queryClient.removeQueries({ queryKey: ['simulation-history'] })
+    previousUserId.current = nextUserId
+    if (!userQuery.isError && historyQuery.error instanceof SimulationApiError && historyQuery.error.code === 'UNAUTHENTICATED') {
+      void userQuery.refetch()
+    }
+  }, [queryClient, userQuery.data?.id, userQuery.isError, userQuery.refetch, historyQuery.error])
+
+  const startMutation = useMutation({
+    mutationFn: () => startSimulation(selectedCertification!.id, simulationMode, locale),
+    onSuccess: (snapshot) => {
+      setActiveSession(snapshot)
+      setSessionQuestions(snapshot.currentQuestion ? [snapshot.currentQuestion] : [])
+      setSessionResult(null)
+      setQuestionIndex(0)
+      setScreen('quiz')
+    },
+    onError: clearHistoryIfUnauthenticated,
+  })
+  useEffect(() => {
+    if (!startMutation.isPending) {
+      setSimulationLoadingSeconds(0)
+      return
+    }
+    const timer = window.setInterval(() => setSimulationLoadingSeconds((seconds) => seconds + 1), 1_000)
+    return () => window.clearInterval(timer)
+  }, [startMutation.isPending])
+  const answerMutation = useMutation({ mutationFn: (input: { questionId: string; answerId: string }) => {
+    if (!activeSession) throw new SimulationApiError('SIMULATION_NOT_FOUND')
+    return submitSimulationAnswer(activeSession.sessionId, input.questionId, input.answerId)
+  } })
+  const revealMutation = useMutation({ mutationFn: () => {
+    if (!activeSession) throw new SimulationApiError('SIMULATION_NOT_FOUND')
+    return revealSimulationAnswer(activeSession.sessionId)
+  } })
+  const nextMutation = useMutation({ mutationFn: () => {
+    if (!activeSession) throw new SimulationApiError('SIMULATION_NOT_FOUND')
+    return advancePracticeSimulation(activeSession.sessionId)
+  } })
+  const clearHistoryMutation = useMutation({
+    mutationFn: () => clearSimulationHistory(),
+    onSuccess: async () => {
+      if (userQuery.data?.id) {
+        await queryClient.invalidateQueries({ queryKey: ['simulation-history', userQuery.data.id] })
+      }
+    },
+    onError: clearHistoryIfUnauthenticated,
+  })
+
+  function clearHistoryIfUnauthenticated(error: unknown) {
+    if (error instanceof SimulationApiError && error.code === 'UNAUTHENTICATED') {
+      queryClient.removeQueries({ queryKey: ['simulation-history'] })
+      void userQuery.refetch()
+    }
+  }
 
   useEffect(() => {
     let savedTheme: string | null = null
@@ -163,47 +211,87 @@ function CertificationApp() {
   }
 
   function startSession() {
-    if (!certification) return
-    setResponses({})
-    setQuestionIndex(0)
-    setScreen('quiz')
+    if (!selectedCertification || !guideReady || !userQuery.data || userQuery.isError) return
+    answerMutation.reset()
+    revealMutation.reset()
+    nextMutation.reset()
+    startMutation.reset()
+    startMutation.mutate()
   }
 
-  function saveResponse(questionId: string, result: SavedResponse) {
-    setResponses((current) => ({ ...current, [questionId]: result }))
-  }
-
-  function advanceQuestion() {
-    if (!certification) return
-    if (questionIndex === certification.questions.length - 1) {
-      setScreen('results')
-      return
+  async function answerQuestion(questionId: string, answerId: string): Promise<SimulationAnswerResponse> {
+    const response = await answerMutation.mutateAsync({ questionId, answerId })
+    if (response.mode === 'real') {
+      if (response.status === 'advanced') {
+        setSessionQuestions((questions) => [...questions, response.nextQuestion])
+        setQuestionIndex((index) => index + 1)
+        setActiveSession((current) => current ? {
+          ...current,
+          currentIndex: current.currentIndex + 1,
+          currentQuestion: response.nextQuestion,
+        } : current)
+      } else {
+        setSessionResult(response.result)
+        setScreen('results')
+        void queryClient.invalidateQueries({ queryKey: ['simulation-history', userQuery.data?.id] })
+      }
     }
-    setQuestionIndex((index) => index + 1)
+    return response
+  }
+
+  async function revealAnswer() {
+    return revealMutation.mutateAsync()
+  }
+
+  async function advanceQuestion() {
+    const snapshot = await nextMutation.mutateAsync()
+    setActiveSession(snapshot)
+    if (snapshot.status === 'completed' && snapshot.result) {
+      setSessionResult(snapshot.result)
+      setScreen('results')
+      void queryClient.invalidateQueries({ queryKey: ['simulation-history', userQuery.data?.id] })
+      return snapshot
+    }
+    if (snapshot.currentQuestion) {
+      setSessionQuestions((questions) => questions.length > snapshot.currentIndex
+        ? questions
+        : [...questions, snapshot.currentQuestion!])
+    }
+    setQuestionIndex(snapshot.currentIndex)
+    return snapshot
+  }
+
+  async function exitSession() {
+    if (activeSession) {
+      try {
+        await cancelSimulation(activeSession.sessionId)
+      } catch (error) {
+        clearHistoryIfUnauthenticated(error)
+      }
+    }
+    setActiveSession(null)
+    setSessionQuestions([])
+    setSessionResult(null)
+    setQuestionIndex(0)
+    setScreen('home')
   }
 
   return (
     <div className="app-shell min-h-screen w-full" data-theme={theme} lang={locale}>
       <Header theme={theme} locale={locale} onThemeChange={changeTheme} onLocaleChange={changeLocale} />
 
-      {catalogQuery.isPending && <LoadingState locale={locale} kind="catalog" />}
+      {catalogQuery.isPending && <LoadingState locale={locale} />}
       {catalogQuery.isError && (
         <ErrorState locale={locale} message={translate(locale, 'catalogError')} onRetry={() => void catalogQuery.refetch()} />
       )}
       {!catalogQuery.isPending && !catalogQuery.isError && catalog.length === 0 && (
         <ErrorState locale={locale} message={translate(locale, 'catalogEmpty')} onRetry={() => void catalogQuery.refetch()} />
       )}
-      {!catalogQuery.isPending && !catalogQuery.isError && catalog.length > 0 && bankQuery.isPending && <LoadingState locale={locale} kind="bank" />}
-      {!catalogQuery.isPending && !catalogQuery.isError && catalog.length > 0 && bankQuery.isError && (
-        <ErrorState locale={locale} message={questionBankErrorMessage(locale, bankQuery.error)} onRetry={() => void bankQuery.refetch()} />
-      )}
-      {!catalogQuery.isPending && !catalogQuery.isError && catalog.length > 0 && !bankQuery.isPending && !bankQuery.isError && selectedCertification && screen === 'home' && (
+      {!catalogQuery.isPending && !catalogQuery.isError && catalog.length > 0 && selectedCertification && screen === 'home' && (
         <HomeScreen
           locale={locale}
           certification={selectedCertification}
-          questionBank={bankCertification}
           guide={guideQuery.isError || guideQuery.isFetching ? undefined : guideQuery.data}
-          sessionCertification={certification}
           guideLoading={guideQuery.isPending || guideQuery.isFetching}
           guideError={guideQuery.error}
           onGuideRetry={() => void guideQuery.refetch()}
@@ -213,33 +301,88 @@ function CertificationApp() {
           simulationMode={simulationMode}
           onSimulationModeChange={setSimulationMode}
           onStart={startSession}
+          user={userQuery.isError ? null : userQuery.data ?? null}
+          userLoading={userQuery.isPending}
+          userError={userQuery.error ?? null}
+          onUserRetry={() => void userQuery.refetch()}
+          history={historyQuery.data ?? []}
+          historyLoading={historyQuery.isPending && Boolean(userQuery.data) && !userQuery.isError}
+          historyError={historyQuery.error ?? clearHistoryMutation.error ?? null}
+          onHistoryRetry={() => {
+            clearHistoryMutation.reset()
+            void historyQuery.refetch()
+          }}
+          onClearHistory={() => clearHistoryMutation.mutate()}
+          clearingHistory={clearHistoryMutation.isPending}
+          startingSimulation={startMutation.isPending}
+          startError={startMutation.error ?? null}
         />
       )}
-      {certification && screen === 'quiz' && (
+      {selectedCertification && activeSession && screen === 'quiz' && (
         <QuizScreen
-          locale={locale}
-          certification={certification}
+          locale={activeSession.language}
+          certificationName={selectedCertification.name[activeSession.language]}
+          domains={guideQuery.data?.domains ?? []}
+          questions={sessionQuestions}
           questionIndex={questionIndex}
-          simulationMode={simulationMode}
-          onResolve={saveResponse}
+          simulationMode={activeSession.mode}
+          aiUsage={activeSession.aiUsage ?? null}
+          submitting={answerMutation.isPending}
+          revealing={revealMutation.isPending}
+          advancing={nextMutation.isPending}
+          apiError={answerMutation.error ?? revealMutation.error ?? nextMutation.error ?? null}
+          onAnswer={answerQuestion}
+          onReveal={revealAnswer}
           onNext={advanceQuestion}
-          onExit={() => {
-            setResponses({})
-            setQuestionIndex(0)
+          onExit={exitSession}
+        />
+      )}
+      {selectedCertification && sessionResult && screen === 'results' && (
+        <ResultsScreen
+          locale={activeSession?.language ?? locale}
+          certificationName={selectedCertification.name[activeSession?.language ?? locale]}
+          guide={guideQuery.data}
+          result={sessionResult}
+          simulationMode={activeSession?.mode ?? simulationMode}
+          aiUsage={activeSession?.aiUsage ?? null}
+          restarting={startMutation.isPending}
+          startError={startMutation.error ?? null}
+          onHome={() => {
+            setActiveSession(null)
+            setSessionQuestions([])
+            setSessionResult(null)
             setScreen('home')
           }}
-        />
-      )}
-      {certification && screen === 'results' && (
-        <ResultsScreen
-          locale={locale}
-          certification={certification}
-          responses={responses}
-          simulationMode={simulationMode}
-          onHome={() => setScreen('home')}
           onRestart={startSession}
         />
       )}
+      {startMutation.isPending && (
+        <SimulationProcessingOverlay locale={locale} elapsedSeconds={simulationLoadingSeconds} />
+      )}
+    </div>
+  )
+}
+
+function SimulationProcessingOverlay({ locale, elapsedSeconds }: { locale: Locale; elapsedSeconds: number }) {
+  const slow = elapsedSeconds >= 25
+  const text = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values)
+
+  return (
+    <div className="ai-processing-backdrop">
+      <div className="ai-processing-dialog" role="status" aria-live="polite" aria-busy="true">
+        <p className="eyebrow">{text('simulationLoadingEyebrow')}</p>
+        <div className="ai-processing-heading">
+          <span className="guide-loading-spinner" aria-hidden="true" />
+          <h2>{text('simulationLoadingTitle')}</h2>
+        </div>
+        <p key={slow ? 'slow' : 'detail'} className="ai-processing-detail">
+          {text(slow ? 'simulationLoadingSlow' : 'simulationLoadingDetail')}
+        </p>
+        <span className="ai-processing-elapsed" aria-hidden="true">
+          {text('guideLoadingElapsed', { seconds: elapsedSeconds })}
+        </span>
+        <div className="guide-loading-track" aria-hidden="true"><span /></div>
+      </div>
     </div>
   )
 }
@@ -255,7 +398,7 @@ function Header({
   onThemeChange: () => void
   onLocaleChange: (locale: Locale) => void
 }) {
-  const text = (key: Parameters<typeof translate>[1]) => translate(locale, key)
+  const text = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values)
 
   return (
     <header className="site-header">
@@ -304,14 +447,14 @@ function Header({
   )
 }
 
-function LoadingState({ locale, kind }: { locale: Locale; kind: 'catalog' | 'bank' }) {
+function LoadingState({ locale }: { locale: Locale }) {
   const text = (key: Parameters<typeof translate>[1]) => translate(locale, key)
 
   return (
     <main className="content-width state-page" aria-live="polite">
-      <p className="eyebrow">{text(kind === 'catalog' ? 'loadingCatalogEyebrow' : 'loadingQuestionsEyebrow')}</p>
-      <h1>{text(kind === 'catalog' ? 'loadingCatalogTitle' : 'loadingQuestionsTitle')}</h1>
-      <p className="body-copy">{text(kind === 'catalog' ? 'loadingCatalogBody' : 'loadingQuestionsBody')}</p>
+      <p className="eyebrow">{text('loadingCatalogEyebrow')}</p>
+      <h1>{text('loadingCatalogTitle')}</h1>
+      <p className="body-copy">{text('loadingCatalogBody')}</p>
     </main>
   )
 }
@@ -332,9 +475,7 @@ function ErrorState({ locale, message, onRetry }: { locale: Locale; message: str
 function HomeScreen({
   locale,
   certification,
-  questionBank,
   guide,
-  sessionCertification,
   guideLoading,
   guideError,
   onGuideRetry,
@@ -344,12 +485,22 @@ function HomeScreen({
   simulationMode,
   onSimulationModeChange,
   onStart,
+  user,
+  userLoading,
+  userError,
+  onUserRetry,
+  history,
+  historyLoading,
+  historyError,
+  onHistoryRetry,
+  onClearHistory,
+  clearingHistory,
+  startingSimulation,
+  startError,
 }: {
   locale: Locale
   certification: CertificationCatalogItem
-  questionBank: Certification | undefined
   guide: CertificationGuideResponse | undefined
-  sessionCertification: Certification | null
   guideLoading: boolean
   guideError: unknown
   onGuideRetry: () => void
@@ -359,27 +510,59 @@ function HomeScreen({
   simulationMode: SimulationMode
   onSimulationModeChange: (mode: SimulationMode) => void
   onStart: () => void
+  user: CurrentUserResponse['user'] | null
+  userLoading: boolean
+  userError: unknown | null
+  onUserRetry: () => void
+  history: SimulationHistoryItem[]
+  historyLoading: boolean
+  historyError: unknown | null
+  onHistoryRetry: () => void
+  onClearHistory: () => void
+  clearingHistory: boolean
+  startingSimulation: boolean
+  startError: unknown | null
 }) {
   const text = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values)
-  const questionCounts = questionBank ? countQuestionsByTopic(questionBank) : new Map<string, number>()
   const domains = guide?.domains ?? []
+  const [guideLoadingSeconds, setGuideLoadingSeconds] = useState(0)
+
+  useEffect(() => {
+    if (!guideLoading) {
+      setGuideLoadingSeconds(0)
+      return
+    }
+
+    const startedAt = Date.now()
+    const interval = window.setInterval(() => {
+      setGuideLoadingSeconds(Math.floor((Date.now() - startedAt) / 1_000))
+    }, 1_000)
+    return () => window.clearInterval(interval)
+  }, [guideLoading])
+
   const sourceLabels = {
     'exam-guide': text('sourceExamGuide'),
     certification: text('sourceCertification'),
     'learning-path': text('sourceLearningPath'),
   }
-  const canStart = Boolean(sessionCertification && !guideLoading && !guideError)
-  const startStatus = guideLoading
-    ? text('guideLoading')
-    : guideError
-      ? guideErrorMessage(locale, guideError)
-      : !questionBank
-        ? text('bankUnavailable')
-        : !sessionCertification
-          ? text('bankMismatch')
-          : simulationMode === 'real'
-            ? text('noteReal')
-            : text('notePractice')
+  const canStart = Boolean(guide && user && !userLoading && !userError && !guideLoading && !guideError && !startingSimulation)
+  const startStatus = userLoading
+    ? text('profileLoading')
+    : userError || !user
+      ? profileErrorMessage(locale, userError)
+      : startingSimulation
+        ? text('startingSimulation')
+        : startError
+          ? simulationErrorMessage(locale, startError)
+          : guideLoading
+            ? text('guideLoading')
+            : guideError
+              ? guideErrorMessage(locale, guideError)
+              : !guide
+                ? text('guideError')
+                : simulationMode === 'real'
+                  ? text('noteReal')
+                  : text('notePractice')
 
   return (
     <main className="content-width page-content">
@@ -407,8 +590,12 @@ function HomeScreen({
             {certifications.map((item) => <option key={item.id} value={item.id}>{item.name[locale]}</option>)}
           </select>
           <h2 id="certification-title">{certification.name[locale]}</h2>
+          {user && <div className="user-identity">
+            {user.avatar && <img src={user.avatar} alt="" width="32" height="32" />}
+            <span>{user.email ?? user.id}</span>
+          </div>}
           <div className="panel-stats">
-            <div><strong>{questionBank?.questions.length ?? '—'}</strong><span>{text('questionsLabel')}</span></div>
+            <div><strong>20</strong><span>{text('questionsLabel')}</span></div>
             <div><strong>{guideLoading || guideError ? '—' : domains.length}</strong><span>{text('domainsLabel')}</span></div>
             <div><strong>{locale.toUpperCase()}</strong><span>{text('languageLabel')}</span></div>
           </div>
@@ -424,19 +611,53 @@ function HomeScreen({
             </span>
           </label>
           <button className="button button-inverse" type="button" onClick={onStart} disabled={!canStart}>
-            {text('startSession')} <span aria-hidden="true">→</span>
+            {startingSimulation ? text('startingSimulation') : text('startSession')} <span aria-hidden="true">→</span>
           </button>
-          <p className={`panel-note ${guideError ? 'has-error' : ''}`} role={guideError ? 'alert' : 'status'} aria-live="polite">{startStatus}</p>
+          {guideLoading ? (
+            <div className="guide-loading" role="status" aria-live="polite" aria-busy="true">
+              <div className="guide-loading-heading">
+                <span className="guide-loading-spinner" aria-hidden="true" />
+                <span key={guideLoadingSeconds < 25 ? 'initial' : 'taking-longer'} className="guide-loading-message">
+                  {text(guideLoadingSeconds < 25 ? 'guideLoading' : 'guideLoadingSlow')}
+                </span>
+              </div>
+              <p className="guide-loading-detail">{text('guideLoadingDetail')}</p>
+              {guideLoadingSeconds > 0 && (
+                <span className="guide-loading-elapsed" aria-hidden="true">
+                  {text('guideLoadingElapsed', { seconds: guideLoadingSeconds })}
+                </span>
+              )}
+              <div className="guide-loading-track" aria-hidden="true"><span /></div>
+            </div>
+          ) : (
+            <p className={`panel-note ${guideError || userError || startError ? 'has-error' : ''}`} role={guideError || userError || startError ? 'alert' : 'status'} aria-live="polite">{startStatus}</p>
+          )}
+          {(userError || (!userLoading && !user)) && <button className="button button-text guide-retry" type="button" onClick={onUserRetry}>{text('retry')}</button>}
           {Boolean(guideError) && <button className="button button-text guide-retry" type="button" onClick={onGuideRetry}>{text('guideRetry')}</button>}
           {guide && !guideError && (
             <div className="guide-freshness">
               <strong>{text('guideVersion', { version: guide.version })}</strong>
-              <span>{text('sourceChecked')}: {formatDate(guide.freshness.sourceCheckedAt, locale)}</span>
               <span>{text('aiRefreshed')}: {formatDate(guide.freshness.aiRefreshedAt, locale)}</span>
+              <AiTokenUsage locale={locale} usage={guide.aiUsage} compact />
             </div>
           )}
         </section>
       </section>
+
+      <SimulationHistory
+        locale={locale}
+        available={Boolean(user)}
+        certifications={certifications}
+        currentGuide={guide}
+        history={history}
+        loading={historyLoading}
+        error={historyError}
+        clearing={clearingHistory}
+        onRetry={onHistoryRetry}
+        onClear={() => {
+          if (window.confirm(text('clearHistoryConfirm'))) onClearHistory()
+        }}
+      />
 
       <section className="topics-section" aria-labelledby="topics-title">
         <div className="section-heading">
@@ -444,25 +665,21 @@ function HomeScreen({
             <p className="eyebrow">{text('examMapEyebrow')}</p>
             <h2 id="topics-title">{text('examMapTitle')}</h2>
           </div>
-          <a className="text-link" href={certification.sources.find((source) => source.kind === 'exam-guide')?.url} target="_blank" rel="noreferrer">
+          <a className="text-link" href={certification.sources.find((source) => source.kind === 'certification')?.url} target="_blank" rel="noreferrer">
             {text('officialGuide')} <span aria-hidden="true">↗</span>
           </a>
         </div>
 
         {domains.length > 0 ? (
           <div className="topic-grid">
-            {domains.map((domain, index) => {
-            const bankTopicId = Object.entries(sectionByQuestionTopic).find(([, sectionNumber]) => sectionNumber === domain.sourceSectionNumber)?.[0]
-            return (
+            {domains.map((domain, index) => (
               <TopicCard
                 key={domain.id}
                 domain={domain}
                 locale={locale}
-                questionCount={bankTopicId ? questionCounts.get(bankTopicId) ?? 0 : 0}
                 accent={topicColors[index % topicColors.length] ?? topicColors[0]}
               />
-            )
-          })}
+            ))}
           </div>
         ) : <p className="guide-empty">{text('noTopics')}</p>}
 
@@ -500,7 +717,7 @@ function HomeScreen({
         {guide && <section className="official-sources" aria-labelledby="official-sources-title">
           <h2 id="official-sources-title">{text('officialSourcesTitle')}</h2>
           <ul>
-            {guide.sources.map((source) => (
+            {guide.sources.filter((source) => source.kind !== 'exam-guide').map((source) => (
               <li key={source.kind}>
                 <span>{sourceLabels[source.kind]}</span>
                 <a className="text-link" href={source.url} target="_blank" rel="noreferrer">
@@ -520,24 +737,107 @@ function HomeScreen({
   )
 }
 
+function SimulationHistory({
+  locale,
+  available,
+  certifications,
+  currentGuide,
+  history,
+  loading,
+  error,
+  clearing,
+  onRetry,
+  onClear,
+}: {
+  locale: Locale
+  available: boolean
+  certifications: CertificationCatalogItem[]
+  currentGuide: CertificationGuideResponse | undefined
+  history: SimulationHistoryItem[]
+  loading: boolean
+  error: unknown | null
+  clearing: boolean
+  onRetry: () => void
+  onClear: () => void
+}) {
+  const text = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values)
+
+  return (
+    <section className="history-section" aria-labelledby="history-title">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">{text('historyEyebrow')}</p>
+          <h2 id="history-title">{text('historyTitle')}</h2>
+          <p className="section-intro">{text('historyDescription')}</p>
+        </div>
+        {available && history.length > 0 && <button className="button button-text" type="button" onClick={onClear} disabled={clearing}>
+          {clearing ? text('clearingHistory') : text('clearHistory')}
+        </button>}
+      </div>
+      {!available ? null : loading ? (
+        <p className="history-state" role="status">{text('historyLoading')}</p>
+      ) : error ? (
+        <div className="history-state history-error" role="alert">
+          <p>{text('historyError')}</p>
+          <button className="button button-secondary" type="button" onClick={onRetry}>{text('retry')}</button>
+        </div>
+      ) : history.length === 0 ? (
+        <p className="history-state">{text('historyEmpty')}</p>
+      ) : (
+        <ol className="history-list">
+          {history.map((session) => {
+            const certification = certifications.find(({ id }) => id === session.certificationId)
+            const title = certification?.name[locale] ?? session.certificationId
+            const guide = currentGuide?.certification.id === session.certificationId ? currentGuide : undefined
+            const weakDomains = session.domainBreakdown.filter(({ correct, total }) => correct < total)
+            return (
+              <li className="history-card" key={session.id}>
+                <div className="history-card-heading">
+                  <div>
+                    <h3>{title}</h3>
+                    <p>{text(session.mode === 'real' ? 'historyRealMode' : 'historyPracticeMode')} · {formatDate(session.completedAt, locale)}</p>
+                  </div>
+                  <strong className="history-score">{session.score}%</strong>
+                </div>
+                <p className="history-score-detail">{text('correctOfTotal', { correct: session.correctAnswers, total: session.totalQuestions })}</p>
+                <div className="history-meta">
+                  <span>{text('historyGuideVersion', { version: session.guideVersion })}</span>
+                  <span>{session.language.toUpperCase()}</span>
+                </div>
+                {weakDomains.length > 0 && <div className="history-weak-domains">
+                  <span>{text('historyReviewDomains')}</span>
+                  <div className="review-chips">
+                    {weakDomains.map((item) => {
+                      const domain = guide?.domains.find(({ id }) => id === item.id)
+                      return <span className="review-chip" key={item.id}>{domain?.name[locale] ?? item.id} · {item.correct}/{item.total}</span>
+                    })}
+                  </div>
+                </div>}
+              </li>
+            )
+          })}
+        </ol>
+      )}
+    </section>
+  )
+}
+
 function TopicCard({
   domain,
   locale,
-  questionCount,
   accent,
 }: {
   domain: CertificationGuideResponse['domains'][number]
   locale: Locale
-  questionCount: number
   accent: string
 }) {
-  const text = (key: Parameters<typeof translate>[1]) => translate(locale, key)
+  const text = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values)
 
   return (
     <article className="topic-card">
       <div className="topic-card-top">
         <span className="topic-weight">{domain.weight}%</span>
-        <span className="topic-count">{questionCount} {text('questionsLabel')}</span>
+        <span className="topic-count">{text('coveredTopicsCount', { count: domain.topics.length })}</span>
       </div>
       <h3>{domain.name[locale]}</h3>
       <p className="topic-description">{domain.description[locale]}</p>
@@ -552,402 +852,6 @@ function TopicCard({
   )
 }
 
-function QuizScreen({
-  locale,
-  certification,
-  questionIndex,
-  simulationMode,
-  onResolve,
-  onNext,
-  onExit,
-}: {
-  locale: Locale
-  certification: Certification
-  questionIndex: number
-  simulationMode: SimulationMode
-  onResolve: (questionId: string, result: SavedResponse) => void
-  onNext: () => void
-  onExit: () => void
-}) {
-  const text = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values)
-  const question = certification.questions[questionIndex]
-  const topic = certification.topics.find((item) => item.id === question?.topicId)
-  const questionNumber = questionIndex + 1
-  const progress = (questionNumber / certification.questions.length) * 100
-
-  if (!question || !topic) return null
-
-  return (
-    <main className="content-width page-content quiz-page">
-      <div className="quiz-heading-row">
-        <div>
-          <p className="eyebrow">
-            {simulationMode === 'real' ? text('simulationRealEyebrow') : text('simulationPracticeEyebrow')}
-          </p>
-          <h1>{simulationMode === 'real' ? text('examSessionTitle') : text('practiceSessionTitle')}</h1>
-        </div>
-        <div className="quiz-heading-actions">
-          <span className="question-counter">{text('questionCounter', { current: questionNumber, total: certification.questions.length })}</span>
-          <button
-            className="button button-secondary quiz-exit-button"
-            type="button"
-            onClick={onExit}
-            aria-label={text('exitQuizLabel')}
-          >
-            <span aria-hidden="true">←</span> {text('exitQuiz')}
-          </button>
-        </div>
-      </div>
-      <div
-        className="session-progress"
-        role="progressbar"
-        aria-label={text('progressLabel')}
-        aria-valuemin={0}
-        aria-valuemax={certification.questions.length}
-        aria-valuenow={questionNumber}
-      >
-        <span style={{ width: `${progress}%` }} />
-      </div>
-
-      <div className={`quiz-grid ${simulationMode === 'real' ? 'quiz-grid-real' : ''}`}>
-        <QuestionCard
-          key={question.id}
-          locale={locale}
-          question={question}
-          topic={topic}
-          simulationMode={simulationMode}
-          questionNumber={questionNumber}
-          totalQuestions={certification.questions.length}
-          onResolve={onResolve}
-          onNext={onNext}
-        />
-        {simulationMode === 'practice' && (
-          <aside className="study-rail">
-            <div className="rail-rule" aria-hidden="true" />
-            <p className="eyebrow">{text('studyFocus')}</p>
-            <h2>{text('readScenario')}</h2>
-            <p>{text('studyTip')}</p>
-            <div className="rail-divider" />
-            <div className="rail-progress-label">
-              <span>{text('sessionLabel')}</span>
-              <strong>{questionNumber.toString().padStart(2, '0')} / {certification.questions.length}</strong>
-            </div>
-            <div className="rail-dots" aria-hidden="true">
-              {certification.questions.map((item, index) => (
-                <span
-                  key={item.id}
-                  className={index < questionIndex ? 'is-complete' : index === questionIndex ? 'is-current' : ''}
-                />
-              ))}
-            </div>
-          </aside>
-        )}
-      </div>
-    </main>
-  )
-}
-
-function QuestionCard({
-  locale,
-  question,
-  topic,
-  simulationMode,
-  questionNumber,
-  totalQuestions,
-  onResolve,
-  onNext,
-}: {
-  locale: Locale
-  question: CertificationQuestion
-  topic: CertificationTopic
-  simulationMode: SimulationMode
-  questionNumber: number
-  totalQuestions: number
-  onResolve: (questionId: string, result: SavedResponse) => void
-  onNext: () => void
-}) {
-  const text = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values)
-  const [selectedAnswerId, setSelectedAnswerId] = useState<string | null>(null)
-  const [wrongAttempts, setWrongAttempts] = useState(0)
-  const [status, setStatus] = useState<'answering' | 'incorrect' | 'correct' | 'revealed'>('answering')
-  const selectedAnswer = question.answers.find((answer) => answer.id === selectedAnswerId)
-  const isResolved = status === 'correct' || status === 'revealed'
-  const isLastQuestion = questionNumber === totalQuestions
-
-  function submitAnswer() {
-    if (!selectedAnswer || status !== 'answering') return
-    if (simulationMode === 'real') {
-      onResolve(question.id, {
-        outcome: selectedAnswer.isCorrect ? 'first_try' : 'incorrect',
-        wrongAttempts: 0,
-      })
-      onNext()
-      return
-    }
-
-    if (!selectedAnswer.isCorrect) {
-      setWrongAttempts((count) => count + 1)
-      setStatus('incorrect')
-      return
-    }
-
-    const outcome: Outcome = wrongAttempts === 0 ? 'first_try' : 'retry'
-    onResolve(question.id, { outcome, wrongAttempts })
-    setStatus('correct')
-  }
-
-  function retryAnswer() {
-    setSelectedAnswerId(null)
-    setStatus('answering')
-  }
-
-  function revealAnswer() {
-    onResolve(question.id, { outcome: 'revealed', wrongAttempts })
-    setStatus('revealed')
-  }
-
-  return (
-    <article className="question-card" aria-labelledby={`question-${question.id}`}>
-      <div className="question-card-header">
-        <p className="eyebrow">{text('questionLabel', { number: questionNumber.toString().padStart(2, '0') })}</p>
-        <span className="single-answer-label">{text('singleSelection')}</span>
-      </div>
-      <h2 id={`question-${question.id}`}>{question.question}</h2>
-
-      <fieldset className="answer-fieldset">
-        <legend className="sr-only">{text('selectAnswer')}</legend>
-        <div className="answer-list">
-          {question.answers.map((answer, index) => {
-            const isSelected = selectedAnswerId === answer.id
-            const showCorrect = isResolved && answer.isCorrect
-            const showIncorrect = (status === 'incorrect' || status === 'revealed')
-              && isSelected && !answer.isCorrect
-            const classes = [
-              'answer-option',
-              isSelected ? 'is-selected' : '',
-              showCorrect ? 'is-correct' : '',
-              showIncorrect ? 'is-incorrect' : '',
-            ].filter(Boolean).join(' ')
-
-            return (
-              <label className={classes} key={answer.id}>
-                <input
-                  type="radio"
-                  name={`answer-${question.id}`}
-                  value={answer.id}
-                  checked={isSelected}
-                  disabled={status !== 'answering'}
-                  onChange={() => setSelectedAnswerId(answer.id)}
-                />
-                <span className="answer-letter" aria-hidden="true">{String.fromCharCode(65 + index)}</span>
-                <span className="answer-text">{answer.text}</span>
-                {showCorrect && <span className="answer-result">{text('correctAnswer')}</span>}
-                {showIncorrect && <span className="answer-result">{text('selectedAnswer')}</span>}
-              </label>
-            )
-          })}
-        </div>
-      </fieldset>
-
-      {status !== 'answering' && (
-        <div className={`answer-feedback feedback-${status}`} role="status" aria-live="polite">
-          <div className="feedback-title-row">
-            <span className="feedback-symbol" aria-hidden="true">
-              {status === 'incorrect' ? '×' : '✓'}
-            </span>
-            <h3>
-              {status === 'incorrect' && text('incorrectFeedback')}
-              {status === 'correct' && (wrongAttempts === 0 ? text('correctFirstTry') : text('correctAfterRetry'))}
-              {status === 'revealed' && text('answerRevealed')}
-            </h3>
-          </div>
-          {status !== 'incorrect' && (
-            <>
-              <p className="answer-explanation">{question.explanation}</p>
-              <div className="question-context">
-                <div><span>{text('domainLabel')}</span><strong>{topic.name}</strong></div>
-                <div><span>{text('topicLabel')}</span><strong>{question.focus}</strong></div>
-                <div><span>{text('serviceLabel')}</span><strong>{question.service}</strong></div>
-              </div>
-            </>
-          )}
-          {status === 'incorrect' && (
-            <p className="answer-explanation">
-              {text('incorrectHelp')}
-            </p>
-          )}
-        </div>
-      )}
-
-      <div className="question-actions">
-        {status === 'answering' && (
-          <button
-            className="button button-primary"
-            type="button"
-            onClick={submitAnswer}
-            disabled={!selectedAnswer}
-          >
-            {simulationMode === 'real'
-              ? isLastQuestion ? text('showResult') : text('nextQuestion')
-              : text('submitAnswer')}
-            <span aria-hidden="true">→</span>
-          </button>
-        )}
-        {status === 'incorrect' && (
-          <>
-            <button className="button button-primary" type="button" onClick={retryAnswer}>
-              {text('tryAgain')}
-            </button>
-            <button className="button button-text" type="button" onClick={revealAnswer}>
-              {text('revealCorrect')}
-            </button>
-          </>
-        )}
-        {isResolved && (
-          <button className="button button-primary" type="button" onClick={onNext}>
-            {isLastQuestion ? text('showResult') : text('nextQuestion')} <span aria-hidden="true">→</span>
-          </button>
-        )}
-      </div>
-    </article>
-  )
-}
-
-function ResultsScreen({
-  locale,
-  certification,
-  responses,
-  simulationMode,
-  onHome,
-  onRestart,
-}: {
-  locale: Locale
-  certification: Certification
-  responses: Record<string, SavedResponse>
-  simulationMode: SimulationMode
-  onHome: () => void
-  onRestart: () => void
-}) {
-  const text = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values)
-  const firstTryCorrect = certification.questions.filter(
-    (question) => responses[question.id]?.outcome === 'first_try',
-  ).length
-  const retriedCorrect = certification.questions.filter(
-    (question) => responses[question.id]?.outcome === 'retry',
-  ).length
-  const revealed = certification.questions.filter(
-    (question) => responses[question.id]?.outcome === 'revealed',
-  ).length
-  const incorrect = certification.questions.filter(
-    (question) => responses[question.id]?.outcome === 'incorrect',
-  ).length
-  const score = Math.round((firstTryCorrect / certification.questions.length) * 100)
-  const domainResults = certification.topics.map((topic) => {
-    const questions = certification.questions.filter((question) => question.topicId === topic.id)
-    const correct = questions.filter((question) => responses[question.id]?.outcome === 'first_try').length
-    const needsReview = questions.filter((question) => responses[question.id]?.outcome !== 'first_try')
-    return { topic, questions, correct, needsReview }
-  })
-  const overallMessage = simulationMode === 'real'
-    ? score >= 80
-      ? text('resultStrongReal')
-      : text('resultNeedsWork')
-    : score >= 80
-      ? text('resultStrongPractice')
-      : text('resultNeedsWork')
-
-  return (
-    <main className="content-width page-content results-page">
-      <p className="eyebrow">{text('sessionComplete')}</p>
-      <h1>{simulationMode === 'real' ? text('realResultTitle') : text('practiceResultTitle')}</h1>
-
-      <section className="results-summary" aria-label={text('resultsSummary')}>
-        <div className="score-panel">
-          <span className="score-label">{simulationMode === 'real' ? text('finalScore') : text('firstTryScore')}</span>
-          <div className="score-number">{score}<span>%</span></div>
-          <p>{text('correctOfTotal', { correct: firstTryCorrect, total: certification.questions.length })}</p>
-          <div className="score-track" aria-hidden="true"><span style={{ width: `${score}%` }} /></div>
-        </div>
-        <div className="result-breakdown">
-          <h2>{overallMessage}</h2>
-          <div className="result-stat-grid">
-            {simulationMode === 'real' ? (
-              <>
-                <div><strong>{firstTryCorrect}</strong><span>{text('correctAnswers')}</span></div>
-                <div><strong>{incorrect}</strong><span>{text('incorrectAnswers')}</span></div>
-                <div><strong>{certification.questions.length}</strong><span>{text('simulationQuestions')}</span></div>
-              </>
-            ) : (
-              <>
-                <div><strong>{firstTryCorrect}</strong><span>{text('correctFirstCount')}</span></div>
-                <div><strong>{retriedCorrect}</strong><span>{text('correctRetriedCount')}</span></div>
-                <div><strong>{revealed}</strong><span>{text('revealedCount')}</span></div>
-              </>
-            )}
-          </div>
-          <p className="result-note">{text('scoreDisclaimer')}</p>
-        </div>
-      </section>
-
-      <section className="results-topics" aria-labelledby="results-topics-title">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">{text('performanceByDomain')}</p>
-            <h2 id="results-topics-title">{text('topicsToReview')}</h2>
-          </div>
-        </div>
-        <div className="results-topic-list">
-          {domainResults.map(({ topic, questions, correct, needsReview }, index) => (
-            <article className="results-topic" key={topic.id}>
-              <div className="results-topic-heading">
-                <div className="results-topic-index" style={{ borderColor: topicColors[index % topicColors.length] }}>
-                  {String(index + 1).padStart(2, '0')}
-                </div>
-                <div className="results-topic-name"><h3>{topic.name}</h3><span>{questions.length} {text('questionsLabel')}</span></div>
-                <strong className="results-topic-score">{correct} / {questions.length}</strong>
-              </div>
-              <div className="topic-meter result-meter" aria-hidden="true">
-                <span style={{ width: `${questions.length ? (correct / questions.length) * 100 : 0}%` }} />
-              </div>
-              {needsReview.length > 0 ? (
-                <div className="review-list">
-                  <span className="review-label">{text('review')}</span>
-                  <div className="review-chips">
-                    {uniqueStrings(needsReview.map((question) => question.focus)).map((focus) => (
-                      <span className="review-chip" key={focus}>{focus}</span>
-                    ))}
-                  </div>
-                  <p className="review-services">
-                    {text('servicesAndConcepts')} {uniqueStrings(needsReview.map((question) => question.service)).join(', ')}
-                  </p>
-                </div>
-              ) : (
-                <p className="all-correct-note">{text('allCorrect')}</p>
-              )}
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <div className="results-actions">
-        <button className="button button-primary" type="button" onClick={onRestart}>
-          {simulationMode === 'real' ? text('restartReal') : text('practiceAgain')}
-        </button>
-        <button className="button button-secondary" type="button" onClick={onHome}>{text('backHome')}</button>
-      </div>
-      <p className="results-disclaimer">{text('practiceDisclaimer')}</p>
-    </main>
-  )
-}
-
-function countQuestionsByTopic(certification: Certification): Map<string, number> {
-  const counts = new Map<string, number>()
-  for (const question of certification.questions) {
-    counts.set(question.topicId, (counts.get(question.topicId) ?? 0) + 1)
-  }
-  return counts
-}
-
 function guideErrorMessage(locale: Locale, error: unknown) {
   if (error instanceof CertificationApiError && error.code === 'GUIDE_REFRESH_IN_PROGRESS') {
     return translate(locale, 'guideRefreshing')
@@ -955,17 +859,13 @@ function guideErrorMessage(locale: Locale, error: unknown) {
   return translate(locale, 'guideError')
 }
 
-function questionBankErrorMessage(locale: Locale, error: unknown) {
-  if (error instanceof QuestionBankLoadError && error.code === 'QUESTION_TRANSLATION_MISSING') {
-    return translate(locale, 'translationBankError')
+function profileErrorMessage(locale: Locale, error: unknown) {
+  if (!error || (error instanceof SimulationApiError && error.code === 'UNAUTHENTICATED')) {
+    return translate(locale, 'authRequired')
   }
-  return translate(locale, 'bankError')
+  return translate(locale, 'profileError')
 }
 
 function formatDate(value: string, locale: Locale) {
   return new Intl.DateTimeFormat(locale === 'es' ? 'es' : 'en-US', { dateStyle: 'medium' }).format(new Date(value))
-}
-
-function uniqueStrings(values: string[]): string[] {
-  return [...new Set(values)]
 }

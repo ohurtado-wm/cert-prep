@@ -1,6 +1,6 @@
 # Cert Prep
 
-Simulador para preparar certificaciones cloud. El PoC actual practica Google Cloud Professional Cloud Developer; la base de producto añade una API y persistencia local.
+Simulador bilingüe para certificaciones cloud. La aplicación usa una API privada para generar preguntas con IA y conservar el historial autenticado por usuario.
 
 ## Requisitos
 
@@ -15,33 +15,34 @@ bun run db:migrate
 bun run dev
 ```
 
-Abre `http://localhost:3000` en el navegador. La UI todavía presenta el banco PoC de `public/data/certifications.json`; la generación y las sesiones seguras ya están disponibles en la API y la UI se conectará a ellas en PR-05.
+Abre `http://localhost:3000`. En desarrollo local se usa el usuario simulado `ohurtado` (`ohurtado@westmonroe.com`), sin depender del gateway. En otros entornos se requiere una sesión válida de West Monroe.
 
 ## Recorrido
 
-- El catálogo y la guía oficial de dominios/ruta se cargan desde la API. La pantalla principal muestra la certificación, temas, fuentes y estado de actualización de la guía.
+- El catálogo y la guía oficial de dominios/ruta se cargan desde la API. La pantalla principal muestra la certificación, sus temas, fuentes y estado de actualización.
 - El selector del encabezado permite usar español o inglés. La preferencia `cert-helper-locale` se guarda por separado de `cert-helper-theme`.
-- El banco de práctica conserva 20 preguntas en JSON: español en `public/data/certifications.json` e inglés en `public/data/certifications.en.json`. Ambos idiomas usan los mismos IDs y respuestas correctas.
-- Inicia una sesión con las preguntas locales, en el orden del banco.
-- La opción **Simulación Real** usa **Siguiente pregunta** para registrar la respuesta elegida y avanzar en un solo paso. Permite un intento por pregunta y muestra la nota y los dominios por repasar al final, sin revelar aciertos ni respuestas durante la sesión.
-- Una respuesta correcta al primer intento cuenta para el puntaje diagnóstico.
-- Las respuestas correctas después de reintentar y las respuestas reveladas aparecen por separado en el resultado.
+- Cada simulación solicita al servidor 20 preguntas nuevas en el idioma elegido; el navegador recibe opciones sin claves de respuesta.
+- En **Simulación Real**, **Siguiente pregunta** registra la selección y avanza en un clic. El resultado y el desglose por dominio, tema y foco aparecen al finalizar.
+- En práctica puedes reintentar o revelar la respuesta y su explicación. El resultado diferencia aciertos iniciales, aciertos tras reintento y respuestas reveladas.
+- Los últimos 20 resultados se guardan en SQLite bajo el usuario simulado en desarrollo o la identidad verificada por el gateway en otros entornos. El historial se vuelve a cargar tras una recarga y se puede borrar junto con los planes de estudio.
 - El tema visual se puede cambiar entre claro y oscuro; el idioma y el tema se conservan de forma independiente en este navegador.
-- Los resultados solo viven en la sesión actual de la página. Su persistencia por usuario se implementará en una fase posterior.
+- `localStorage` se usa únicamente para las preferencias de idioma y tema; sesiones, resultados e historial se guardan en el backend.
 
 ## Alcance local
 
-La API Hono comparte origen con la aplicación Vike. `GET /api/healthz` informa disponibilidad y `GET /api/v1/me` consulta al gateway `/users/me`, usando la identidad devuelta por el gateway. La aplicación reenvía las cabeceras de sesión `cookie` y `authorization`; no crea ni almacena credenciales.
+La API Hono comparte origen con la aplicación Vike. `GET /api/healthz` informa disponibilidad. `GET /api/v1/me` usa el usuario simulado cuando `NODE_ENV=development`; en otros entornos consulta al gateway `/users/me` y reenvía las cabeceras de sesión `cookie` y `authorization`. La aplicación no crea ni almacena credenciales.
 
-Drizzle administra una base SQLite local en `./data/cert-prep.sqlite` (configurable con `DATABASE_PATH`). El esquema incluye guías, dominios/ruta, leases de actualización, sesiones efímeras, resultados por tema y planes de estudio. La UI todavía inicia simulaciones desde JSON y aún no persiste su historial; las sesiones generadas desde la API se guardan temporalmente en SQLite.
+Drizzle administra una base SQLite local en `./data/cert-prep.sqlite` (configurable con `DATABASE_PATH`). El esquema incluye guías, dominios/ruta, leases de actualización, sesiones efímeras, resultados agregados por usuario, planes y registros operativos de inicios para mantener el límite horario aunque se borre el historial.
 
-La API expone `GET /api/v1/certifications` y `GET /api/v1/certifications/:certificationId/guide`. Al solicitar una guía cuya renovación con IA tiene 7 días o más, vuelve a consultar las fuentes oficiales y las procesa con el Vercel AI SDK. Configura `AI_PROVIDER=openai`, `AI_MODEL` y `OPENAI_API_KEY` en `.env`; sin esos valores, la API devuelve un error recuperable y conserva la última guía válida. El modelo predeterminado es `gpt-6-luna` y se puede cambiar mediante `AI_MODEL`. La UI muestra el error y no permite iniciar una sesión con una guía que no pudo verificarse.
+La API expone `GET /api/v1/certifications` y `GET /api/v1/certifications/:certificationId/guide`. La guía se genera con IA la primera vez y se renueva cuando tiene 30 días o más. La primera solicitud vencida adquiere una lease por certificación; las solicitudes concurrentes esperan y reutilizan el resultado. La guía se guarda en SQLite y se comparte entre usuarios. El prompt indica usar como referencia principal la guía oficial vigente de Google Cloud, sin incluir una URL ni hacer una búsqueda web. OpenAI no abre la guía con esta instrucción: la fecha mostrada indica cuándo el modelo generó la guía, no cuándo Google verificó su contenido; dominios y pesos pueden no reflejar el documento vigente. Cada renovación mensual genera una llamada facturable a OpenAI. La primera preparación puede tardar hasta 60 segundos y la UI muestra un indicador animado y el tiempo transcurrido. Configura `AI_PROVIDER=openai`, `AI_MODEL` y `OPENAI_API_KEY` en `.env`; sin esos valores, la API devuelve un error recuperable y conserva la última guía válida. El modelo predeterminado es `gpt-6-luna` y se puede cambiar mediante `AI_MODEL`.
 
-El backend genera sesiones de 20 preguntas en inglés o español con cobertura proporcional a los pesos de la guía. Los endpoints autenticados son `POST /api/v1/simulations`, `GET /api/v1/simulations/:sessionId`, `POST /api/v1/simulations/:sessionId/answers`, `POST /api/v1/simulations/:sessionId/reveal` y `POST /api/v1/simulations/:sessionId/next`. En Simulación Real cada respuesta registra la selección y avanza en un solo paso; la API no expone la opción correcta ni la explicación durante la sesión. En práctica ofrece reintento, explicación y revelado de respuesta. Las sesiones vencen en dos horas, cada usuario puede tener hasta dos activas e iniciar hasta tres por hora. Al completar una sesión, el backend elimina las preguntas y claves y conserva solo los resultados agregados en el estado de esa sesión.
+Con `bun run dev`, la consola del servidor muestra eventos JSON con ruta, estado HTTP, duración y etapa de actualización de la guía. La consola del navegador registra errores de API con su código y estado. Los logs omiten credenciales, prompts y respuestas del modelo.
 
-La generación usa Vercel AI SDK con el adaptador `@ai-sdk/openai`, salida estructurada con Zod y una reparación máxima cuando el resultado no cumple el contrato. La instrumentación registra únicamente modelo, certificación, latencia, tokens y estado; no incluye claves, prompts ni respuestas. Las pruebas usan un generador falso y no consumen llamadas ni créditos de OpenAI.
+El backend genera sesiones de 20 preguntas en inglés o español con cobertura proporcional a los pesos de la guía. Los endpoints autenticados incluyen `GET /api/v1/me`, `POST /api/v1/simulations`, `GET` y `DELETE /api/v1/simulations/:sessionId`, las rutas `POST` de respuestas, revelado y avance, y `GET`/`DELETE /api/v1/simulation-history`. En Simulación Real cada respuesta registra la selección y avanza en un solo paso; la API no expone la opción correcta ni la explicación durante la sesión. En práctica ofrece reintento, explicación y revelado de respuesta. Las sesiones vencen en dos horas, cada usuario puede tener hasta dos activas e iniciar hasta tres por hora. Al completar una sesión, el backend elimina preguntas y claves y persiste de forma transaccional un resumen agregado. Retiene los 20 más recientes y al borrar historial elimina también resultados de sesión completados y planes.
 
-El endpoint de identidad expone `id`, correo y avatar recibidos del gateway, pero en SQLite persiste únicamente el ID estable del usuario. No registra permisos. El banco JSON del PoC todavía se entrega al navegador e incluye respuestas correctas; la integración de la UI con las sesiones privadas del servidor está planificada para PR-05.
+La generación usa Vercel AI SDK con el adaptador `@ai-sdk/openai`, salida estructurada con Zod y una reparación máxima cuando el resultado no cumple el contrato. Cada simulación genera 20 preguntas nuevas a partir de los dominios, pesos y temas de la guía almacenada; esa llamada a OpenAI tiene su costo normal. La instrumentación registra únicamente modelo, certificación, latencia, tokens y estado; no incluye claves, prompts ni respuestas. Las pruebas usan un generador falso y no consumen llamadas ni créditos de OpenAI.
+
+`/api/v1/me` expone ID, correo y avatar: en desarrollo usa `ohurtado`, y en otros entornos usa los datos del gateway. En SQLite persiste únicamente el ID estable y no registra permisos. Los antiguos bancos JSON se conservan como fixtures de pruebas fuera de los assets públicos y no se descargan al navegador.
 
 ## Comandos disponibles
 

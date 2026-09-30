@@ -10,7 +10,7 @@ import { createApp } from '../server/app'
 import type { QuestionGenerator } from '../server/simulations/question-generator'
 
 const certification = certificationCatalog[0]!
-const officialSourceUrl = certification.sources.find(({ kind }) => kind === 'exam-guide')!.url
+const learningPathUrl = certification.sources.find(({ kind }) => kind === 'learning-path')!.url
 
 const guide: CertificationGuideResponse = {
   certification,
@@ -32,13 +32,10 @@ const guide: CertificationGuideResponse = {
     title: { en: 'Review the guide', es: 'Revisa la guía' },
     description: { en: 'Read the official guide.', es: 'Lee la guía oficial.' },
     domainIds: ['section-1'],
-    url: officialSourceUrl,
+    url: learningPathUrl,
   }],
   sources: certification.sources,
-  freshness: {
-    sourceCheckedAt: '2026-09-30T12:00:00.000Z',
-    aiRefreshedAt: '2026-09-30T12:00:00.000Z',
-  },
+  freshness: { aiRefreshedAt: '2026-09-30T12:00:00.000Z' },
 }
 
 function generatedSet(language: Locale = 'en') {
@@ -57,7 +54,6 @@ function generatedSet(language: Locale = 'en') {
       : [`Correct option ${domain}-${index + 1}`, 'Incorrect alternative A', 'Incorrect alternative B', 'Incorrect alternative C'],
     correctAnswerIndex: 0,
     explanation: language === 'es' ? 'Explicación confidencial de la respuesta.' : 'Private answer explanation.',
-    sourceUrl: officialSourceUrl,
   })))
   return { language, questions }
 }

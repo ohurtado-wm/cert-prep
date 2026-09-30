@@ -54,7 +54,6 @@ export function validateGeneratedQuestions(input: {
   }
 
   const domainsById = new Map(input.guide.domains.map((domain) => [domain.id, domain]))
-  const allowedSourceUrls = new Set(input.guide.sources.map((source) => source.url))
   const questionStems = new Set<string>()
   const coverage = new Map<string, number>()
   const usedQuestionIds = new Set<string>()
@@ -63,9 +62,6 @@ export function validateGeneratedQuestions(input: {
     const domain = domainsById.get(question.domainId)
     if (!domain || !domain.topics.some((topic) => topic.id === question.topicId)) {
       throw new InvalidQuestionSetError('A question uses a topic outside its official domain.')
-    }
-    if (!allowedSourceUrls.has(question.sourceUrl)) {
-      throw new InvalidQuestionSetError('A question uses a source that is not in the official guide.')
     }
     if (question.answers.length !== 4 || !Number.isInteger(question.correctAnswerIndex)
       || question.correctAnswerIndex < 0 || question.correctAnswerIndex > 3) {
@@ -101,7 +97,6 @@ export function validateGeneratedQuestions(input: {
       answers,
       correctAnswerId: answers[question.correctAnswerIndex]!.id,
       explanation: question.explanation.trim(),
-      sourceUrl: question.sourceUrl,
       attempts: 0,
       outcome: 'pending',
     }

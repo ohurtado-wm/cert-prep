@@ -2,7 +2,7 @@ import { and, eq, gte, lte } from 'drizzle-orm'
 import type { DatabaseHandle } from '../db/client'
 import { certificationGuides, certifications, guideRefreshLeases } from '../db/schema'
 import type { CertificationCatalogItem, GuideDomain, StudyPathStep } from '../../src/api/certification-contracts'
-import type { CachedOfficialSources } from './source-types'
+import type { AiTokenUsage } from '../../src/api/ai-usage-contracts'
 
 export async function syncCertificationCatalog(
   db: DatabaseHandle,
@@ -46,21 +46,6 @@ export async function getCertificationGuide(db: DatabaseHandle, certificationId:
   })
 }
 
-export async function saveSourceCheck(
-  db: DatabaseHandle,
-  certificationId: string,
-  sourceHash: string,
-  sourceSnapshot: CachedOfficialSources,
-  checkedAt: Date,
-) {
-  await db.update(certificationGuides).set({
-    sourceHash,
-    sourceSnapshot,
-    lastSourceCheckedAt: checkedAt,
-    updatedAt: checkedAt,
-  }).where(eq(certificationGuides.certificationId, certificationId))
-}
-
 export async function acquireRefreshLease(
   db: DatabaseHandle,
   certificationId: string,
@@ -85,14 +70,20 @@ export async function refreshLeaseIsActive(db: DatabaseHandle, certificationId: 
   return lease !== undefined
 }
 
+export async function releaseRefreshLease(db: DatabaseHandle, certificationId: string, leaseToken: string) {
+  await db.delete(guideRefreshLeases).where(and(
+    eq(guideRefreshLeases.certificationId, certificationId),
+    eq(guideRefreshLeases.leaseToken, leaseToken),
+  ))
+}
+
 export async function publishGuide(
   db: DatabaseHandle,
   input: {
     certificationId: string
     domains: GuideDomain[]
     studyPath: StudyPathStep[]
-    sourceHash: string
-    sourceSnapshot: CachedOfficialSources
+    aiUsage?: AiTokenUsage | null
     now: Date
     leaseToken: string
   },
@@ -111,9 +102,10 @@ export async function publishGuide(
       version,
       domains: input.domains,
       studyPath: input.studyPath,
-      sourceHash: input.sourceHash,
-      sourceSnapshot: input.sourceSnapshot,
-      lastSourceCheckedAt: input.now,
+      aiUsage: input.aiUsage ?? null,
+      sourceHash: null,
+      sourceSnapshot: null,
+      lastSourceCheckedAt: null,
       lastAiRefreshedAt: input.now,
       updatedAt: input.now,
     }).onConflictDoUpdate({
@@ -122,9 +114,10 @@ export async function publishGuide(
         version,
         domains: input.domains,
         studyPath: input.studyPath,
-        sourceHash: input.sourceHash,
-        sourceSnapshot: input.sourceSnapshot,
-        lastSourceCheckedAt: input.now,
+        aiUsage: input.aiUsage ?? null,
+        sourceHash: null,
+        sourceSnapshot: null,
+        lastSourceCheckedAt: null,
         lastAiRefreshedAt: input.now,
         updatedAt: input.now,
       },

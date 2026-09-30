@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { AiTokenUsageSchema } from '../../src/api/ai-usage-contracts'
 import { LocaleSchema } from '../../src/api/certification-contracts'
 import {
   SimulationQuestionSchema,
@@ -8,7 +9,6 @@ import {
 const StoredQuestionSchema = SimulationQuestionSchema.extend({
   correctAnswerId: z.string().min(1),
   explanation: z.string().min(1),
-  sourceUrl: z.string().url(),
   attempts: z.number().int().min(0).max(3),
   outcome: z.enum(['pending', 'first_try', 'retry', 'revealed', 'incorrect']),
 })
@@ -16,6 +16,7 @@ const StoredQuestionSchema = SimulationQuestionSchema.extend({
 const SharedStateFields = {
   version: z.literal(1),
   language: LocaleSchema,
+  aiUsage: AiTokenUsageSchema.nullable().optional(),
 }
 
 export const StoredSimulationStateSchema = z.discriminatedUnion('status', [
