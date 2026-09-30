@@ -2,7 +2,6 @@ import { and, eq, gte, lte } from 'drizzle-orm'
 import type { DatabaseHandle } from '../db/client'
 import { certificationGuides, certifications, guideRefreshLeases } from '../db/schema'
 import type { CertificationCatalogItem, GuideDomain, StudyPathStep } from '../../src/api/certification-contracts'
-import type { CachedOfficialSources } from './source-types'
 
 export async function syncCertificationCatalog(
   db: DatabaseHandle,
@@ -46,21 +45,6 @@ export async function getCertificationGuide(db: DatabaseHandle, certificationId:
   })
 }
 
-export async function saveSourceCheck(
-  db: DatabaseHandle,
-  certificationId: string,
-  sourceHash: string,
-  sourceSnapshot: CachedOfficialSources,
-  checkedAt: Date,
-) {
-  await db.update(certificationGuides).set({
-    sourceHash,
-    sourceSnapshot,
-    lastSourceCheckedAt: checkedAt,
-    updatedAt: checkedAt,
-  }).where(eq(certificationGuides.certificationId, certificationId))
-}
-
 export async function acquireRefreshLease(
   db: DatabaseHandle,
   certificationId: string,
@@ -98,8 +82,6 @@ export async function publishGuide(
     certificationId: string
     domains: GuideDomain[]
     studyPath: StudyPathStep[]
-    sourceHash: string
-    sourceSnapshot: CachedOfficialSources
     now: Date
     leaseToken: string
   },
@@ -118,9 +100,9 @@ export async function publishGuide(
       version,
       domains: input.domains,
       studyPath: input.studyPath,
-      sourceHash: input.sourceHash,
-      sourceSnapshot: input.sourceSnapshot,
-      lastSourceCheckedAt: input.now,
+      sourceHash: null,
+      sourceSnapshot: null,
+      lastSourceCheckedAt: null,
       lastAiRefreshedAt: input.now,
       updatedAt: input.now,
     }).onConflictDoUpdate({
@@ -129,9 +111,9 @@ export async function publishGuide(
         version,
         domains: input.domains,
         studyPath: input.studyPath,
-        sourceHash: input.sourceHash,
-        sourceSnapshot: input.sourceSnapshot,
-        lastSourceCheckedAt: input.now,
+        sourceHash: null,
+        sourceSnapshot: null,
+        lastSourceCheckedAt: null,
         lastAiRefreshedAt: input.now,
         updatedAt: input.now,
       },

@@ -7,7 +7,6 @@ import { healthRoutes } from './routes/health'
 import { createMeRoutes } from './routes/me'
 import { createCertificationRoutes } from './routes/certifications'
 import { createCertificationGuideService } from './use-cases/certification-guide-service'
-import type { OfficialSourceReader } from './catalog/source-reader'
 import type { GuideGenerator } from './catalog/guide-generator'
 import { createSimulationService } from './use-cases/simulation-service'
 import { createSimulationRoutes } from './routes/simulations'
@@ -17,14 +16,13 @@ type AppDependencies = {
   db: DatabaseHandle
   userProvider?: UserProvider
   guideService?: ReturnType<typeof createCertificationGuideService>
-  sourceReader?: OfficialSourceReader
   guideGenerator?: GuideGenerator
   simulationService?: ReturnType<typeof createSimulationService>
 }
 
-export function createApp({ db, userProvider = createEnvironmentUserProvider(), guideService, sourceReader, guideGenerator, simulationService }: AppDependencies) {
+export function createApp({ db, userProvider = createEnvironmentUserProvider(), guideService, guideGenerator, simulationService }: AppDependencies) {
   const app = new Hono()
-  const certificationGuideService = guideService ?? createCertificationGuideService(db, { sourceReader, guideGenerator })
+  const certificationGuideService = guideService ?? createCertificationGuideService(db, { guideGenerator })
   const sessions = simulationService ?? createSimulationService(db, { guideService: certificationGuideService })
 
   app.use('/api/*', async (context, next) => {

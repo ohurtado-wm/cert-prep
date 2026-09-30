@@ -2,8 +2,6 @@ import { beforeEach, describe, expect, test } from 'bun:test'
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
 import { certificationCatalog } from '../server/catalog/certifications'
 import { createAiGuideGenerator, type GuideGenerator } from '../server/catalog/guide-generator'
-import type { OfficialSourceReader } from '../server/catalog/source-reader'
-import type { CachedOfficialSources } from '../server/catalog/source-types'
 import { createDatabase } from '../server/db/client'
 import { getCertificationGuide } from '../server/catalog/repository'
 import { createCertificationGuideService } from '../server/use-cases/certification-guide-service'
@@ -12,45 +10,22 @@ import { createApp } from '../server/app'
 const certification = certificationCatalog[0]
 const sectionWeights = [33, 26, 19, 22]
 
-function sourceSnapshot(variant = 'v1'): CachedOfficialSources {
+function draftFromGuide(titleSuffix = '') {
   return {
-    examGuide: {
-      sections: sectionWeights.map((weight, index) => ({
-        number: index + 1,
-        title: `Domain ${index + 1} ${variant}`,
-        weight,
-        topics: [{
-          id: `topic-${index + 1}-1-1`,
-          title: `Topic ${index + 1}`,
-          details: `Source notes ${variant}`,
-        }],
-      })),
-      validators: { etag: `guide-${variant}`, lastModified: null },
-    },
-    learningPath: {
-      activities: ['Foundations', 'Build', 'Deploy'],
-      validators: { etag: `path-${variant}`, lastModified: null },
-    },
-  }
-}
-
-function draftFromSources(sources: CachedOfficialSources, titleSuffix = '') {
-  return {
-    domains: sources.examGuide.sections.map((section) => ({
-      sectionNumber: section.number,
-      name: { en: `${section.title}${titleSuffix}`, es: `Dominio ${section.number}${titleSuffix}` },
-      description: { en: `Study ${section.title}.`, es: `Estudia el dominio ${section.number}.` },
-      topics: section.topics.map((topic) => ({
-        sourceTopicId: topic.id,
-        name: { en: topic.title, es: `Tema ${section.number}` },
-        description: { en: topic.details, es: `Contenido del tema ${section.number}.` },
-      })),
+    domains: sectionWeights.map((weight, index) => ({
+      sectionNumber: index + 1,
+      weight,
+      name: { en: `Domain ${index + 1}${titleSuffix}`, es: `Dominio ${index + 1}${titleSuffix}` },
+      description: { en: `Study domain ${index + 1}.`, es: `Estudia el dominio ${index + 1}.` },
+      topics: [{
+        name: { en: `Topic ${index + 1}`, es: `Tema ${index + 1}` },
+        description: { en: `Topic details ${index + 1}.`, es: `Contenido del tema ${index + 1}.` },
+      }],
     })),
     studyPath: ['Understand', 'Practice', 'Review'].map((verb, index) => ({
       title: { en: `${verb} the domains`, es: `Repasa los dominios ${index + 1}` },
       description: { en: `Step ${index + 1}.`, es: `Paso ${index + 1}.` },
       domainIds: [`section-${index + 1}`],
-      url: certification.sources.find((source) => source.kind === 'exam-guide')!.url,
     })),
   }
 }
@@ -69,7 +44,6 @@ describe('certification guide refresh', () => {
   test('catalog endpoint returns the supported certification without fetching upstream', async () => {
     const app = createApp({
       db,
-      sourceReader: async () => { throw new Error('catalog listing must not fetch sources') },
       guideGenerator: async () => { throw new Error('catalog listing must not call AI') },
     })
     const response = await app.request('/api/v1/certifications')
@@ -81,18 +55,13 @@ describe('certification guide refresh', () => {
     client.close()
   })
 
-  test('first selection refreshes from sources and subsequent fresh reads avoid AI', async () => {
-    let sourceCalls = 0
+  test('first selection generates a guide and subsequent fresh reads avoid AI', async () => {
     let aiCalls = 0
-    const sourceReader: OfficialSourceReader = async () => {
-      sourceCalls += 1
-      return { snapshot: sourceSnapshot(), hash: 'guide-hash-v1' }
-    }
-    const guideGenerator: GuideGenerator = async ({ sources }) => {
+    const guideGenerator: GuideGenerator = async () => {
       aiCalls += 1
-      return draftFromSources(sources)
+      return draftFromGuide()
     }
-    const app = createApp({ db, sourceReader, guideGenerator })
+    const app = createApp({ db, guideGenerator })
 
     const first = await app.request(`/api/v1/certifications/${certification.id}/guide`)
     const firstBody = await first.json() as { guide: { version: number; domains: unknown[]; studyPath: unknown[]; sources: unknown[] } }
@@ -103,22 +72,20 @@ describe('certification guide refresh', () => {
     expect(firstBody.guide.studyPath).toHaveLength(3)
     expect(firstBody.guide.sources).toHaveLength(3)
     expect(second.status).toBe(200)
-    expect(sourceCalls).toBe(1)
     expect(aiCalls).toBe(1)
     client.close()
   })
 
-  test('weekly refresh calls AI for unchanged sources without incrementing the content version', async () => {
+  test('monthly refresh calls AI and keeps the version when generated content is unchanged', async () => {
     let currentTime = new Date('2026-09-30T12:00:00.000Z')
     let aiCalls = 0
     const service = createCertificationGuideService(db, {
       now: () => new Date(currentTime),
-      sourceReader: async () => ({ snapshot: sourceSnapshot(), hash: 'same-source-hash' }),
-      guideGenerator: async ({ sources }) => { aiCalls += 1; return draftFromSources(sources) },
+      guideGenerator: async () => { aiCalls += 1; return draftFromGuide() },
     })
 
     const first = await service.getGuide(certification.id)
-    currentTime = new Date(currentTime.getTime() + 7 * 24 * 60 * 60 * 1_000)
+    currentTime = new Date(currentTime.getTime() + 30 * 24 * 60 * 60 * 1_000)
     const refreshed = await service.getGuide(certification.id)
     expect(aiCalls).toBe(2)
     expect(first.version).toBe(1)
@@ -130,16 +97,13 @@ describe('certification guide refresh', () => {
   test('changed generated guide publishes a new version atomically', async () => {
     let currentTime = new Date('2026-09-30T12:00:00.000Z')
     let contentSuffix = ''
-    let sourceVersion = 'v1'
     const service = createCertificationGuideService(db, {
       now: () => new Date(currentTime),
-      sourceReader: async () => ({ snapshot: sourceSnapshot(sourceVersion), hash: `hash-${sourceVersion}` }),
-      guideGenerator: async ({ sources }) => draftFromSources(sources, contentSuffix),
+      guideGenerator: async () => draftFromGuide(contentSuffix),
     })
 
     const first = await service.getGuide(certification.id)
-    currentTime = new Date(currentTime.getTime() + 7 * 24 * 60 * 60 * 1_000)
-    sourceVersion = 'v2'
+    currentTime = new Date(currentTime.getTime() + 30 * 24 * 60 * 60 * 1_000)
     contentSuffix = ' refreshed'
     const refreshed = await service.getGuide(certification.id)
     expect(first.version).toBe(1)
@@ -149,16 +113,14 @@ describe('certification guide refresh', () => {
   })
 
   test('concurrent stale-guide requests share one refresh lease', async () => {
-    let sourceCalls = 0
     let aiCalls = 0
     const service = createCertificationGuideService(db, {
       peerWaitMs: 500,
       peerPollMs: 5,
-      sourceReader: async () => { sourceCalls += 1; return { snapshot: sourceSnapshot(), hash: 'parallel-hash' } },
-      guideGenerator: async ({ sources }) => {
+      guideGenerator: async () => {
         aiCalls += 1
         await new Promise((resolve) => setTimeout(resolve, 30))
-        return draftFromSources(sources)
+        return draftFromGuide()
       },
     })
 
@@ -167,7 +129,6 @@ describe('certification guide refresh', () => {
       service.getGuide(certification.id),
     ])
     expect(results.map((result) => result.version)).toEqual([1, 1])
-    expect(sourceCalls).toBe(1)
     expect(aiCalls).toBe(1)
     client.close()
   })
@@ -177,15 +138,14 @@ describe('certification guide refresh', () => {
     let fail = false
     const service = createCertificationGuideService(db, {
       now: () => new Date(currentTime),
-      sourceReader: async () => ({ snapshot: sourceSnapshot(), hash: 'failure-hash' }),
-      guideGenerator: async ({ sources }) => {
+      guideGenerator: async () => {
         if (fail) throw new Error('private provider details')
-        return draftFromSources(sources)
+        return draftFromGuide()
       },
     })
 
     const original = await service.getGuide(certification.id)
-    currentTime = new Date(currentTime.getTime() + 7 * 24 * 60 * 60 * 1_000)
+    currentTime = new Date(currentTime.getTime() + 30 * 24 * 60 * 60 * 1_000)
     fail = true
     await expect(service.getGuide(certification.id)).rejects.toMatchObject({
       code: 'GUIDE_AI_UNAVAILABLE',
@@ -204,30 +164,29 @@ describe('certification guide refresh', () => {
     let invalid = false
     const service = createCertificationGuideService(db, {
       now: () => new Date(currentTime),
-      sourceReader: async () => ({ snapshot: sourceSnapshot(), hash: 'invalid-output-hash' }),
-      guideGenerator: async ({ sources }) => {
-        const draft = draftFromSources(sources)
+      guideGenerator: async () => {
+        const draft = draftFromGuide()
         if (!invalid) return draft
         return {
           ...draft,
-          studyPath: draft.studyPath.map((step, index) => index === 0 ? { ...step, url: 'https://attacker.example/' } : step),
+          domains: draft.domains.map((domain, index) => index === 0 ? { ...domain, weight: domain.weight + 1 } : domain),
         }
       },
     })
 
     await service.getGuide(certification.id)
-    currentTime = new Date(currentTime.getTime() + 7 * 24 * 60 * 60 * 1_000)
+    currentTime = new Date(currentTime.getTime() + 30 * 24 * 60 * 60 * 1_000)
     invalid = true
     await expect(service.getGuide(certification.id)).rejects.toMatchObject({ code: 'GUIDE_AI_INVALID', status: 502 })
     const stored = await getCertificationGuide(db, certification.id)
     expect(stored?.version).toBe(1)
-    expect(stored?.studyPath[0]?.url).toBe(certification.sources.find((source) => source.kind === 'exam-guide')?.url)
+    expect(stored?.studyPath[0]?.url).toBe(certification.sources.find((source) => source.kind === 'learning-path')?.url)
     client.close()
   })
 
   test('AI generation stays disabled until a model is configured', async () => {
     const generate = createAiGuideGenerator('')
-    await expect(generate({ certification, sources: sourceSnapshot() })).rejects.toMatchObject({
+    await expect(generate({ certification })).rejects.toMatchObject({
       code: 'AI_NOT_CONFIGURED',
       status: 503,
     })

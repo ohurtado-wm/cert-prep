@@ -13,7 +13,6 @@ const GeneratedQuestionSchema = z.object({
   answers: z.array(z.string().min(1)),
   correctAnswerIndex: z.number().int(),
   explanation: z.string().min(1),
-  sourceUrl: z.string().url(),
 })
 
 export const GeneratedQuestionSetSchema = z.object({
@@ -52,26 +51,33 @@ function buildPrompt(input: QuestionGeneratorInput) {
   const domainRequirements = input.guide.domains.map((domain) => ({
     id: domain.id,
     name: domain.name[input.language],
+    description: domain.description[input.language],
     weight: domain.weight,
     requiredQuestions: input.requiredQuestionsByDomain[domain.id] ?? 0,
-    topics: domain.topics.map((topic) => ({ id: topic.id, name: topic.name[input.language] })),
+    topics: domain.topics.map((topic) => ({
+      id: topic.id,
+      name: topic.name[input.language],
+      description: topic.description[input.language],
+    })),
   }))
   const instructions = isSpanish
     ? [
       'Genera 20 preguntas originales de práctica para la certificación cloud indicada. No reproduzcas preguntas oficiales ni las presentes como preguntas reales del examen.',
       'Escribe todos los textos para el estudiante en español: enfoque, servicio, enunciado, opciones y explicación.',
       'Usa escenarios prácticos de desarrollo, operación y arquitectura de aplicaciones cloud; crea distractores plausibles y exactamente una opción correcta.',
+      'Toma como referencia principal la guía oficial vigente de Google Cloud para esta certificación y respeta los dominios y temas proporcionados.',
       'Respeta exactamente la cantidad solicitada por dominio. Cada tema y dominio debe usar sus IDs estables proporcionados.',
       'Cada pregunta debe evaluar un solo objetivo, tener cuatro opciones distintas y una explicación breve de la opción correcta.',
-      'sourceUrl debe coincidir exactamente con una fuente oficial permitida y respaldar el concepto de la pregunta.',
+      'No incluyas enlaces ni afirmes haber consultado fuentes en tiempo real.',
     ]
     : [
       'Generate 20 original practice questions for the specified cloud certification. Do not reproduce official questions or present these as real exam questions.',
       'Write all student-facing text in English: focus, service, question, options, and explanation.',
       'Use practical cloud application development, operations, and architecture scenarios; create plausible distractors and exactly one correct option.',
+      'Use the current official Google Cloud exam guide for this certification as the primary reference and follow the supplied domains and topics.',
       'Follow the exact requested count per domain. Use the supplied stable domain and topic IDs.',
       'Each question should assess one objective, contain four distinct options, and provide a short explanation for the correct option.',
-      'sourceUrl must exactly match an allowed official source and support the question concept.',
+      'Do not include links or claim to have consulted live sources.',
     ]
 
   return [
@@ -79,7 +85,6 @@ function buildPrompt(input: QuestionGeneratorInput) {
     `Language code: ${input.language}`,
     `Certification: ${input.guide.certification.name[input.language]} (${input.guide.certification.id})`,
     `Domains and required coverage: ${JSON.stringify(domainRequirements)}`,
-    `Allowed official source URLs: ${JSON.stringify(input.guide.sources.map((source) => source.url))}`,
     input.validationFeedback
       ? `${isSpanish ? 'Corrige los problemas detectados' : 'Correct the detected issues'}: ${input.validationFeedback}`
       : '',

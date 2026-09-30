@@ -17,19 +17,15 @@ import {
   publishGuide,
   releaseRefreshLease,
   refreshLeaseIsActive,
-  saveSourceCheck,
   syncCertificationCatalog,
 } from '../catalog/repository'
 import { createAiGuideGenerator, GuideDraftSchema, type GuideGenerator } from '../catalog/guide-generator'
-import { createOfficialSourceReader, type OfficialSourceReader } from '../catalog/source-reader'
-import type { CachedOfficialSources } from '../catalog/source-types'
 import { logServerEvent } from '../logger'
 
-const GUIDE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1_000
+const GUIDE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1_000
 const LEASE_DURATION_MS = 90 * 1_000
 
 type GuideServiceOptions = {
-  sourceReader?: OfficialSourceReader
   guideGenerator?: GuideGenerator
   now?: () => Date
   peerWaitMs?: number
@@ -42,35 +38,24 @@ function isFresh(lastAiRefreshedAt: Date | null, now: Date) {
 
 function normalizeDraft(
   certification: CertificationCatalogItem,
-  sourceSnapshot: CachedOfficialSources,
   rawDraft: unknown,
 ): { domains: GuideDomain[]; studyPath: StudyPathStep[] } {
   const draft = GuideDraftSchema.parse(rawDraft)
-  const sourceSections = sourceSnapshot.examGuide.sections
-  const sectionNumbers = sourceSections.map((section) => section.number).sort((a, b) => a - b)
-  const draftSectionNumbers = draft.domains.map((domain) => domain.sectionNumber).sort((a, b) => a - b)
-  if (new Set(draftSectionNumbers).size !== draftSectionNumbers.length
-    || JSON.stringify(sectionNumbers) !== JSON.stringify(draftSectionNumbers)) {
-    throw new Error('Generated guide sections do not match the official guide.')
+  const sectionNumbers = draft.domains.map((domain) => domain.sectionNumber)
+  if (new Set(sectionNumbers).size !== sectionNumbers.length
+    || draft.domains.reduce((sum, domain) => sum + domain.weight, 0) !== 100) {
+    throw new Error('Generated guide sections or weights are invalid.')
   }
 
-  const domains = sourceSections.map((sourceSection): GuideDomain => {
-    const generated = draft.domains.find((domain) => domain.sectionNumber === sourceSection.number)!
-    const expectedTopicIds = sourceSection.topics.map((topic) => topic.id).sort()
-    const generatedTopicIds = generated.topics.map((topic) => topic.sourceTopicId).sort()
-    if (new Set(generatedTopicIds).size !== generatedTopicIds.length
-      || JSON.stringify(expectedTopicIds) !== JSON.stringify(generatedTopicIds)) {
-      throw new Error(`Generated guide topics do not match official section ${sourceSection.number}.`)
-    }
-
+  const domains = draft.domains.map((generated): GuideDomain => {
     return GuideDomainSchema.parse({
-      id: `section-${sourceSection.number}`,
-      sourceSectionNumber: sourceSection.number,
+      id: `section-${generated.sectionNumber}`,
+      sourceSectionNumber: generated.sectionNumber,
       name: generated.name,
       description: generated.description,
-      weight: sourceSection.weight,
-      topics: generated.topics.map((topic) => ({
-        id: topic.sourceTopicId,
+      weight: generated.weight,
+      topics: generated.topics.map((topic, index) => ({
+        id: `topic-${generated.sectionNumber}-${index + 1}`,
         name: topic.name,
         description: topic.description,
       })),
@@ -78,17 +63,17 @@ function normalizeDraft(
   })
 
   if (domains.reduce((sum, domain) => sum + domain.weight, 0) !== 100) {
-    throw new Error('Official domain weights do not total 100%.')
+    throw new Error('Guide domain weights do not total 100%.')
   }
   const domainIds = new Set(domains.map((domain) => domain.id))
-  const allowedUrls = new Set(certification.sources.map((source) => source.url))
+  const learningPathUrl = certification.sources.find((source) => source.kind === 'learning-path')?.url
+  if (!learningPathUrl) throw new Error('The certification has no learning path.')
   const studyPath = draft.studyPath.map((step, index): StudyPathStep => {
-    if (!allowedUrls.has(step.url)) throw new Error('Generated study path uses a non-official URL.')
     if (step.domainIds.some((id) => !domainIds.has(id))
       || new Set(step.domainIds).size !== step.domainIds.length) {
       throw new Error('Generated study path refers to an unknown or repeated domain.')
     }
-    return StudyPathStepSchema.parse({ id: `step-${index + 1}`, ...step })
+    return StudyPathStepSchema.parse({ id: `step-${index + 1}`, ...step, url: learningPathUrl })
   })
 
   return { domains, studyPath }
@@ -98,9 +83,7 @@ function toResponse(
   certification: CertificationCatalogItem,
   guide: NonNullable<Awaited<ReturnType<typeof readCertificationGuide>>>,
 ): CertificationGuideResponse {
-  if (!guide.lastSourceCheckedAt || !guide.lastAiRefreshedAt) {
-    throw new ApiException(503, 'GUIDE_STALE', 'La guía aún no se ha podido verificar y renovar.')
-  }
+  if (!guide.lastAiRefreshedAt) throw new ApiException(503, 'GUIDE_STALE', 'La guía aún no se ha podido preparar.')
   return CertificationGuideResponseSchema.parse({
     certification,
     version: guide.version,
@@ -108,7 +91,6 @@ function toResponse(
     studyPath: guide.studyPath,
     sources: certification.sources,
     freshness: {
-      sourceCheckedAt: guide.lastSourceCheckedAt.toISOString(),
       aiRefreshedAt: guide.lastAiRefreshedAt.toISOString(),
     },
   })
@@ -119,7 +101,6 @@ function sleep(durationMs: number) {
 }
 
 export function createCertificationGuideService(db: DatabaseHandle, options: GuideServiceOptions = {}) {
-  const sourceReader = options.sourceReader ?? createOfficialSourceReader()
   const guideGenerator = options.guideGenerator ?? createAiGuideGenerator()
   const now = options.now ?? (() => new Date())
   const peerWaitMs = options.peerWaitMs ?? 80_000
@@ -172,25 +153,12 @@ export function createCertificationGuideService(db: DatabaseHandle, options: Gui
     }
 
     const refreshStartedAt = Date.now()
-    let stage = 'official_sources'
+    let stage = 'ai_generation'
     try {
-      const previous = await readCertificationGuide(db, certificationId)
-      const sourceStartedAt = Date.now()
-      const sourceResult = await sourceReader(certification, previous?.sourceSnapshot)
-      logServerEvent('info', 'guide_sources_ready', {
-        certificationId,
-        durationMs: Date.now() - sourceStartedAt,
-      })
-      const checkedAt = now()
-      if (previous) {
-        await saveSourceCheck(db, certificationId, sourceResult.hash, sourceResult.snapshot, checkedAt)
-      }
-
       let generated: unknown
-      stage = 'ai_generation'
       const generationStartedAt = Date.now()
       try {
-        generated = await guideGenerator({ certification, sources: sourceResult.snapshot })
+        generated = await guideGenerator({ certification })
         logServerEvent('info', 'guide_ai_generation_completed', {
           certificationId,
           durationMs: Date.now() - generationStartedAt,
@@ -203,9 +171,9 @@ export function createCertificationGuideService(db: DatabaseHandle, options: Gui
       let normalized: { domains: GuideDomain[]; studyPath: StudyPathStep[] }
       stage = 'guide_validation'
       try {
-        normalized = normalizeDraft(certification, sourceResult.snapshot, generated)
+        normalized = normalizeDraft(certification, generated)
       } catch {
-        throw new ApiException(502, 'GUIDE_AI_INVALID', 'La guía generada no coincide con las fuentes oficiales. Intenta de nuevo.')
+        throw new ApiException(502, 'GUIDE_AI_INVALID', 'La guía generada no cumple el formato esperado. Intenta de nuevo.')
       }
 
       stage = 'guide_publish'
@@ -213,8 +181,6 @@ export function createCertificationGuideService(db: DatabaseHandle, options: Gui
       await publishGuide(db, {
         certificationId,
         ...normalized,
-        sourceHash: sourceResult.hash,
-        sourceSnapshot: sourceResult.snapshot,
         now: publishedAt,
         leaseToken,
       })
@@ -234,7 +200,7 @@ export function createCertificationGuideService(db: DatabaseHandle, options: Gui
         code: error instanceof ApiException ? error.code : 'UNEXPECTED_ERROR',
       })
       if (error instanceof ApiException) throw error
-      throw new ApiException(503, 'GUIDE_REFRESH_FAILED', 'No se pudo renovar la guía oficial. Intenta de nuevo.')
+      throw new ApiException(503, 'GUIDE_REFRESH_FAILED', 'No se pudo renovar la guía de estudio. Intenta de nuevo.')
     } finally {
       try {
         await releaseRefreshLease(db, certificationId, leaseToken)

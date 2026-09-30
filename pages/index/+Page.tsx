@@ -598,7 +598,6 @@ function HomeScreen({
           {guide && !guideError && (
             <div className="guide-freshness">
               <strong>{text('guideVersion', { version: guide.version })}</strong>
-              <span>{text('sourceChecked')}: {formatDate(guide.freshness.sourceCheckedAt, locale)}</span>
               <span>{text('aiRefreshed')}: {formatDate(guide.freshness.aiRefreshedAt, locale)}</span>
             </div>
           )}
@@ -626,7 +625,7 @@ function HomeScreen({
             <p className="eyebrow">{text('examMapEyebrow')}</p>
             <h2 id="topics-title">{text('examMapTitle')}</h2>
           </div>
-          <a className="text-link" href={certification.sources.find((source) => source.kind === 'exam-guide')?.url} target="_blank" rel="noreferrer">
+          <a className="text-link" href={certification.sources.find((source) => source.kind === 'certification')?.url} target="_blank" rel="noreferrer">
             {text('officialGuide')} <span aria-hidden="true">↗</span>
           </a>
         </div>
@@ -678,7 +677,7 @@ function HomeScreen({
         {guide && <section className="official-sources" aria-labelledby="official-sources-title">
           <h2 id="official-sources-title">{text('officialSourcesTitle')}</h2>
           <ul>
-            {guide.sources.map((source) => (
+            {guide.sources.filter((source) => source.kind !== 'exam-guide').map((source) => (
               <li key={source.kind}>
                 <span>{sourceLabels[source.kind]}</span>
                 <a className="text-link" href={source.url} target="_blank" rel="noreferrer">

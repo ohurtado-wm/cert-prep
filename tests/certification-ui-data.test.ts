@@ -98,7 +98,7 @@ describe('certification API client', () => {
           url: item.sources[0]!.url,
         }],
         sources: item.sources,
-        freshness: { sourceCheckedAt: '2026-09-30T12:00:00.000Z', aiRefreshedAt: '2026-09-30T12:00:00.000Z' },
+        freshness: { aiRefreshedAt: '2026-09-30T12:00:00.000Z' },
       },
     }
     let requestedPath = ''

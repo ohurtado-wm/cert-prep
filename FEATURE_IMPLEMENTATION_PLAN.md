@@ -16,7 +16,7 @@
 
 - **Completado:** PoC local aprobado; catálogo y guía oficial bilingües, generación IA de preguntas, sesiones seguras y UI conectada al backend para el historial.
 - **Completado en PR-01:** base Bun/Hono integrada con Vike, contratos Zod, esquema Drizzle/SQLite, migración inicial, resolución de usuario con `/users/me` y pruebas de identidad/rutas/migración.
-- **Completado en PR-02:** catálogo y guías de fuentes oficiales con renovación semanal mediante IA y consulta desde la UI.
+- **Completado en PR-02:** catálogo y guías de estudio generadas con IA, compartidas desde SQLite y renovadas bajo demanda cada 30 días.
 - **Pendiente:** terminar la validación de PR-05 y luego implementar el plan de estudio y la simulación enfocada.
 - **Repositorio:** conectado a `https://github.com/ohurtado-wm/cert-prep.git`; PR-01…PR-07 son límites de revisión propuestos.
 
@@ -40,7 +40,7 @@ Convertir el PoC en un simulador bilingüe que obtiene dominios y rutas de estud
 
 El producto se considera completo solo cuando:
 
-- `FAC-01`: al elegir una certificación disponible, se muestran dominios y ruta de aprendizaje renovados con IA desde una fuente oficial comprobada durante los últimos 7 días y presentados en español o inglés.
+- `FAC-01`: al elegir una certificación disponible, se muestran dominios y ruta de aprendizaje preparados con IA en español o inglés. El prompt nombra la guía oficial de Google Cloud como referencia principal; la app no hace una consulta web ni verifica cambios en tiempo real.
 - `FAC-02`: al iniciar una sesión, se generan exactamente 20 preguntas originales, con cuatro opciones y una sola correcta; su tema, servicio, idioma y dominio validan contra contratos Zod y la guía seleccionada.
 - `FAC-03`: la práctica guiada conserva retroalimentación y reintentos. En Simulación Real, **Siguiente pregunta** registra la selección y avanza en un clic; la API no revela la respuesta correcta hasta calcular el resultado final.
 - `FAC-04`: cada sesión completada se guarda en el backend asociada al `id` verificado por el gateway; el historial sobrevive cambios de dispositivo usando la misma identidad y se puede borrar.
@@ -54,7 +54,7 @@ El producto se considera completo solo cuando:
 - **Certificaciones iniciales:** Professional Cloud Developer; agregar una certificación AWS después de fijar su código y nivel de examen. El catálogo debe admitir nuevas certificaciones con fuentes oficiales registradas.
 - **Identidad y datos de usuario:** consumir el usuario que devuelve automáticamente el gateway mediante `/users/me` y usar su `id` como clave externa estable. Guardar resultados y planes en backend bajo ese propietario para permitir continuidad entre dispositivos; no crear contraseñas ni una identidad paralela ni gestionar credenciales del gateway en la aplicación.
 - **Historial propuesto:** conservar las últimas 20 sesiones completadas por usuario y usar las 10 más recientes para recomendaciones. Guardar identificadores estables de dominio/tema, métricas y temas fallidos, no preguntas completas ni respuestas del usuario. Ofrecer una acción para borrar el historial.
-- **Frescura de guías:** `lastSourceCheckedAt` registra la última comprobación exitosa de la fuente y `lastAiRefreshedAt` la última renovación exitosa con IA. Al cumplirse 7 días desde la renovación con IA, la selección de cualquier usuario puede disparar una actualización bajo demanda. Se vuelve a llamar a IA aunque el contenido oficial no haya cambiado, para cumplir la renovación semanal. Una lease SQL adquirida atómicamente permite un solo actualizador por certificación; las solicitudes concurrentes esperan o se unen al mismo trabajo. La lease tiene vencimiento para recuperarse si el proceso se interrumpe. El catálogo persistido se comparte entre usuarios, así que no se genera una guía por selección.
+- **Frescura de guías:** `lastAiRefreshedAt` registra cuándo se generó la guía con IA, no una verificación de Google. Al cumplirse 30 días desde esa fecha, la primera solicitud de cualquier usuario puede disparar una actualización bajo demanda. Una lease SQL adquirida atómicamente permite un solo actualizador por certificación; las solicitudes concurrentes esperan o se unen al mismo trabajo. La lease tiene vencimiento para recuperarse si el proceso se interrumpe. El catálogo persistido se comparte entre usuarios, así que no se genera una guía por usuario. La renovación mensual es una llamada facturable a OpenAI y el prompt no realiza búsqueda web ni verifica cambios de Google en tiempo real; por ello, la guía puede no coincidir con el documento vigente incluso después de renovarla.
 - **Umbral inicial propuesto:** considerar un tema débil cuando el acierto reciente quede por debajo de 80%; este umbral es configurable y no representa el puntaje de aprobación oficial.
 - **Stack:** React + TypeScript estricto + Vike sobre Vite; Tailwind CSS, Zod, `fetch` nativo y TanStack Query; Bun + Hono para la API; Drizzle con SQLite para desarrollo local/una instancia, y PostgreSQL si el despliegue requiere varias instancias; Vercel AI SDK (`ai`) para las llamadas al modelo.
 - **Seguridad y privacidad:** la API deriva el propietario desde una identidad validada con el gateway y aplica aislamiento por usuario en cada lectura/escritura; nunca confía en un `userId` enviado por el cliente. Usar `id` como clave, no el correo. Persistir solo ese ID externo por defecto; obtener correo/avatar del gateway si la UI los necesita y no guardar permisos ni enviarlos a IA. La IA recibe agregados mínimos calculados en servidor, sin identificadores ni datos personales.
@@ -64,7 +64,7 @@ El producto se considera completo solo cuando:
 
 ## Forma de implementación
 
-- **Descubrimiento de certificación:** el catálogo contiene fuentes oficiales permitidas. Al seleccionar una certificación, la API devuelve la guía cacheada si la renovación con IA ocurrió hace menos de 7 días. Al cumplirse 7 días, esa petición intenta adquirir atómicamente una lease con vencimiento y dispara el actualizador; si ya existe una lease vigente, las solicitudes esperan o se unen al mismo trabajo. El actualizador consulta la fuente oficial con validadores HTTP cuando existan, calcula un hash del contenido normalizado y vuelve a procesar la guía con Vercel AI SDK incluso si el hash no cambió. Valida la salida estructurada y publica una nueva versión solo si dominios/ruta resultantes cambiaron; en todos los casos de éxito actualiza `lastSourceCheckedAt` y `lastAiRefreshedAt`. El vencimiento permite recuperar una actualización interrumpida. En caso de error, conserva la última versión buena, la marca como desactualizada y no la presenta como vigente ni permite generar preguntas con ella.
+- **Descubrimiento de certificación:** el catálogo expone la certificación y sus recursos oficiales, sin enviarlos como enlaces al modelo. Al seleccionar una certificación, la API devuelve la guía cacheada si se generó hace menos de 30 días. Al vencer, la petición intenta adquirir atómicamente una lease con vencimiento y genera dominios/ruta con Vercel AI SDK; las solicitudes concurrentes esperan o se unen al mismo trabajo. El prompt pide usar la guía oficial vigente de Google Cloud como referencia principal, sin búsqueda web ni verificación de cambios en tiempo real. La fecha reportada es de generación, no de validación; la salida estructurada valida pesos, dominios y pasos antes de publicarse. En caso de error, conserva la última versión buena y presenta un error recuperable.
 - **Generación:** la API compone preguntas según dominios y pesos de la certificación, pide salida estructurada con Zod, valida cantidad/opciones/respuesta única/cobertura y aplica un reintento acotado si falla. Si aún no cumple, cancela la sesión y presenta error recuperable.
 - **Sesión real:** la API conserva temporalmente preguntas y claves de respuesta en SQLite/PostgreSQL, asociadas al ID verificado del usuario. Solo ese usuario puede avanzar o consultar el resultado. El navegador recibe pregunta y opciones; cada clic en **Siguiente pregunta** envía la respuesta y recibe la próxima pregunta. La API devuelve puntuación y desglose únicamente al finalizar. Las sesiones incompletas expiran y se limpian.
 - **Identidad y autorización:** la aplicación consulta `/users/me` y usa el usuario que el gateway devuelve automáticamente. La API toma el `id` de esa respuesta como propietario; no acepta el `id`, correo ni permisos como autoridad si vienen solo en el cuerpo del cliente. El gateway gestiona credenciales y resolución de identidad; cada consulta de historial se limita al usuario devuelto para esa solicitud.
@@ -77,7 +77,6 @@ sequenceDiagram
     participant API as Bun / Hono
     participant Gateway as Gateway de usuarios
     participant DB as Drizzle / SQL
-    participant Fuente as Guía oficial
     participant AI as Vercel AI SDK
 
     Web->>API: Solicita identidad / recurso
@@ -88,13 +87,12 @@ sequenceDiagram
     Usuario->>Web: Selecciona certificación e idioma
     Web->>API: Solicita dominios y ruta
     API->>DB: Comprueba fecha de renovación con IA
-    alt Guía renovada hace menos de 7 días
+    alt Guía renovada hace menos de 30 días
         API->>DB: Lee versión vigente
-    else Guía con 7 días o más
+    else Guía con 30 días o más o guía inexistente
         API->>DB: Intenta reclamar lease con vencimiento
         alt Obtiene la lease
-            API->>Fuente: Revalida fuente y calcula hash
-            API->>AI: Renueva dominios/ruta con esquema Zod
+            API->>AI: Genera dominios/ruta; prompt indica usar la guía oficial como referencia principal
             API->>DB: Publica cambios y renueva fechas
         else Ya hay actualización en curso
             API->>DB: Espera o se une al mismo trabajo
@@ -184,23 +182,23 @@ sequenceDiagram
 ### Tareas
 
 - [x] `P2-T01` Crear catálogo con ID estable, nombre, idioma, código de examen y URL oficial permitida; incluir Professional Cloud Developer y agregar AWS cuando se elija su nivel/código.
-- [x] `P2-T02` Implementar adaptadores acotados por proveedor para consultar guías oficiales, registrar URL, `lastSourceCheckedAt`, `lastAiRefreshedAt`, hash y versión; usar `ETag`/`If-Modified-Since` cuando estén disponibles.
-- [x] `P2-T03` Al seleccionar una certificación cuya última renovación con IA ocurrió hace 7 días o más, intentar reclamar lease atómica con vencimiento e iniciar el actualizador; peticiones concurrentes esperan o comparten el mismo trabajo.
-- [x] `P2-T04` En cada renovación semanal, procesar la guía con Vercel AI SDK y salida estructurada Zod aunque el hash oficial siga igual; validar y publicar cambios de dominios/ruta atómicamente, y registrar ambas fechas tras una renovación exitosa.
-- [x] `P2-T05` Si falla la fuente o IA, conservar la última versión válida pero marcarla desactualizada; informar al usuario y bloquear nuevas sesiones con esa guía hasta verificarla.
-- [x] `P2-T06` Exponer consulta de catálogo y detalle; devolver enlaces/versión de fuente para que la UI explique de dónde salen los temas.
-- [x] `P2-T07` Añadir fixtures determinísticos y evaluaciones para versión fresca, contenido sin cambio, guía modificada, actualizaciones concurrentes y fallos; comprobar que contenido idéntico también se renueva con IA una vez por periodo semanal compartido.
+- [x] `P2-T02` Generar dominios y ruta con el Vercel AI SDK; indicar en el prompt que la guía oficial vigente de Google Cloud es la referencia principal, sin incluir URL ni ejecutar búsqueda web.
+- [x] `P2-T03` Al seleccionar una certificación cuya última renovación con IA ocurrió hace 30 días o más, intentar reclamar lease atómica con vencimiento e iniciar el actualizador; peticiones concurrentes esperan o comparten el mismo trabajo.
+- [x] `P2-T04` En cada renovación mensual, procesar la guía con Vercel AI SDK y salida estructurada Zod; validar y publicar cambios de dominios/ruta atómicamente y registrar la fecha de actualización con IA.
+- [x] `P2-T05` Si falla la IA, conservar la última versión válida, informar al usuario y bloquear nuevas sesiones con esa guía hasta poder renovarla.
+- [x] `P2-T06` Exponer consulta de catálogo y detalle; devolver enlaces de certificación y ruta de aprendizaje para orientar la preparación.
+- [x] `P2-T07` Añadir fixtures determinísticos y evaluaciones para versión fresca, guía modificada, actualizaciones concurrentes y fallos; comprobar que una certificación se renueva como máximo una vez por periodo de 30 días compartido.
 
 ### Criterios de validación
 
-- [x] Respuestas válidas siempre incluyen certificación, dominios, ruta y fuentes; respuesta inválida o fuente caída produce error recuperable.
-- [x] Una guía renovada con IA hace menos de 7 días se sirve de SQLite; a partir de los 7 días cualquier selección intenta disparar su actualización.
-- [x] Cada actualización exitosa vuelve a procesar la fuente con IA; cambios de dominios/ruta publican nueva versión y una salida equivalente solo renueva las fechas.
-- [x] Solicitudes concurrentes causan como máximo una revalidación y una llamada de IA por certificación y periodo de renovación.
+- [x] Respuestas válidas siempre incluyen certificación, dominios, ruta y recursos oficiales; una salida de IA inválida produce error recuperable.
+- [x] Una guía renovada con IA hace menos de 30 días se sirve de SQLite; al cumplir 30 días, cualquier solicitud de guía intenta disparar su actualización.
+- [x] Cada actualización exitosa vuelve a generar la guía con IA; cambios de dominios/ruta publican nueva versión y una salida equivalente solo renueva la fecha.
+- [x] Solicitudes concurrentes causan como máximo una llamada de IA por certificación y periodo de renovación.
 - [x] Si la renovación falla, se conserva la versión previa marcada como obsoleta, no se etiqueta como actual y se bloquea generación con ella.
 - [x] CI corre contra fixtures, no depende de una descarga pública ni de credenciales AI.
 
-**Validación local:** `bun run typecheck`, `bun test` (21 pruebas), `bun run db:generate` (sin cambios de esquema), `bun run db:migrate`, `bun run build` y smoke HTTP de `/` y `GET /api/v1/certifications` pasaron. La ruta de Google Skills redirige a su dominio canónico `skills.google`, permitido por el lector. La guía devuelve 503 recuperable mientras `AI_MODEL` no esté configurado; no se hizo una llamada real a IA.
+**Validación previa:** antes del cambio mensual se habían ejecutado `bun run typecheck`, `bun test` (21 pruebas), migraciones, build y smoke HTTP. Esa evidencia no cubre la implementación mensual. La nueva política no hace consultas HTTP a Google durante la carga de la guía; cada renovación mensual sí usa OpenAI.
 
 ### Riesgos / preguntas
 
@@ -336,7 +334,7 @@ sequenceDiagram
 - [ ] Inspeccionar respuestas de red del modo real y bundles cliente para comprobar que no publican claves ni secretos.
 - [ ] Verificar sesión ausente/expirada, aislamiento entre usuarios, borrado propio y que la IA no reciba identificadores del gateway.
 - [ ] Verificar errores de fuente/proveedor, timeout, salida inválida, límite de uso y fallos de almacenamiento/red.
-- [ ] Probar el TTL de 7 días, leases y actualización concurrente sobre SQLite; validar el mismo contrato en PostgreSQL antes de multi-instancia.
+- [ ] Probar el TTL de 30 días, leases y actualización concurrente sobre SQLite; validar el mismo contrato en PostgreSQL antes de multi-instancia.
 
 ## Preguntas abiertas
 

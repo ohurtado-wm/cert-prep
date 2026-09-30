@@ -50,7 +50,6 @@ export const CertificationGuideResponseSchema = z.object({
   studyPath: z.array(StudyPathStepSchema).min(1),
   sources: z.array(CertificationSourceSchema).min(1),
   freshness: z.object({
-    sourceCheckedAt: z.string().datetime(),
     aiRefreshedAt: z.string().datetime(),
   }),
 })
