@@ -1,6 +1,6 @@
 # Implementation Plan: Cert Helper — producto final
 
-**Estado:** En implementación; PR-01 listo para revisión, PR-02…PR-07 pendientes
+**Estado:** PR-01 y PR-02 integrados; PR-03 listo para revisión; PR-04…PR-07 pendientes
 **Última actualización:** 2026-09-30
 
 ## Materiales fuente
@@ -14,9 +14,10 @@
 
 ## Estado
 
-- **Completado:** PoC local aprobado con 20 preguntas GCP, UI bilingüe pendiente, modo de práctica, Simulación Real y análisis final por dominio. Los datos aún se sirven desde JSON y no se conserva el historial de resultados.
+- **Completado:** PoC local aprobado con 20 preguntas GCP; UI bilingüe, catálogo y guía oficial integrados en PR-03. Las preguntas aún se sirven desde JSON y no se conserva el historial de resultados.
 - **Completado en PR-01:** base Bun/Hono integrada con Vike, contratos Zod, esquema Drizzle/SQLite, migración inicial, resolución de usuario con `/users/me` y pruebas de identidad/rutas/migración.
-- **Pendiente:** catálogo de certificaciones dinámico, IA, UI bilingüe, sesiones seguras y persistencia del historial/planes en la aplicación.
+- **Completado en PR-02:** catálogo y guías de fuentes oficiales con renovación semanal mediante IA y consulta desde la UI.
+- **Pendiente:** generación de preguntas con IA, sesiones seguras y persistencia del historial/planes en la aplicación.
 - **Repositorio:** conectado a `https://github.com/ohurtado-wm/cert-prep.git`; PR-01…PR-07 son límites de revisión propuestos.
 
 ## Estado de PR
@@ -24,8 +25,8 @@
 | PR | Alcance | Estado | Dependencia | Validación de salida |
 |---|---|---|---|---|
 | `PR-01` | API Hono, autenticación Gateway, contratos y persistencia Drizzle | Merged | — | API arranca, migra SQLite y valida identidad |
-| `PR-02` | Catálogo y descubrimiento de guías oficiales | Listo para revisión | `PR-01` | Dominios y ruta con fuentes verificables |
-| `PR-03` | Interfaz y contenido en español/inglés | No iniciado | `PR-02` | Flujo completo del catálogo en ambos idiomas |
+| `PR-02` | Catálogo y descubrimiento de guías oficiales | Merged | `PR-01` | Dominios y ruta con fuentes verificables |
+| `PR-03` | Interfaz y contenido en español/inglés | Listo para revisión | `PR-02` | Flujo completo del catálogo en ambos idiomas |
 | `PR-04` | Generación de preguntas y sesiones seguras | No iniciado | `PR-01`, `PR-02` | 20 preguntas válidas; sesiones privadas por usuario |
 | `PR-05` | Sesiones web e historial por usuario en backend | No iniciado | `PR-01`, `PR-03`, `PR-04` | Práctica y Simulación Real guardan resultados autenticados |
 | `PR-06` | Plan de estudio personalizado con IA | No iniciado | `PR-05` | Recomendaciones ligadas a resultados y fuentes |
@@ -175,7 +176,7 @@ sequenceDiagram
 ## PR-02: Catálogo y guía oficial de certificación
 
 **ID:** `PR-02`  
-**Estado:** Listo para revisión
+**Estado:** Merged
 **Objetivo:** convertir fuentes oficiales en dominios/ruta bilingües con procedencia verificable.  
 **Dependencia:** `PR-01`.
 
@@ -207,23 +208,25 @@ sequenceDiagram
 ## PR-03: Interfaz y experiencia bilingüe
 
 **ID:** `PR-03`  
-**Estado:** No iniciado  
+**Estado:** Listo para revisión
 **Objetivo:** permitir navegar el producto completo en español o inglés y mostrar el catálogo dinámico.  
 **Dependencia:** `PR-02`; puede avanzar en paralelo con `PR-04` al congelar los contratos de la API.
 
 ### Tareas
 
-- [ ] `P3-T01` Añadir selector de idioma ES/EN y recordar la preferencia en `localStorage`, separado de la preferencia claro/oscuro.
-- [ ] `P3-T02` Externalizar cadenas de UI y traducir pantallas, errores, accesibilidad, resultados y contenido de orientación.
-- [ ] `P3-T03` Integrar selector de certificación con dominios/ruta y fuentes que devuelve la API; mostrar estados de carga, fallo y caché.
-- [ ] `P3-T04` Mantener IDs de certificación/dominio/tema independientes del idioma para que las estadísticas combinen contenido ES/EN.
-- [ ] `P3-T05` Añadir pruebas de idioma, persistencia de preferencia y revisión responsive/Accesibilidad.
+- [x] `P3-T01` Añadir selector de idioma ES/EN y recordar la preferencia en `localStorage`, separado de la preferencia claro/oscuro.
+- [x] `P3-T02` Externalizar cadenas de UI y traducir pantallas, errores, accesibilidad, resultados y contenido de orientación.
+- [x] `P3-T03` Integrar selector de certificación con dominios/ruta y fuentes que devuelve la API; mostrar estados de carga, fallo, versión y fechas de frescura.
+- [x] `P3-T04` Mantener IDs de certificación/dominio/tema independientes del idioma para que las estadísticas combinen contenido ES/EN.
+- [x] `P3-T05` Añadir pruebas de idioma y persistencia de preferencia; revisión visual responsive aceptada por el usuario y revisión estática de nombres accesibles y foco de teclado.
 
 ### Criterios de validación
 
-- [ ] Todas las pantallas visibles y mensajes de error se pueden recorrer en ambos idiomas.
-- [ ] Cambiar idioma no mezcla métricas ni duplica dominios con IDs equivalentes.
-- [ ] El modo claro/oscuro actual permanece funcional en ambos idiomas.
+- [x] Todas las pantallas visibles y mensajes de error se pueden recorrer en ambos idiomas.
+- [x] Cambiar idioma no mezcla métricas ni duplica dominios con IDs equivalentes.
+- [x] El modo claro/oscuro actual permanece funcional en ambos idiomas.
+
+**Validación local:** `bun run typecheck`, `bun test` (29 pruebas, 77 aserciones), `bun run build` y `git diff --check` pasaron. El build muestra una advertencia informativa de Vite sobre `debugName`. La revisión visual responsive fue realizada por el usuario. No se hizo una llamada real al proveedor de IA; si el modelo no está configurado, la API de guía devuelve un error recuperable y la UI bloquea el inicio de sesión.
 
 ## PR-04: Generación de preguntas y sesión segura
 

@@ -1,0 +1,276 @@
+{
+  "certifications": [
+    {
+      "id": "gcp-professional-cloud-developer",
+      "name": "Google Cloud Professional Cloud Developer",
+      "topics": [
+        { "id": "design", "name": "Design scalable, available, and reliable cloud-native applications" },
+        { "id": "build_test", "name": "Build and test applications" },
+        { "id": "deploy", "name": "Deploy applications" },
+        { "id": "integrate", "name": "Integrate applications with Google Cloud services" }
+      ],
+      "questions": [
+        {
+          "id": "gcpd-001",
+          "focus": "Choose a runtime platform",
+          "service": "Cloud Run",
+          "question": "A team deploys an HTTP API in containers. Traffic varies significantly throughout the day, and they want to avoid managing nodes and clusters. Which platform is the best fit?",
+          "answers": [
+            { "id": "a", "text": "Google Kubernetes Engine, because every container must run in a managed cluster." },
+            { "id": "b", "text": "Cloud Run, which runs HTTP containers and scales based on requests." },
+            { "id": "c", "text": "Compute Engine, creating a virtual machine for each API replica." },
+            { "id": "d", "text": "Cloud Storage, publishing the container image as a static website." }
+          ],
+          "explanation": "Cloud Run lets the team deploy a container image without managing a cluster and scales the service with demand. GKE is a better fit when the team needs direct control of Kubernetes or specific orchestration capabilities."
+        },
+        {
+          "id": "gcpd-002",
+          "focus": "Decouple services with asynchronous messaging",
+          "service": "Pub/Sub",
+          "question": "After a purchase is confirmed, a service must notify several independent consumers. The producer should not know their addresses or wait for them to finish. Which pattern fits best?",
+          "answers": [
+            { "id": "a", "text": "Call each consumer synchronously over HTTP." },
+            { "id": "b", "text": "Save the purchase in Cloud Storage and have each consumer poll the file." },
+            { "id": "c", "text": "Publish a message to Pub/Sub for consumers to receive through subscriptions." },
+            { "id": "d", "text": "Run all consumers inside the producer's process." }
+          ],
+          "explanation": "Pub/Sub separates producers and consumers through topics and subscriptions. They can scale and deploy independently without blocking the response to the user."
+        },
+        {
+          "id": "gcpd-003",
+          "focus": "Choose an API style",
+          "service": "gRPC",
+          "question": "Two internal services communicate through typed contracts and need efficient message exchange. The team controls both ends and can generate clients from a shared definition. Which option is most appropriate?",
+          "answers": [
+            { "id": "a", "text": "gRPC with Protocol Buffers contracts." },
+            { "id": "b", "text": "A REST API with no schema or resource definition." },
+            { "id": "c", "text": "A shared spreadsheet as the integration contract." },
+            { "id": "d", "text": "A Cloud Storage bucket continuously polled by both services." }
+          ],
+          "explanation": "gRPC uses Protocol Buffers contracts and generates client and server code. It works well for service-to-service communication when both sides control the contract; REST remains useful for public APIs and web clients."
+        },
+        {
+          "id": "gcpd-004",
+          "focus": "Store and rotate secrets",
+          "service": "Secret Manager",
+          "question": "An application needs to read a database password, and the team must be able to rotate it without rebuilding the container image. Where should they store it?",
+          "answers": [
+            { "id": "a", "text": "In a versioned environment variable in the repository." },
+            { "id": "b", "text": "In the source code, encrypted with a key written in the same file." },
+            { "id": "c", "text": "In Cloud KMS as if the password were a managed cryptographic key." },
+            { "id": "d", "text": "In Secret Manager, granting the runtime identity access to only the required secret." }
+          ],
+          "explanation": "Secret Manager is designed to store and version application secrets. Cloud KMS manages cryptographic keys; it does not replace a password and token store."
+        },
+        {
+          "id": "gcpd-005",
+          "focus": "Apply least privilege to a workload",
+          "service": "IAM",
+          "question": "A service deployed on Cloud Run only needs to read objects from one specific bucket. How should access be granted?",
+          "answers": [
+            { "id": "a", "text": "Grant the project Owner role to every service user." },
+            { "id": "b", "text": "Use a dedicated service account and grant it only the read permission needed on that bucket." },
+            { "id": "c", "text": "Download a JSON key for an account with access to every bucket and store it in the image." },
+            { "id": "d", "text": "Make the bucket public to avoid configuring IAM." }
+          ],
+          "explanation": "A dedicated service identity allows the team to grant minimum permissions on the required resource. Avoiding long-lived keys also reduces the risk of disclosure and manual rotation."
+        },
+        {
+          "id": "gcpd-006",
+          "focus": "Add a managed cache",
+          "service": "Memorystore",
+          "question": "Several application instances need fast access to shared temporary data, such as sessions with an expiration time. Which service is the best fit?",
+          "answers": [
+            { "id": "a", "text": "Memorystore, using a managed Redis-compatible cache." },
+            { "id": "b", "text": "Cloud Storage, saving each read in a separate file." },
+            { "id": "c", "text": "Artifact Registry, publishing each session as an image." },
+            { "id": "d", "text": "Cloud Scheduler, creating a scheduled job for each session." }
+          ],
+          "explanation": "Memorystore provides a managed in-memory cache that multiple instances can share. It should not be treated as the durable primary store for information that cannot be rebuilt."
+        },
+        {
+          "id": "gcpd-007",
+          "focus": "Choose storage for relational data",
+          "service": "Cloud SQL",
+          "question": "An application stores orders related to customers, products, and payments, and needs SQL transactions and relational constraints. Which storage type should the team evaluate first?",
+          "answers": [
+            { "id": "a", "text": "Cloud Storage, because objects support relationships and SQL transactions." },
+            { "id": "b", "text": "Bigtable, as a general-purpose relational database for JOIN queries." },
+            { "id": "c", "text": "Cloud SQL, for a managed relational database." },
+            { "id": "d", "text": "Memorystore, as the durable record of every order." }
+          ],
+          "explanation": "Cloud SQL offers managed relational database engines and is a natural option when the data model requires SQL, relationships, and transactions. The final choice should also account for scale, availability, consistency, and access patterns."
+        },
+        {
+          "id": "gcpd-008",
+          "focus": "Connect securely during local development",
+          "service": "Cloud SQL Auth Proxy",
+          "question": "A developer needs to test an application locally against a Cloud SQL instance without opening the database to any IP address or managing TLS certificates manually. Which tool can they use?",
+          "answers": [
+            { "id": "a", "text": "Cloud SQL Auth Proxy, authenticated with development credentials and appropriate IAM access." },
+            { "id": "b", "text": "Cloud Scheduler, which creates a permanent database tunnel." },
+            { "id": "c", "text": "Artifact Registry, which turns the instance into a local database." },
+            { "id": "d", "text": "A public IP address with no firewall rules or database authentication." }
+          ],
+          "explanation": "Cloud SQL Auth Proxy creates a secure connection and verifies the identity and authorization for the instance connection. The application still needs database authentication unless IAM database authentication is also configured."
+        },
+        {
+          "id": "gcpd-009",
+          "focus": "Build and store CI artifacts",
+          "service": "Cloud Build and Artifact Registry",
+          "question": "Each approved change must trigger a container build and store the versioned image in a private registry for deployment. Which combination directly manages this workflow?",
+          "answers": [
+            { "id": "a", "text": "Cloud Scheduler to build and Cloud Storage to run the image." },
+            { "id": "b", "text": "Cloud Build to run the build and Artifact Registry to store the image." },
+            { "id": "c", "text": "Secret Manager to build and Memorystore to version images." },
+            { "id": "d", "text": "Cloud SQL to store the container layers." }
+          ],
+          "explanation": "Cloud Build automates continuous integration steps and can produce container images. Artifact Registry stores and manages artifacts for deployment environments to consume."
+        },
+        {
+          "id": "gcpd-010",
+          "focus": "Emulate services during integration tests",
+          "service": "Firestore Emulator",
+          "question": "An integration suite must validate Firestore reads and writes on a developer's machine without modifying data in a shared project. Which option best reduces that risk?",
+          "answers": [
+            { "id": "a", "text": "Run the tests against the production database and delete the data afterward." },
+            { "id": "b", "text": "Replace all database calls with unit tests that do not exercise the client." },
+            { "id": "c", "text": "Use the Firestore Emulator to run those tests locally." },
+            { "id": "d", "text": "Store test results in Artifact Registry." }
+          ],
+          "explanation": "The Firestore Emulator lets the team test application behavior without writing to a remote instance. Integration tests still exercise the interaction with the emulated service."
+        },
+        {
+          "id": "gcpd-011",
+          "focus": "Separate unit and integration tests",
+          "service": "Testing strategy",
+          "question": "A pure function calculates an order's tax from its subtotal and location. The team wants to catch rule errors quickly without depending on a network or Google Cloud services. Which test is most appropriate?",
+          "answers": [
+            { "id": "a", "text": "A unit test for the function with expected inputs and results." },
+            { "id": "b", "text": "A load test that sends thousands of requests to the deployed service." },
+            { "id": "c", "text": "A chaos test that stops the database." },
+            { "id": "d", "text": "A manual console test without preserving the test cases." }
+          ],
+          "explanation": "A unit test verifies one unit of logic with controlled dependencies, so it is fast and deterministic. Integration tests are used to validate interactions between components."
+        },
+        {
+          "id": "gcpd-012",
+          "focus": "Validate failure recovery",
+          "service": "Failure and resilience testing",
+          "question": "Before a migration, the team wants to verify that a service degrades safely when a dependency stops responding and recovers when it is restored. Which strategy directly tests that behavior?",
+          "answers": [
+            { "id": "a", "text": "A unit test that covers only the successful path." },
+            { "id": "b", "text": "A load test that increases requests without injecting failures." },
+            { "id": "c", "text": "A static code-formatting check." },
+            { "id": "d", "text": "A controlled failure test or chaos engineering exercise with defined limits and recovery criteria." }
+          ],
+          "explanation": "Controlled failure tests examine how a system responds to unavailability, latency, and other interruptions. They should have appropriate limits and observability to validate resilience without causing unexpected impact."
+        },
+        {
+          "id": "gcpd-013",
+          "focus": "Roll out a new version gradually",
+          "service": "Cloud Run",
+          "question": "A new API revision is ready, but the team wants to start by sending only a small portion of traffic to it and increase that share if the metrics remain healthy. Which capability helps?",
+          "answers": [
+            { "id": "a", "text": "Create a new service account for every request." },
+            { "id": "b", "text": "Change every client's DNS at the same time." },
+            { "id": "c", "text": "Split traffic between Cloud Run revisions and adjust the distribution gradually." },
+            { "id": "d", "text": "Disable logging until the deployment is complete." }
+          ],
+          "explanation": "Cloud Run can direct percentages of traffic to different revisions. This supports gradual rollouts and quick rollback if the new revision has problems."
+        },
+        {
+          "id": "gcpd-014",
+          "focus": "Trigger serverless event processing",
+          "service": "Eventarc",
+          "question": "When an object finishes uploading to Cloud Storage, an HTTP service on Cloud Run must start. Processing should not depend on periodic polling. Which option fits?",
+          "answers": [
+            { "id": "a", "text": "Configure an Eventarc trigger for the Cloud Storage event and route it to the Cloud Run service." },
+            { "id": "b", "text": "Run Cloud Scheduler every second to inspect the entire bucket." },
+            { "id": "c", "text": "Store the object in the service image and rebuild it." },
+            { "id": "d", "text": "Create an email subscription to notify the team after each upload." }
+          ],
+          "explanation": "Eventarc routes Google Cloud service events to destinations such as Cloud Run. The service can scale when it receives events without continuously polling the bucket."
+        },
+        {
+          "id": "gcpd-015",
+          "focus": "Authenticate GKE workloads without keys",
+          "service": "Workload Identity Federation for GKE",
+          "question": "A GKE pod must call a Google Cloud API, and policy prohibits storing service account keys in Kubernetes Secrets. Which mechanism should be configured?",
+          "answers": [
+            { "id": "a", "text": "Mount a JSON key with project Owner permissions in every pod." },
+            { "id": "b", "text": "Have the pod use the personal credentials of the person who deployed it." },
+            { "id": "c", "text": "Disable IAM in the project while the pod is running." },
+            { "id": "d", "text": "Associate the workload's Kubernetes identity with a Google Cloud service account through Workload Identity Federation for GKE." }
+          ],
+          "explanation": "Workload Identity Federation for GKE lets a workload obtain a Google Cloud identity without distributing long-lived keys. The associated service account should have only the permissions required."
+        },
+        {
+          "id": "gcpd-016",
+          "focus": "Set workload resource requirements",
+          "service": "Google Kubernetes Engine",
+          "question": "A workload in GKE is scheduled on nodes with limited resources. The team wants to reserve CPU and memory explicitly and prevent a container from consuming resources without a limit. What should it define?",
+          "answers": [
+            { "id": "a", "text": "Only a Kubernetes label with the owning team's name." },
+            { "id": "b", "text": "CPU and memory requests and limits in the container specification." },
+            { "id": "c", "text": "A Cloud Storage retention policy for every pod." },
+            { "id": "d", "text": "An IAM administrator role so the scheduler can allocate resources." }
+          ],
+          "explanation": "Requests help the scheduler place pods based on available capacity; limits restrict the container's maximum consumption. Choose values based on the application's observed profile."
+        },
+        {
+          "id": "gcpd-017",
+          "focus": "Manage database connections",
+          "service": "Cloud SQL",
+          "question": "An application on Cloud Run opens a new Cloud SQL connection for every request, and the number of instances can grow quickly. Which change reduces the risk of exhausting database connections?",
+          "answers": [
+            { "id": "a", "text": "Reuse a connection pool per instance and limit concurrency or total scale to match database capacity." },
+            { "id": "b", "text": "Increase the maximum connections indefinitely without reviewing the instance size." },
+            { "id": "c", "text": "Open another connection without closing it every time a row is queried." },
+            { "id": "d", "text": "Store database sockets in Cloud Storage files." }
+          ],
+          "explanation": "Connection pools reuse connections instead of creating one for every operation. Concurrency or the number of instances should also be limited so total demand stays within Cloud SQL capacity."
+        },
+        {
+          "id": "gcpd-018",
+          "focus": "Schedule deferred work with retries",
+          "service": "Cloud Tasks",
+          "question": "A service must run an HTTP task at a future time, with retries if the endpoint is unavailable. Each task must reach a specific destination. Which service is the best fit?",
+          "answers": [
+            { "id": "a", "text": "Cloud Logging, which schedules HTTP requests for the future." },
+            { "id": "b", "text": "Cloud Tasks, which delivers tasks to a destination and manages retries and scheduling." },
+            { "id": "c", "text": "Cloud Storage, which automatically retries the consumer's HTTP calls." },
+            { "id": "d", "text": "Cloud KMS, which maintains a queue of pending requests." }
+          ],
+          "explanation": "Cloud Tasks is appropriate for asynchronous work targeted at an endpoint, with configurable scheduling and retries. Pub/Sub is preferable when events should be distributed to decoupled subscribers."
+        },
+        {
+          "id": "gcpd-019",
+          "focus": "Handle pagination and transient API errors",
+          "service": "Google Cloud APIs",
+          "question": "A Google Cloud API call returns pages of results and occasionally responds with a transient rate-limit error. What behavior should the client implement?",
+          "answers": [
+            { "id": "a", "text": "Request only the first page and treat it as the complete result set." },
+            { "id": "b", "text": "Retry immediately in an unlimited loop and discard the page token." },
+            { "id": "c", "text": "Follow the page token and retry transient errors with exponential backoff and a retry limit." },
+            { "id": "d", "text": "Convert the transient error into an empty successful response." }
+          ],
+          "explanation": "Pagination retrieves all results without requesting an oversized response. Exponential backoff reduces pressure during transient errors; retries should be bounded and distinguish permanent errors."
+        },
+        {
+          "id": "gcpd-020",
+          "focus": "Instrument applications for observability",
+          "service": "Google Cloud Observability",
+          "question": "The support team needs to connect request errors with application logs and observe latency and dependencies between services. What should the team instrument?",
+          "answers": [
+            { "id": "a", "text": "Only free-form text messages, without timestamps or correlation IDs." },
+            { "id": "b", "text": "Metrics in a local spreadsheet that receives no production data." },
+            { "id": "c", "text": "Structured logs, metrics, and traces integrated with Google Cloud Observability." },
+            { "id": "d", "text": "Screenshots of the console after every error." }
+          ],
+          "explanation": "Structured logs help filter and correlate events; metrics show trends, and traces follow a request across services. Together, they provide evidence for diagnosing latency and reliability issues."
+        }
+      ]
+    }
+  ]
+}

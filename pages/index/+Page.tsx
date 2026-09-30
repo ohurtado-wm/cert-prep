@@ -1,7 +1,15 @@
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import {
+  type CertificationCatalogItem,
+  type CertificationGuideResponse,
+  type Locale,
+} from '../../src/api/certification-contracts'
+import { CertificationApiError, loadCertificationCatalog, loadCertificationGuide } from '../../src/api/certifications'
+import { loadCertifications, QuestionBankLoadError } from '../../src/data/load-certification'
 import type { Certification, CertificationQuestion, CertificationTopic } from '../../src/data/certification-schema'
-import { loadCertifications } from '../../src/data/load-certification'
+import { translate } from '../../src/i18n/messages'
+import { readLocalePreference, writeLocalePreference } from '../../src/i18n/preferences'
 import '../../src/styles.css'
 
 type Theme = 'light' | 'dark'
@@ -11,6 +19,39 @@ type Outcome = 'first_try' | 'retry' | 'revealed' | 'incorrect'
 type SavedResponse = { outcome: Outcome; wrongAttempts: number }
 
 const topicColors = ['#F900D3', '#00E8FA', '#1DD566', '#FFC700']
+const sectionByQuestionTopic: Record<string, number> = {
+  design: 1,
+  build_test: 2,
+  deploy: 3,
+  integrate: 4,
+}
+
+function createSessionCertification(
+  bank: Certification | undefined,
+  item: CertificationCatalogItem | undefined,
+  guide: CertificationGuideResponse | undefined,
+  locale: Locale,
+): Certification | null {
+  if (!bank || !item || !guide || guide.domains.length !== bank.topics.length) return null
+  const examGuide = guide.sources.find((source) => source.kind === 'exam-guide')
+  if (!examGuide) return null
+
+  const topics: CertificationTopic[] = []
+  for (const topic of bank.topics) {
+    const sourceSectionNumber = sectionByQuestionTopic[topic.id]
+    const domain = guide.domains.find((candidate) => candidate.sourceSectionNumber === sourceSectionNumber)
+    if (!domain) return null
+    topics.push({ ...topic, name: domain.name[locale], weight: domain.weight })
+  }
+
+  return {
+    ...bank,
+    name: item.name[locale],
+    language: locale,
+    source: examGuide.url,
+    topics: topics as CertificationTopic[],
+  }
+}
 
 export default function Page() {
   const [queryClient] = useState(() => new QueryClient())
@@ -24,18 +65,45 @@ export default function Page() {
 
 function CertificationApp() {
   const [theme, setTheme] = useState<Theme>('light')
+  const [locale, setLocale] = useState<Locale>('es')
   const [screen, setScreen] = useState<Screen>('home')
   const [simulationMode, setSimulationMode] = useState<SimulationMode>('practice')
   const [selectedCertificationId, setSelectedCertificationId] = useState('')
   const [questionIndex, setQuestionIndex] = useState(0)
   const [responses, setResponses] = useState<Record<string, SavedResponse>>({})
-  const { data: certifications, isPending, isError, error, refetch } = useQuery({
-    queryKey: ['certifications'],
-    queryFn: loadCertifications,
+  const catalogQuery = useQuery({
+    queryKey: ['certification-catalog'],
+    queryFn: () => loadCertificationCatalog(),
     staleTime: Infinity,
     refetchOnWindowFocus: false,
     retry: false,
   })
+  const bankQuery = useQuery({
+    queryKey: ['question-banks'],
+    queryFn: async () => {
+      const [es, en] = await Promise.all([loadCertifications('es'), loadCertifications('en')])
+      return { es, en }
+    },
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    retry: false,
+  })
+  const catalog = catalogQuery.data ?? []
+  const selectedCertification = catalog.find((item) => item.id === selectedCertificationId) ?? catalog[0]
+  const guideQuery = useQuery({
+    queryKey: ['certification-guide', selectedCertification?.id],
+    queryFn: () => loadCertificationGuide(selectedCertification!.id),
+    enabled: Boolean(selectedCertification),
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
+    retry: false,
+  })
+  const bankCertification = bankQuery.data?.[locale].find((item) => item.id === selectedCertification?.id)
+  const guideReady = Boolean(guideQuery.data && !guideQuery.isError && !guideQuery.isFetching)
+  const certification = guideReady
+    ? createSessionCertification(bankCertification, selectedCertification, guideQuery.data, locale)
+    : null
 
   useEffect(() => {
     let savedTheme: string | null = null
@@ -54,17 +122,26 @@ function CertificationApp() {
   }, [])
 
   useEffect(() => {
+    let savedLocale: Locale | null = null
+    try {
+      savedLocale = readLocalePreference(window.localStorage)
+    } catch {
+      // Spanish remains the default if browser storage is unavailable.
+    }
+    if (savedLocale) setLocale(savedLocale)
+  }, [])
+
+  useEffect(() => {
     document.documentElement.style.colorScheme = theme
+    document.documentElement.lang = locale
+    document.title = translate(locale, 'pageTitle')
     const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
     if (favicon) {
       favicon.href = theme === 'dark'
         ? '/assets/logo/wm_compass_rev_wht_rgb_august2024.svg'
         : '/assets/logo/wm_compass_pos_clr_rgb_august2024.svg'
     }
-  }, [theme])
-
-  const certification = certifications?.find((item) => item.id === selectedCertificationId)
-    ?? certifications?.[0]
+  }, [theme, locale])
 
   function changeTheme() {
     const nextTheme = theme === 'light' ? 'dark' : 'light'
@@ -74,6 +151,15 @@ function CertificationApp() {
       // The selection still applies for this session if browser storage is unavailable.
     }
     setTheme(nextTheme)
+  }
+
+  function changeLocale(nextLocale: Locale) {
+    try {
+      writeLocalePreference(window.localStorage, nextLocale)
+    } catch {
+      // The selection still applies for this session if browser storage is unavailable.
+    }
+    setLocale(nextLocale)
   }
 
   function startSession() {
@@ -97,24 +183,41 @@ function CertificationApp() {
   }
 
   return (
-    <div className="app-shell min-h-screen w-full" data-theme={theme}>
-      <Header theme={theme} onThemeChange={changeTheme} />
+    <div className="app-shell min-h-screen w-full" data-theme={theme} lang={locale}>
+      <Header theme={theme} locale={locale} onThemeChange={changeTheme} onLocaleChange={changeLocale} />
 
-      {isPending && <LoadingState />}
-      {isError && <ErrorState message={error.message} onRetry={() => void refetch()} />}
-      {!isPending && !isError && certification && screen === 'home' && (
+      {catalogQuery.isPending && <LoadingState locale={locale} kind="catalog" />}
+      {catalogQuery.isError && (
+        <ErrorState locale={locale} message={translate(locale, 'catalogError')} onRetry={() => void catalogQuery.refetch()} />
+      )}
+      {!catalogQuery.isPending && !catalogQuery.isError && catalog.length === 0 && (
+        <ErrorState locale={locale} message={translate(locale, 'catalogEmpty')} onRetry={() => void catalogQuery.refetch()} />
+      )}
+      {!catalogQuery.isPending && !catalogQuery.isError && catalog.length > 0 && bankQuery.isPending && <LoadingState locale={locale} kind="bank" />}
+      {!catalogQuery.isPending && !catalogQuery.isError && catalog.length > 0 && bankQuery.isError && (
+        <ErrorState locale={locale} message={questionBankErrorMessage(locale, bankQuery.error)} onRetry={() => void bankQuery.refetch()} />
+      )}
+      {!catalogQuery.isPending && !catalogQuery.isError && catalog.length > 0 && !bankQuery.isPending && !bankQuery.isError && selectedCertification && screen === 'home' && (
         <HomeScreen
-          certification={certification}
-          certifications={certifications ?? []}
-          selectedId={certification.id}
+          locale={locale}
+          certification={selectedCertification}
+          questionBank={bankCertification}
+          guide={guideQuery.isError || guideQuery.isFetching ? undefined : guideQuery.data}
+          sessionCertification={certification}
+          guideLoading={guideQuery.isPending || guideQuery.isFetching}
+          guideError={guideQuery.error}
+          onGuideRetry={() => void guideQuery.refetch()}
+          certifications={catalog}
+          selectedId={selectedCertification.id}
           onSelect={setSelectedCertificationId}
           simulationMode={simulationMode}
           onSimulationModeChange={setSimulationMode}
           onStart={startSession}
         />
       )}
-      {!isPending && !isError && certification && screen === 'quiz' && (
+      {certification && screen === 'quiz' && (
         <QuizScreen
+          locale={locale}
           certification={certification}
           questionIndex={questionIndex}
           simulationMode={simulationMode}
@@ -127,8 +230,9 @@ function CertificationApp() {
           }}
         />
       )}
-      {!isPending && !isError && certification && screen === 'results' && (
+      {certification && screen === 'results' && (
         <ResultsScreen
+          locale={locale}
           certification={certification}
           responses={responses}
           simulationMode={simulationMode}
@@ -140,7 +244,19 @@ function CertificationApp() {
   )
 }
 
-function Header({ theme, onThemeChange }: { theme: Theme; onThemeChange: () => void }) {
+function Header({
+  theme,
+  locale,
+  onThemeChange,
+  onLocaleChange,
+}: {
+  theme: Theme
+  locale: Locale
+  onThemeChange: () => void
+  onLocaleChange: (locale: Locale) => void
+}) {
+  const text = (key: Parameters<typeof translate>[1]) => translate(locale, key)
+
   return (
     <header className="site-header">
       <div className="content-width header-inner flex w-full items-center justify-between">
@@ -150,7 +266,7 @@ function Header({ theme, onThemeChange }: { theme: Theme; onThemeChange: () => v
             src={theme === 'dark'
               ? '/assets/logo/wm_h_rev_wht_rgb_august2024.svg'
               : '/assets/logo/wm_h_pos_clr_rgb_august2024.svg'}
-            alt="West Monroe"
+            alt={text('brandLabel')}
             width="173"
             height="36"
           />
@@ -158,15 +274,29 @@ function Header({ theme, onThemeChange }: { theme: Theme; onThemeChange: () => v
           <span className="product-name">CERT HELPER</span>
         </div>
         <div className="header-actions">
-          <span className="local-badge"><span aria-hidden="true" /> PoC local</span>
+          <span className="local-badge"><span aria-hidden="true" /> {text('localBadge')}</span>
+          <div className="locale-switch" role="group" aria-label={text('languageLabel')}>
+            {(['es', 'en'] as const).map((option) => (
+              <button
+                key={option}
+                className={`locale-button ${locale === option ? 'is-active' : ''}`}
+                type="button"
+                onClick={() => onLocaleChange(option)}
+                aria-pressed={locale === option}
+                aria-label={text(option === 'es' ? 'languageSpanish' : 'languageEnglish')}
+              >
+                {option.toUpperCase()}
+              </button>
+            ))}
+          </div>
           <button
             className="theme-button"
             type="button"
             onClick={onThemeChange}
             aria-pressed={theme === 'dark'}
-            aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+            aria-label={theme === 'dark' ? text('themeLight') : text('themeDark')}
           >
-            {theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+            {theme === 'dark' ? text('themeLight') : text('themeDark')}
           </button>
         </div>
       </div>
@@ -174,29 +304,40 @@ function Header({ theme, onThemeChange }: { theme: Theme; onThemeChange: () => v
   )
 }
 
-function LoadingState() {
+function LoadingState({ locale, kind }: { locale: Locale; kind: 'catalog' | 'bank' }) {
+  const text = (key: Parameters<typeof translate>[1]) => translate(locale, key)
+
   return (
     <main className="content-width state-page" aria-live="polite">
-      <p className="eyebrow">PREPARANDO TU SESIÓN</p>
-      <h1>Cargando el banco de preguntas…</h1>
-      <p className="body-copy">Validamos el archivo local antes de mostrarlo.</p>
+      <p className="eyebrow">{text(kind === 'catalog' ? 'loadingCatalogEyebrow' : 'loadingQuestionsEyebrow')}</p>
+      <h1>{text(kind === 'catalog' ? 'loadingCatalogTitle' : 'loadingQuestionsTitle')}</h1>
+      <p className="body-copy">{text(kind === 'catalog' ? 'loadingCatalogBody' : 'loadingQuestionsBody')}</p>
     </main>
   )
 }
 
-function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+function ErrorState({ locale, message, onRetry }: { locale: Locale; message: string; onRetry: () => void }) {
+  const text = (key: Parameters<typeof translate>[1]) => translate(locale, key)
+
   return (
     <main className="content-width state-page" role="alert">
-      <p className="eyebrow">NO SE PUDO CARGAR EL BANCO</p>
-      <h1>Revisa los datos de la certificación</h1>
+      <p className="eyebrow">{text('errorEyebrow')}</p>
+      <h1>{text('errorTitle')}</h1>
       <p className="body-copy">{message}</p>
-      <button className="button button-primary" type="button" onClick={onRetry}>Intentar de nuevo</button>
+      <button className="button button-primary" type="button" onClick={onRetry}>{text('retry')}</button>
     </main>
   )
 }
 
 function HomeScreen({
+  locale,
   certification,
+  questionBank,
+  guide,
+  sessionCertification,
+  guideLoading,
+  guideError,
+  onGuideRetry,
   certifications,
   selectedId,
   onSelect,
@@ -204,49 +345,72 @@ function HomeScreen({
   onSimulationModeChange,
   onStart,
 }: {
-  certification: Certification
-  certifications: Certification[]
+  locale: Locale
+  certification: CertificationCatalogItem
+  questionBank: Certification | undefined
+  guide: CertificationGuideResponse | undefined
+  sessionCertification: Certification | null
+  guideLoading: boolean
+  guideError: unknown
+  onGuideRetry: () => void
+  certifications: CertificationCatalogItem[]
   selectedId: string
   onSelect: (id: string) => void
   simulationMode: SimulationMode
   onSimulationModeChange: (mode: SimulationMode) => void
   onStart: () => void
 }) {
-  const questionCounts = countQuestionsByTopic(certification)
+  const text = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values)
+  const questionCounts = questionBank ? countQuestionsByTopic(questionBank) : new Map<string, number>()
+  const domains = guide?.domains ?? []
+  const sourceLabels = {
+    'exam-guide': text('sourceExamGuide'),
+    certification: text('sourceCertification'),
+    'learning-path': text('sourceLearningPath'),
+  }
+  const canStart = Boolean(sessionCertification && !guideLoading && !guideError)
+  const startStatus = guideLoading
+    ? text('guideLoading')
+    : guideError
+      ? guideErrorMessage(locale, guideError)
+      : !questionBank
+        ? text('bankUnavailable')
+        : !sessionCertification
+          ? text('bankMismatch')
+          : simulationMode === 'real'
+            ? text('noteReal')
+            : text('notePractice')
 
   return (
     <main className="content-width page-content">
       <section className="hero-grid">
         <div className="hero-copy">
-          <p className="eyebrow">SIMULADOR DE CERTIFICACIONES</p>
-          <h1>Practica con propósito.</h1>
-          <p className="hero-description">
-            Resuelve preguntas situacionales, entiende por qué una opción funciona y descubre
-            cuáles temas vale la pena repasar.
-          </p>
+          <p className="eyebrow">{text('heroEyebrow')}</p>
+          <h1>{text('heroTitle')}</h1>
+          <p className="hero-description">{text('heroDescription')}</p>
           <div className="hero-meta">
-            <span>Hecho para aprender</span>
+            <span>{text('metaLearn')}</span>
             <span className="meta-separator" aria-hidden="true" />
-            <span>Sin cronómetro</span>
+            <span>{text('metaUntimed')}</span>
           </div>
         </div>
 
         <section className="certification-panel" aria-labelledby="certification-title">
-          <p className="panel-eyebrow">TU PRÓXIMA CERTIFICACIÓN</p>
-          <label className="field-label" htmlFor="certification-select">Certificación</label>
+          <p className="panel-eyebrow">{text('nextCertification')}</p>
+          <label className="field-label" htmlFor="certification-select">{text('certificationLabel')}</label>
           <select
             id="certification-select"
             className="certification-select"
             value={selectedId}
             onChange={(event) => onSelect(event.currentTarget.value)}
           >
-            {certifications.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            {certifications.map((item) => <option key={item.id} value={item.id}>{item.name[locale]}</option>)}
           </select>
-          <h2 id="certification-title">{certification.name.replace('Google Cloud ', '')}</h2>
+          <h2 id="certification-title">{certification.name[locale]}</h2>
           <div className="panel-stats">
-            <div><strong>{certification.questions.length}</strong><span>preguntas</span></div>
-            <div><strong>{certification.topics.length}</strong><span>dominios</span></div>
-            <div><strong>ES</strong><span>idioma</span></div>
+            <div><strong>{questionBank?.questions.length ?? '—'}</strong><span>{text('questionsLabel')}</span></div>
+            <div><strong>{guideLoading || guideError ? '—' : domains.length}</strong><span>{text('domainsLabel')}</span></div>
+            <div><strong>{locale.toUpperCase()}</strong><span>{text('languageLabel')}</span></div>
           </div>
           <label className="simulation-mode-control">
             <input
@@ -255,80 +419,141 @@ function HomeScreen({
               onChange={(event) => onSimulationModeChange(event.currentTarget.checked ? 'real' : 'practice')}
             />
             <span>
-              <strong>Simulación Real</strong>
-              <small>Un intento por pregunta, sin pistas hasta el resultado.</small>
+              <strong>{text('realMode')}</strong>
+              <small>{text('realModeHelp')}</small>
             </span>
           </label>
-          <button className="button button-inverse" type="button" onClick={onStart}>
-            Iniciar simulación <span aria-hidden="true">→</span>
+          <button className="button button-inverse" type="button" onClick={onStart} disabled={!canStart}>
+            {text('startSession')} <span aria-hidden="true">→</span>
           </button>
-          <p className="panel-note">
-            {simulationMode === 'real'
-              ? 'Un solo intento por pregunta · resultado al final'
-              : 'Una pregunta a la vez · puedes reintentar'}
-          </p>
+          <p className={`panel-note ${guideError ? 'has-error' : ''}`} role={guideError ? 'alert' : 'status'} aria-live="polite">{startStatus}</p>
+          {Boolean(guideError) && <button className="button button-text guide-retry" type="button" onClick={onGuideRetry}>{text('guideRetry')}</button>}
+          {guide && !guideError && (
+            <div className="guide-freshness">
+              <strong>{text('guideVersion', { version: guide.version })}</strong>
+              <span>{text('sourceChecked')}: {formatDate(guide.freshness.sourceCheckedAt, locale)}</span>
+              <span>{text('aiRefreshed')}: {formatDate(guide.freshness.aiRefreshedAt, locale)}</span>
+            </div>
+          )}
         </section>
       </section>
 
       <section className="topics-section" aria-labelledby="topics-title">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">MAPA DEL EXAMEN</p>
-            <h2 id="topics-title">Cuatro dominios, una ruta clara.</h2>
+            <p className="eyebrow">{text('examMapEyebrow')}</p>
+            <h2 id="topics-title">{text('examMapTitle')}</h2>
           </div>
-          <a className="text-link" href={certification.source} target="_blank" rel="noreferrer">
-            Ver guía oficial <span aria-hidden="true">↗</span>
+          <a className="text-link" href={certification.sources.find((source) => source.kind === 'exam-guide')?.url} target="_blank" rel="noreferrer">
+            {text('officialGuide')} <span aria-hidden="true">↗</span>
           </a>
         </div>
 
-        <div className="topic-grid">
-          {certification.topics.map((topic, index) => (
-            <TopicCard
-              key={topic.id}
-              topic={topic}
-              questionCount={questionCounts.get(topic.id) ?? 0}
-              accent={topicColors[index % topicColors.length] ?? topicColors[0]}
-            />
-          ))}
-        </div>
-        <p className="section-footnote">
-          La distribución de preguntas aproxima el peso de cada dominio en la guía oficial.
-        </p>
+        {domains.length > 0 ? (
+          <div className="topic-grid">
+            {domains.map((domain, index) => {
+            const bankTopicId = Object.entries(sectionByQuestionTopic).find(([, sectionNumber]) => sectionNumber === domain.sourceSectionNumber)?.[0]
+            return (
+              <TopicCard
+                key={domain.id}
+                domain={domain}
+                locale={locale}
+                questionCount={bankTopicId ? questionCounts.get(bankTopicId) ?? 0 : 0}
+                accent={topicColors[index % topicColors.length] ?? topicColors[0]}
+              />
+            )
+          })}
+          </div>
+        ) : <p className="guide-empty">{text('noTopics')}</p>}
+
+        {guide && <section className="study-path-section" aria-labelledby="study-path-title">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">{text('studyPathEyebrow')}</p>
+              <h2 id="study-path-title">{text('studyPathTitle')}</h2>
+              <p className="section-intro">{text('studyPathIntro')}</p>
+            </div>
+          </div>
+          {guide.studyPath.length > 0 ? <ol className="study-path-list">
+            {guide.studyPath.map((step, index) => (
+              <li className="study-path-card" key={step.id}>
+                <span className="study-path-index">{String(index + 1).padStart(2, '0')}</span>
+                <div>
+                  <p className="eyebrow">{text('step', { number: index + 1 })}</p>
+                  <h3>{step.title[locale]}</h3>
+                  <p>{step.description[locale]}</p>
+                  <div className="study-path-domains">
+                    <span>{text('domainsInStep')}:</span>
+                    {step.domainIds.map((domainId) => guide.domains.find((domain) => domain.id === domainId)?.name[locale])
+                      .filter((name): name is string => Boolean(name))
+                      .map((name) => <span className="study-path-chip" key={name}>{name}</span>)}
+                  </div>
+                  <a className="text-link" href={step.url} target="_blank" rel="noreferrer">
+                    {text('openResource')} <span aria-hidden="true">↗</span>
+                  </a>
+                </div>
+              </li>
+            ))}
+          </ol> : <p className="guide-empty">{text('noStudyPath')}</p>}
+        </section>}
+
+        {guide && <section className="official-sources" aria-labelledby="official-sources-title">
+          <h2 id="official-sources-title">{text('officialSourcesTitle')}</h2>
+          <ul>
+            {guide.sources.map((source) => (
+              <li key={source.kind}>
+                <span>{sourceLabels[source.kind]}</span>
+                <a className="text-link" href={source.url} target="_blank" rel="noreferrer">
+                  {text('openResource')} <span aria-hidden="true">↗</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>}
       </section>
 
       <footer className="page-footer">
-        <span>Preguntas originales para práctica personal.</span>
-        <span>Este simulador no está afiliado a Google Cloud.</span>
+        <span>{text('originalQuestions')}</span>
+        <span>{text('notAffiliated')}</span>
       </footer>
     </main>
   )
 }
 
 function TopicCard({
-  topic,
+  domain,
+  locale,
   questionCount,
   accent,
 }: {
-  topic: CertificationTopic
+  domain: CertificationGuideResponse['domains'][number]
+  locale: Locale
   questionCount: number
   accent: string
 }) {
+  const text = (key: Parameters<typeof translate>[1]) => translate(locale, key)
+
   return (
     <article className="topic-card">
       <div className="topic-card-top">
-        <span className="topic-weight">{topic.weight}%</span>
-        <span className="topic-count">{questionCount} preguntas</span>
+        <span className="topic-weight">{domain.weight}%</span>
+        <span className="topic-count">{questionCount} {text('questionsLabel')}</span>
       </div>
-      <h3>{topic.name}</h3>
+      <h3>{domain.name[locale]}</h3>
+      <p className="topic-description">{domain.description[locale]}</p>
       <div className="topic-meter" aria-hidden="true">
-        <span style={{ width: `${topic.weight}%`, backgroundColor: accent }} />
+        <span style={{ width: `${domain.weight}%`, backgroundColor: accent }} />
       </div>
-      <p>del examen, aproximadamente</p>
+      <p>{text('approximateExamWeight')}</p>
+      <ul className="domain-topic-list">
+        {domain.topics.map((topic) => <li key={topic.id}>{topic.name[locale]}</li>)}
+      </ul>
     </article>
   )
 }
 
 function QuizScreen({
+  locale,
   certification,
   questionIndex,
   simulationMode,
@@ -336,6 +561,7 @@ function QuizScreen({
   onNext,
   onExit,
 }: {
+  locale: Locale
   certification: Certification
   questionIndex: number
   simulationMode: SimulationMode
@@ -343,6 +569,7 @@ function QuizScreen({
   onNext: () => void
   onExit: () => void
 }) {
+  const text = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values)
   const question = certification.questions[questionIndex]
   const topic = certification.topics.find((item) => item.id === question?.topicId)
   const questionNumber = questionIndex + 1
@@ -355,26 +582,26 @@ function QuizScreen({
       <div className="quiz-heading-row">
         <div>
           <p className="eyebrow">
-            {simulationMode === 'real' ? 'SIMULACIÓN REAL' : 'PROFESSIONAL CLOUD DEVELOPER'}
+            {simulationMode === 'real' ? text('simulationRealEyebrow') : text('simulationPracticeEyebrow')}
           </p>
-          <h1>{simulationMode === 'real' ? 'Simulación de examen' : 'Simulación de práctica'}</h1>
+          <h1>{simulationMode === 'real' ? text('examSessionTitle') : text('practiceSessionTitle')}</h1>
         </div>
         <div className="quiz-heading-actions">
-          <span className="question-counter">Pregunta <strong>{questionNumber}</strong> de {certification.questions.length}</span>
+          <span className="question-counter">{text('questionCounter', { current: questionNumber, total: certification.questions.length })}</span>
           <button
             className="button button-secondary quiz-exit-button"
             type="button"
             onClick={onExit}
-            aria-label="Salir de la simulación y volver al inicio"
+            aria-label={text('exitQuizLabel')}
           >
-            <span aria-hidden="true">←</span> Salir
+            <span aria-hidden="true">←</span> {text('exitQuiz')}
           </button>
         </div>
       </div>
       <div
         className="session-progress"
         role="progressbar"
-        aria-label="Progreso de la simulación"
+        aria-label={text('progressLabel')}
         aria-valuemin={0}
         aria-valuemax={certification.questions.length}
         aria-valuenow={questionNumber}
@@ -385,6 +612,7 @@ function QuizScreen({
       <div className={`quiz-grid ${simulationMode === 'real' ? 'quiz-grid-real' : ''}`}>
         <QuestionCard
           key={question.id}
+          locale={locale}
           question={question}
           topic={topic}
           simulationMode={simulationMode}
@@ -396,15 +624,12 @@ function QuizScreen({
         {simulationMode === 'practice' && (
           <aside className="study-rail">
             <div className="rail-rule" aria-hidden="true" />
-            <p className="eyebrow">ENFOQUE DE ESTUDIO</p>
-            <h2>Lee el escenario completo.</h2>
-            <p>
-              Identifica primero el requisito que no se puede negociar: seguridad, escala,
-              disponibilidad, costo o velocidad de entrega.
-            </p>
+            <p className="eyebrow">{text('studyFocus')}</p>
+            <h2>{text('readScenario')}</h2>
+            <p>{text('studyTip')}</p>
             <div className="rail-divider" />
             <div className="rail-progress-label">
-              <span>Sesión</span>
+              <span>{text('sessionLabel')}</span>
               <strong>{questionNumber.toString().padStart(2, '0')} / {certification.questions.length}</strong>
             </div>
             <div className="rail-dots" aria-hidden="true">
@@ -423,6 +648,7 @@ function QuizScreen({
 }
 
 function QuestionCard({
+  locale,
   question,
   topic,
   simulationMode,
@@ -431,6 +657,7 @@ function QuestionCard({
   onResolve,
   onNext,
 }: {
+  locale: Locale
   question: CertificationQuestion
   topic: CertificationTopic
   simulationMode: SimulationMode
@@ -439,6 +666,7 @@ function QuestionCard({
   onResolve: (questionId: string, result: SavedResponse) => void
   onNext: () => void
 }) {
+  const text = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values)
   const [selectedAnswerId, setSelectedAnswerId] = useState<string | null>(null)
   const [wrongAttempts, setWrongAttempts] = useState(0)
   const [status, setStatus] = useState<'answering' | 'incorrect' | 'correct' | 'revealed'>('answering')
@@ -481,13 +709,13 @@ function QuestionCard({
   return (
     <article className="question-card" aria-labelledby={`question-${question.id}`}>
       <div className="question-card-header">
-        <p className="eyebrow">PREGUNTA {questionNumber.toString().padStart(2, '0')}</p>
-        <span className="single-answer-label">Selección única</span>
+        <p className="eyebrow">{text('questionLabel', { number: questionNumber.toString().padStart(2, '0') })}</p>
+        <span className="single-answer-label">{text('singleSelection')}</span>
       </div>
       <h2 id={`question-${question.id}`}>{question.question}</h2>
 
       <fieldset className="answer-fieldset">
-        <legend className="sr-only">Selecciona una respuesta</legend>
+        <legend className="sr-only">{text('selectAnswer')}</legend>
         <div className="answer-list">
           {question.answers.map((answer, index) => {
             const isSelected = selectedAnswerId === answer.id
@@ -513,8 +741,8 @@ function QuestionCard({
                 />
                 <span className="answer-letter" aria-hidden="true">{String.fromCharCode(65 + index)}</span>
                 <span className="answer-text">{answer.text}</span>
-                {showCorrect && <span className="answer-result">Correcta</span>}
-                {showIncorrect && <span className="answer-result">Elegida</span>}
+                {showCorrect && <span className="answer-result">{text('correctAnswer')}</span>}
+                {showIncorrect && <span className="answer-result">{text('selectedAnswer')}</span>}
               </label>
             )
           })}
@@ -528,25 +756,24 @@ function QuestionCard({
               {status === 'incorrect' ? '×' : '✓'}
             </span>
             <h3>
-              {status === 'incorrect' && 'Esa opción no es correcta todavía.'}
-              {status === 'correct' && (wrongAttempts === 0 ? '¡Correcto al primer intento!' : '¡Correcto tras reintentar!')}
-              {status === 'revealed' && 'Respuesta correcta revelada.'}
+              {status === 'incorrect' && text('incorrectFeedback')}
+              {status === 'correct' && (wrongAttempts === 0 ? text('correctFirstTry') : text('correctAfterRetry'))}
+              {status === 'revealed' && text('answerRevealed')}
             </h3>
           </div>
           {status !== 'incorrect' && (
             <>
               <p className="answer-explanation">{question.explanation}</p>
               <div className="question-context">
-                <div><span>Dominio</span><strong>{topic.name}</strong></div>
-                <div><span>Tema</span><strong>{question.focus}</strong></div>
-                <div><span>Servicio / concepto</span><strong>{question.service}</strong></div>
+                <div><span>{text('domainLabel')}</span><strong>{topic.name}</strong></div>
+                <div><span>{text('topicLabel')}</span><strong>{question.focus}</strong></div>
+                <div><span>{text('serviceLabel')}</span><strong>{question.service}</strong></div>
               </div>
             </>
           )}
           {status === 'incorrect' && (
             <p className="answer-explanation">
-              Puedes cambiar tu respuesta antes de continuar. Si lo prefieres, revela la correcta
-              y revisa su explicación.
+              {text('incorrectHelp')}
             </p>
           )}
         </div>
@@ -561,24 +788,24 @@ function QuestionCard({
             disabled={!selectedAnswer}
           >
             {simulationMode === 'real'
-              ? isLastQuestion ? 'Ver resultado' : 'Siguiente pregunta'
-              : 'Enviar respuesta'}
+              ? isLastQuestion ? text('showResult') : text('nextQuestion')
+              : text('submitAnswer')}
             <span aria-hidden="true">→</span>
           </button>
         )}
         {status === 'incorrect' && (
           <>
             <button className="button button-primary" type="button" onClick={retryAnswer}>
-              Volver a intentar
+              {text('tryAgain')}
             </button>
             <button className="button button-text" type="button" onClick={revealAnswer}>
-              Cuál es la correcta
+              {text('revealCorrect')}
             </button>
           </>
         )}
         {isResolved && (
           <button className="button button-primary" type="button" onClick={onNext}>
-            {isLastQuestion ? 'Ver resultado' : 'Siguiente pregunta'} <span aria-hidden="true">→</span>
+            {isLastQuestion ? text('showResult') : text('nextQuestion')} <span aria-hidden="true">→</span>
           </button>
         )}
       </div>
@@ -587,18 +814,21 @@ function QuestionCard({
 }
 
 function ResultsScreen({
+  locale,
   certification,
   responses,
   simulationMode,
   onHome,
   onRestart,
 }: {
+  locale: Locale
   certification: Certification
   responses: Record<string, SavedResponse>
   simulationMode: SimulationMode
   onHome: () => void
   onRestart: () => void
 }) {
+  const text = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values)
   const firstTryCorrect = certification.questions.filter(
     (question) => responses[question.id]?.outcome === 'first_try',
   ).length
@@ -620,22 +850,22 @@ function ResultsScreen({
   })
   const overallMessage = simulationMode === 'real'
     ? score >= 80
-      ? 'Buen resultado. Mantén el repaso de los temas marcados.'
-      : 'Usa el desglose para enfocar tu siguiente bloque de estudio.'
+      ? text('resultStrongReal')
+      : text('resultNeedsWork')
     : score >= 80
-      ? 'Buen dominio en el primer intento. Mantén el repaso de los temas marcados.'
-      : 'Usa el desglose para enfocar tu siguiente bloque de estudio.'
+      ? text('resultStrongPractice')
+      : text('resultNeedsWork')
 
   return (
     <main className="content-width page-content results-page">
-      <p className="eyebrow">SESIÓN COMPLETADA</p>
-      <h1>{simulationMode === 'real' ? 'Resultado de la simulación.' : 'Tu siguiente paso empieza aquí.'}</h1>
+      <p className="eyebrow">{text('sessionComplete')}</p>
+      <h1>{simulationMode === 'real' ? text('realResultTitle') : text('practiceResultTitle')}</h1>
 
-      <section className="results-summary" aria-label="Resumen de resultados">
+      <section className="results-summary" aria-label={text('resultsSummary')}>
         <div className="score-panel">
-          <span className="score-label">{simulationMode === 'real' ? 'Nota final' : 'Aciertos al primer intento'}</span>
+          <span className="score-label">{simulationMode === 'real' ? text('finalScore') : text('firstTryScore')}</span>
           <div className="score-number">{score}<span>%</span></div>
-          <p>{firstTryCorrect} de {certification.questions.length} respuestas correctas</p>
+          <p>{text('correctOfTotal', { correct: firstTryCorrect, total: certification.questions.length })}</p>
           <div className="score-track" aria-hidden="true"><span style={{ width: `${score}%` }} /></div>
         </div>
         <div className="result-breakdown">
@@ -643,27 +873,27 @@ function ResultsScreen({
           <div className="result-stat-grid">
             {simulationMode === 'real' ? (
               <>
-                <div><strong>{firstTryCorrect}</strong><span>Respuestas correctas</span></div>
-                <div><strong>{incorrect}</strong><span>Respuestas incorrectas</span></div>
-                <div><strong>{certification.questions.length}</strong><span>Preguntas de la simulación</span></div>
+                <div><strong>{firstTryCorrect}</strong><span>{text('correctAnswers')}</span></div>
+                <div><strong>{incorrect}</strong><span>{text('incorrectAnswers')}</span></div>
+                <div><strong>{certification.questions.length}</strong><span>{text('simulationQuestions')}</span></div>
               </>
             ) : (
               <>
-                <div><strong>{firstTryCorrect}</strong><span>Correctas al primer intento</span></div>
-                <div><strong>{retriedCorrect}</strong><span>Correctas después de reintentar</span></div>
-                <div><strong>{revealed}</strong><span>Respuestas reveladas</span></div>
+                <div><strong>{firstTryCorrect}</strong><span>{text('correctFirstCount')}</span></div>
+                <div><strong>{retriedCorrect}</strong><span>{text('correctRetriedCount')}</span></div>
+                <div><strong>{revealed}</strong><span>{text('revealedCount')}</span></div>
               </>
             )}
           </div>
-          <p className="result-note">Este porcentaje es una guía de estudio, no una predicción de aprobación del examen oficial.</p>
+          <p className="result-note">{text('scoreDisclaimer')}</p>
         </div>
       </section>
 
       <section className="results-topics" aria-labelledby="results-topics-title">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">DESEMPEÑO POR DOMINIO</p>
-            <h2 id="results-topics-title">Temas para repasar</h2>
+            <p className="eyebrow">{text('performanceByDomain')}</p>
+            <h2 id="results-topics-title">{text('topicsToReview')}</h2>
           </div>
         </div>
         <div className="results-topic-list">
@@ -673,7 +903,7 @@ function ResultsScreen({
                 <div className="results-topic-index" style={{ borderColor: topicColors[index % topicColors.length] }}>
                   {String(index + 1).padStart(2, '0')}
                 </div>
-                <div className="results-topic-name"><h3>{topic.name}</h3><span>{questions.length} preguntas</span></div>
+                <div className="results-topic-name"><h3>{topic.name}</h3><span>{questions.length} {text('questionsLabel')}</span></div>
                 <strong className="results-topic-score">{correct} / {questions.length}</strong>
               </div>
               <div className="topic-meter result-meter" aria-hidden="true">
@@ -681,18 +911,18 @@ function ResultsScreen({
               </div>
               {needsReview.length > 0 ? (
                 <div className="review-list">
-                  <span className="review-label">REPASAR</span>
+                  <span className="review-label">{text('review')}</span>
                   <div className="review-chips">
                     {uniqueStrings(needsReview.map((question) => question.focus)).map((focus) => (
                       <span className="review-chip" key={focus}>{focus}</span>
                     ))}
                   </div>
                   <p className="review-services">
-                    Servicios / conceptos: {uniqueStrings(needsReview.map((question) => question.service)).join(', ')}
+                    {text('servicesAndConcepts')} {uniqueStrings(needsReview.map((question) => question.service)).join(', ')}
                   </p>
                 </div>
               ) : (
-                <p className="all-correct-note">Todas las preguntas de este dominio fueron correctas al primer intento.</p>
+                <p className="all-correct-note">{text('allCorrect')}</p>
               )}
             </article>
           ))}
@@ -701,11 +931,11 @@ function ResultsScreen({
 
       <div className="results-actions">
         <button className="button button-primary" type="button" onClick={onRestart}>
-          {simulationMode === 'real' ? 'Repetir simulación' : 'Practicar de nuevo'}
+          {simulationMode === 'real' ? text('restartReal') : text('practiceAgain')}
         </button>
-        <button className="button button-secondary" type="button" onClick={onHome}>Volver al inicio</button>
+        <button className="button button-secondary" type="button" onClick={onHome}>{text('backHome')}</button>
       </div>
-      <p className="results-disclaimer">Preguntas de práctica originales. No son preguntas oficiales del examen.</p>
+      <p className="results-disclaimer">{text('practiceDisclaimer')}</p>
     </main>
   )
 }
@@ -716,6 +946,24 @@ function countQuestionsByTopic(certification: Certification): Map<string, number
     counts.set(question.topicId, (counts.get(question.topicId) ?? 0) + 1)
   }
   return counts
+}
+
+function guideErrorMessage(locale: Locale, error: unknown) {
+  if (error instanceof CertificationApiError && error.code === 'GUIDE_REFRESH_IN_PROGRESS') {
+    return translate(locale, 'guideRefreshing')
+  }
+  return translate(locale, 'guideError')
+}
+
+function questionBankErrorMessage(locale: Locale, error: unknown) {
+  if (error instanceof QuestionBankLoadError && error.code === 'QUESTION_TRANSLATION_MISSING') {
+    return translate(locale, 'translationBankError')
+  }
+  return translate(locale, 'bankError')
+}
+
+function formatDate(value: string, locale: Locale) {
+  return new Intl.DateTimeFormat(locale === 'es' ? 'es' : 'en-US', { dateStyle: 'medium' }).format(new Date(value))
 }
 
 function uniqueStrings(values: string[]): string[] {

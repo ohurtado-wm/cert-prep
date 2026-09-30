@@ -26,7 +26,7 @@ const CertificationSchema = z
   .object({
     id: z.string().min(1),
     name: z.string().min(1),
-    language: z.literal('es'),
+    language: z.enum(['es', 'en']),
     source: z.string().url(),
     topics: z.array(TopicSchema).length(4),
     questions: z.array(QuestionSchema).length(20),
