@@ -1,6 +1,6 @@
 # Implementation Plan: Cert Helper — producto final
 
-**Estado:** PR-01 y PR-02 integrados; PR-03 listo para revisión; PR-04…PR-07 pendientes
+**Estado:** PR-01…PR-04 integrados; PR-05 implementado con validación pendiente; PR-06/PR-07 pendientes
 **Última actualización:** 2026-09-30
 
 ## Materiales fuente
@@ -14,10 +14,10 @@
 
 ## Estado
 
-- **Completado:** PoC local aprobado con 20 preguntas GCP; UI bilingüe, catálogo y guía oficial integrados en PR-03. Las preguntas aún se sirven desde JSON y no se conserva el historial de resultados.
+- **Completado:** PoC local aprobado; catálogo y guía oficial bilingües, generación IA de preguntas, sesiones seguras y UI conectada al backend para el historial.
 - **Completado en PR-01:** base Bun/Hono integrada con Vike, contratos Zod, esquema Drizzle/SQLite, migración inicial, resolución de usuario con `/users/me` y pruebas de identidad/rutas/migración.
 - **Completado en PR-02:** catálogo y guías de fuentes oficiales con renovación semanal mediante IA y consulta desde la UI.
-- **Pendiente:** generación de preguntas con IA, sesiones seguras y persistencia del historial/planes en la aplicación.
+- **Pendiente:** terminar la validación de PR-05 y luego implementar el plan de estudio y la simulación enfocada.
 - **Repositorio:** conectado a `https://github.com/ohurtado-wm/cert-prep.git`; PR-01…PR-07 son límites de revisión propuestos.
 
 ## Estado de PR
@@ -27,8 +27,8 @@
 | `PR-01` | API Hono, autenticación Gateway, contratos y persistencia Drizzle | Merged | — | API arranca, migra SQLite y valida identidad |
 | `PR-02` | Catálogo y descubrimiento de guías oficiales | Merged | `PR-01` | Dominios y ruta con fuentes verificables |
 | `PR-03` | Interfaz y contenido en español/inglés | Merged | `PR-02` | Flujo completo del catálogo en ambos idiomas |
-| `PR-04` | Generación de preguntas y sesiones seguras | Listo para revisión | `PR-01`, `PR-02` | 20 preguntas válidas; sesiones privadas por usuario |
-| `PR-05` | Sesiones web e historial por usuario en backend | No iniciado | `PR-01`, `PR-03`, `PR-04` | Práctica y Simulación Real guardan resultados autenticados |
+| `PR-04` | Generación de preguntas y sesiones seguras | Merged | `PR-01`, `PR-02` | 20 preguntas válidas; sesiones privadas por usuario |
+| `PR-05` | Sesiones web e historial por usuario en backend | Implementación lista; validación pendiente | `PR-01`, `PR-03`, `PR-04` | Práctica y Simulación Real guardan resultados autenticados |
 | `PR-06` | Plan de estudio personalizado con IA | No iniciado | `PR-05` | Recomendaciones ligadas a resultados y fuentes |
 | `PR-07` | Simulación enfocada en temas débiles | No iniciado | `PR-05` | Solo incluye temas aún no superados |
 
@@ -122,14 +122,15 @@ sequenceDiagram
 
 | Área / archivo | Cambio previsto | Validación |
 |---|---|---|
-| `pages/index/+Page.tsx` | Consumir catálogo, idiomas, sesiones API, historial y acciones personalizadas | E2E de todos los recorridos |
-| `src/data/certification-schema.ts` | Separar contratos compartidos de banco, preguntas visibles, clave privada, historial y salidas AI | Pruebas Zod de entradas válidas e inválidas |
-| `src/data/load-certification.ts` | Reemplazar lectura JSON por `fetch` de API con estados/caché TanStack Query | Prueba de integración de carga/error |
+| `pages/index/+Page.tsx`, `src/components/SimulationScreens.tsx` | Consumir catálogo, identidad, sesiones API e historial por usuario | Recorridos práctica/real e historial |
+| `src/api/simulations.ts`, `src/api/simulation-contracts.ts` | Validar solicitudes/respuestas de sesión e historial con Zod | Pruebas de contrato y errores de API |
+| `server/use-cases/simulation-history-service.ts` | Aislar historial y borrado por identidad validada | Pruebas de autorización, retención y borrado |
+| `server/use-cases/simulation-service.ts` | Guardar resumen agregado al completar, con versión de guía y métricas | Pruebas de transacción, puntuación y privacidad |
 | `src/i18n/` (nuevo) | Catálogo de cadenas y preferencia ES/EN | Pruebas de claves faltantes y cambio de idioma |
-| `src/data/session-history.ts` (nuevo) | Cliente API/cache para historial por usuario y limpieza explícita; `localStorage` solo para preferencias/UI | Integración de carga, aislamiento y estados de error |
+| `src/api/simulations.ts` | Cliente API/cache para perfil, sesiones e historial por usuario; `localStorage` solo para preferencias/UI | Integración de carga, aislamiento y estados de error |
 | `server/` (nuevo) | Hono, capas de rutas/casos de uso/proveedores, validación Zod y errores | `bun:test` de lógica y rutas |
 | `drizzle/` (nuevo) | Esquema/migraciones de usuarios externos, sesiones/resultados/planes por propietario, guías, lease y sesiones efímeras | Migraciones sobre SQLite y PostgreSQL objetivo |
-| `public/data/certifications.json` | Mantenerlo solo como banco de respaldo curado durante la transición; no será la fuente dinámica final | Prueba del fallback y del límite de idioma |
+| `tests/fixtures/certifications-es.json`, `tests/fixtures/certifications-en.json` | Mantener los bancos PoC solo como fixtures; no servir claves de respuestas desde assets públicos | Pruebas del esquema/idioma heredados |
 | `package.json` | Scripts de API, migración, pruebas, E2E y ejecución local | Ejecutar los comandos documentados |
 | `tests/` (nuevo) | Fixtures oficiales anonimizados, modelos falsos, evaluaciones y recorridos browser | CI y canary AI controlado |
 
@@ -231,7 +232,7 @@ sequenceDiagram
 ## PR-04: Generación de preguntas y sesión segura
 
 **ID:** `PR-04`  
-**Estado:** Listo para revisión
+**Estado:** Merged
 **Objetivo:** generar bancos de sesión desde dominios oficiales y proteger la clave de Simulación Real.  
 **Dependencias:** `PR-01` y `PR-02`.
 
@@ -262,24 +263,26 @@ sequenceDiagram
 ## PR-05: Sesión web e historial por usuario
 
 **ID:** `PR-05`  
-**Estado:** No iniciado  
+**Estado:** Implementación lista; validación pendiente
 **Objetivo:** conectar la UI bilingüe al generador y conservar resultados recientes por dominio/tema.  
 **Dependencias:** `PR-01`, `PR-03` y `PR-04`.
 
 ### Tareas
 
-- [ ] `P5-T01` Consumir el perfil autenticado del gateway y usar la API para sesiones; mostrar estados de autenticación, carga, error recuperable y progreso.
-- [ ] `P5-T02` En modo real, **Siguiente pregunta** envía la opción elegida y avanza en un solo clic; en la última pregunta pasa al resultado. Mantener el flujo guiado existente.
-- [ ] `P5-T03` Guardar cada resumen completado en backend bajo el `gatewayUserId` verificado, con certificación/revisión, fecha, idioma, modo, nota y conteos por dominio/tema/foco.
-- [ ] `P5-T04` Retener las 20 sesiones más recientes por usuario, devolverlas desde API y permitir borrar su historial y planes; conservar en `localStorage` solo preferencias.
-- [ ] `P5-T05` Mostrar historial reciente; no persistir preguntas, respuestas ni claves en el historial, y limpiar el caché de consultas al cerrar sesión o cambiar de usuario.
+- [x] `P5-T01` Consumir el perfil autenticado del gateway y usar la API para sesiones; mostrar estados de autenticación, carga, error recuperable y progreso.
+- [x] `P5-T02` En modo real, **Siguiente pregunta** envía la opción elegida y avanza en un solo clic; en la última pregunta pasa al resultado. Mantener el flujo guiado existente.
+- [x] `P5-T03` Guardar cada resumen completado en backend bajo el `gatewayUserId` verificado, con certificación/revisión, fecha, idioma, modo, nota y conteos por dominio/tema/foco.
+- [x] `P5-T04` Retener las 20 sesiones más recientes por usuario, devolverlas desde API y permitir borrar su historial y planes; conservar en `localStorage` solo preferencias y mantener el límite horario en registros operativos separados.
+- [x] `P5-T05` Mostrar historial reciente; no persistir preguntas, respuestas ni claves en el historial, y limpiar el caché de consultas al cerrar sesión o cambiar de usuario.
 - [ ] `P5-T06` Añadir pruebas de cálculo/retención, solicitudes sin identidad, aislamiento entre dos usuarios y E2E práctica vs real, incluyendo recarga y persistencia.
 
 ### Criterios de validación
 
-- [ ] Práctica permite volver a intentar/revelar; modo real bloquea por avance, no filtra la clave y califica al finalizar.
-- [ ] Historial sobrevive a recarga y cambio de dispositivo; contiene los agregados necesarios y solo lo puede consultar su propietario autenticado.
-- [ ] Sin historial, UI comunica que se necesita completar una simulación; un fallo del backend muestra error recuperable sin mezclar datos locales de otro usuario.
+- [x] Práctica permite volver a intentar/revelar; modo real avanza con un clic, no filtra la clave y califica al finalizar.
+- [x] Historial se vuelve a cargar desde backend, contiene los agregados necesarios y cada solicitud lo limita al propietario autenticado.
+- [x] Sin historial, UI invita a completar una simulación; un fallo del backend muestra error recuperable sin mezclar datos locales de otro usuario.
+
+**Validación local:** `bun run typecheck`, `bun run build`, migraciones SQLite en memoria y `git diff --check` pasaron. La batería de pruebas de historial y los recorridos E2E quedan pendientes; en esta ejecución no se añadieron ni corrieron pruebas.
 
 ## PR-06: Plan de estudio sugerido
 

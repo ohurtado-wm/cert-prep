@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import { and, count, eq, gt, gte, lte } from 'drizzle-orm'
+import { and, count, desc, eq, gt, gte, inArray, lte } from 'drizzle-orm'
 import {
   SimulationAnswerResponseSchema,
+  MAX_SIMULATION_HISTORY_ITEMS,
   SimulationRevealResponseSchema,
   SimulationSnapshotSchema,
   type SimulationAnswerResponse,
@@ -12,7 +13,7 @@ import {
   type SubmitAnswerRequest,
 } from '../../src/api/simulation-contracts'
 import type { DatabaseHandle } from '../db/client'
-import { simulationSessions } from '../db/schema'
+import { simulationResults, simulationSessions, simulationStartEvents } from '../db/schema'
 import { ApiException } from '../errors'
 import type { createCertificationGuideService } from './certification-guide-service'
 import { createAiQuestionGenerator, type QuestionGenerator } from '../simulations/question-generator'
@@ -81,7 +82,7 @@ function calculateResult(questions: StoredSimulationQuestion[]): SimulationResul
     throw new ApiException(409, 'SIMULATION_INCOMPLETE', 'Debes responder las 20 preguntas antes de ver el resultado.')
   }
 
-  const tally = (key: 'domainId' | 'topicId') => {
+  const tally = (key: 'domainId' | 'topicId' | 'focus') => {
     const groups = new Map<string, { correct: number; total: number }>()
     for (const question of questions) {
       const group = groups.get(question[key]) ?? { correct: 0, total: 0 }
@@ -102,6 +103,7 @@ function calculateResult(questions: StoredSimulationQuestion[]): SimulationResul
     incorrectAnswers: questions.filter(({ outcome }) => outcome === 'incorrect').length,
     domainBreakdown: tally('domainId'),
     topicBreakdown: tally('topicId'),
+    focusBreakdown: tally('focus'),
   })
 }
 
@@ -160,6 +162,59 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
     if (updated.length === 0) throw new ApiException(409, 'SIMULATION_CONFLICT', 'La sesión cambió. Recarga la pregunta actual.')
   }
 
+  async function saveCompletedState(
+    row: SessionRow,
+    userId: string,
+    oldState: StoredSimulationState,
+    nextState: StoredSimulationState,
+    result: SimulationResult,
+  ) {
+    await db.transaction(async (tx) => {
+      const completedAt = now()
+      const updated = await tx.update(simulationSessions).set({ state: nextState }).where(and(
+        eq(simulationSessions.id, row.id),
+        eq(simulationSessions.gatewayUserId, userId),
+        eq(simulationSessions.state, oldState),
+        gt(simulationSessions.expiresAt, completedAt),
+      )).returning({ id: simulationSessions.id })
+      if (updated.length === 0) {
+        throw new ApiException(409, 'SIMULATION_CONFLICT', 'La sesión cambió. Recarga la pregunta actual.')
+      }
+
+      await tx.insert(simulationResults).values({
+        id: row.id,
+        gatewayUserId: userId,
+        certificationId: row.certificationId,
+        guideVersion: row.guideVersion,
+        mode: row.mode,
+        language: oldState.language,
+        score: result.score,
+        totalQuestions: result.totalQuestions,
+        correctAnswers: result.correctAnswers,
+        correctAfterRetry: result.correctAfterRetry,
+        answersRevealed: result.answersRevealed,
+        incorrectAnswers: result.incorrectAnswers,
+        domainBreakdown: Object.fromEntries(result.domainBreakdown.map(({ id, ...value }) => [id, value])),
+        topicBreakdown: Object.fromEntries(result.topicBreakdown.map(({ id, ...value }) => [id, value])),
+        focusBreakdown: Object.fromEntries(result.focusBreakdown.map(({ id, ...value }) => [id, value])),
+        completedAt,
+      })
+
+      const expiredHistory = await tx.select({ id: simulationResults.id }).from(simulationResults)
+        .where(eq(simulationResults.gatewayUserId, userId))
+        .orderBy(desc(simulationResults.completedAt), desc(simulationResults.id))
+        .offset(MAX_SIMULATION_HISTORY_ITEMS)
+      if (expiredHistory.length > 0) {
+        const expiredIds = expiredHistory.map(({ id }) => id)
+        await tx.delete(simulationResults).where(inArray(simulationResults.id, expiredIds))
+        await tx.delete(simulationSessions).where(and(
+          eq(simulationSessions.gatewayUserId, userId),
+          inArray(simulationSessions.id, expiredIds),
+        ))
+      }
+    })
+  }
+
   async function start(userId: string, request: StartSimulationRequest): Promise<SimulationSnapshot> {
     const requestTime = now()
     const cutoff = requestTime.getTime() - RATE_WINDOW_MS
@@ -179,9 +234,13 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
         lte(simulationSessions.expiresAt, requestTime),
       ))
 
-      const [recentStartCount] = await db.select({ value: count() }).from(simulationSessions).where(and(
-        eq(simulationSessions.gatewayUserId, userId),
-        gte(simulationSessions.createdAt, new Date(cutoff)),
+      await db.delete(simulationStartEvents).where(and(
+        eq(simulationStartEvents.gatewayUserId, userId),
+        lte(simulationStartEvents.startedAt, new Date(cutoff)),
+      ))
+      const [recentStartCount] = await db.select({ value: count() }).from(simulationStartEvents).where(and(
+        eq(simulationStartEvents.gatewayUserId, userId),
+        gte(simulationStartEvents.startedAt, new Date(cutoff)),
       ))
       if ((recentStartCount?.value ?? 0) + failures.length >= MAX_STARTS_PER_HOUR) {
         throw new ApiException(429, 'SIMULATION_RATE_LIMITED', 'Alcanzaste el límite de simulaciones por hora. Intenta más tarde.')
@@ -246,11 +305,15 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
         gatewayUserId: userId,
         certificationId: guide.certification.id,
         mode: request.mode,
+        guideVersion: guide.version,
         state,
         createdAt: requestTime,
         expiresAt: expiry,
       }
-      await db.insert(simulationSessions).values(rowValues)
+      await db.transaction(async (tx) => {
+        await tx.insert(simulationSessions).values(rowValues)
+        await tx.insert(simulationStartEvents).values({ id: sessionId, gatewayUserId: userId, startedAt: requestTime })
+      })
       saved = true
       return toSnapshot(rowValues, state)
     } catch (error) {
@@ -271,6 +334,14 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
   async function get(userId: string, sessionId: string): Promise<SimulationSnapshot> {
     const row = await ownedSession(userId, sessionId)
     return toSnapshot(row, parseState(row.state))
+  }
+
+  async function cancel(userId: string, sessionId: string) {
+    const row = await db.delete(simulationSessions).where(and(
+      eq(simulationSessions.id, sessionId),
+      eq(simulationSessions.gatewayUserId, userId),
+    )).returning({ id: simulationSessions.id })
+    if (row.length === 0) throw new ApiException(404, 'SIMULATION_NOT_FOUND', 'No se encontró esa sesión.')
   }
 
   async function answer(userId: string, sessionId: string, input: SubmitAnswerRequest): Promise<SimulationAnswerResponse> {
@@ -300,7 +371,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
       if (index === 19) {
         const result = calculateResult(updatedQuestions)
         const completed = completeState(state.language, result)
-        await saveState(row, userId, state, completed)
+        await saveCompletedState(row, userId, state, completed, result)
         return SimulationAnswerResponseSchema.parse({ mode: 'real', status: 'completed', result })
       }
 
@@ -370,7 +441,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
     if (state.currentIndex === 19) {
       const result = calculateResult(state.questions)
       const completed = completeState(state.language, result)
-      await saveState(row, userId, state, completed)
+      await saveCompletedState(row, userId, state, completed, result)
       return toSnapshot({ ...row, state: completed }, completed)
     }
 
@@ -379,5 +450,5 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
     return toSnapshot({ ...row, state: updated }, updated)
   }
 
-  return { start, get, answer, reveal, next }
+  return { start, get, cancel, answer, reveal, next }
 }

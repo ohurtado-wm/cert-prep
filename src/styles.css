@@ -520,6 +520,111 @@ select:focus-visible,
   line-height: 1.25;
 }
 
+.user-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  color: var(--wm-white);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.user-identity img {
+  flex: 0 0 32px;
+  border: 1px solid var(--wm-white);
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.history-section {
+  margin-top: 72px;
+}
+
+.history-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-card {
+  min-width: 0;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 20px;
+}
+
+.history-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.history-card-heading h3 {
+  margin: 0;
+  font-family: 'IBM Plex Sans', Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.history-card-heading p,
+.history-score-detail {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.history-score {
+  font-family: 'IBM Plex Sans', Arial, Helvetica, sans-serif;
+  font-size: 24px;
+  white-space: nowrap;
+}
+
+.history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.history-meta span {
+  border: 1px solid var(--border);
+  padding: 4px 7px;
+}
+
+.history-weak-domains {
+  margin-top: 14px;
+}
+
+.history-weak-domains > span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.history-state {
+  border-top: 1px solid var(--border);
+  padding: 18px 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.history-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .text-link {
   display: inline-flex;
   align-items: center;
@@ -776,6 +881,13 @@ select:focus-visible,
 
 .quiz-heading-row h1 {
   font-size: 36px;
+}
+
+.quiz-certification-name,
+.results-certification-name {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 14px;
 }
 
 .quiz-heading-actions {
@@ -1112,6 +1224,15 @@ select:focus-visible,
   font-size: clamp(38px, 4vw, 52px);
 }
 
+.results-api-error {
+  margin: 16px 0 0;
+  border-left: 3px solid var(--wm-highlight-magenta);
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .results-summary {
   display: grid;
   grid-template-columns: minmax(230px, 0.72fr) minmax(0, 1.28fr);
@@ -1215,6 +1336,18 @@ select:focus-visible,
 
 .results-topics {
   margin-top: 72px;
+}
+
+.focus-results {
+  margin-top: 48px;
+  border-top: 1px solid var(--border);
+  padding-top: 24px;
+}
+
+.focus-results h2 {
+  margin: 0 0 16px;
+  font-family: 'IBM Plex Sans', Arial, Helvetica, sans-serif;
+  font-size: 22px;
 }
 
 .results-topic-list {
@@ -1449,6 +1582,19 @@ select:focus-visible,
 
   .topics-section {
     margin-top: 60px;
+  }
+
+  .history-section {
+    margin-top: 56px;
+  }
+
+  .history-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .history-error {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .section-heading {

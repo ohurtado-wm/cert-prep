@@ -10,6 +10,7 @@ import type { OfficialSourceReader } from './catalog/source-reader'
 import type { GuideGenerator } from './catalog/guide-generator'
 import { createSimulationService } from './use-cases/simulation-service'
 import { createSimulationRoutes } from './routes/simulations'
+import { createSimulationHistoryService } from './use-cases/simulation-history-service'
 
 type AppDependencies = {
   db: DatabaseHandle
@@ -28,7 +29,12 @@ export function createApp({ db, userProvider = createGatewayUserProvider(), guid
   app.route('/api', healthRoutes)
   app.route('/api/v1', createMeRoutes({ db, userProvider }))
   app.route('/api/v1', createCertificationRoutes(certificationGuideService))
-  app.route('/api/v1', createSimulationRoutes({ db, userProvider, simulationService: sessions }))
+  app.route('/api/v1', createSimulationRoutes({
+    db,
+    userProvider,
+    simulationService: sessions,
+    historyService: createSimulationHistoryService(db),
+  }))
 
   app.onError((error, context) => {
     if (error instanceof ApiException) {

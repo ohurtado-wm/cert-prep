@@ -7,10 +7,12 @@ import {
 import type { DatabaseHandle } from '../db/client'
 import { ApiException } from '../errors'
 import type { UserProvider } from '../gateway/user-provider'
+import type { createSimulationHistoryService } from '../use-cases/simulation-history-service'
 import { resolveCurrentUser } from '../use-cases/resolve-current-user'
 import type { createSimulationService } from '../use-cases/simulation-service'
 
 type SimulationService = ReturnType<typeof createSimulationService>
+type SimulationHistoryService = ReturnType<typeof createSimulationHistoryService>
 
 async function parseBody<T>(request: Request, schema: z.ZodType<T>): Promise<T> {
   let value: unknown
@@ -28,8 +30,19 @@ export function createSimulationRoutes(dependencies: {
   db: DatabaseHandle
   userProvider: UserProvider
   simulationService: SimulationService
+  historyService: SimulationHistoryService
 }) {
   const routes = new Hono()
+
+  routes.get('/simulation-history', async (context) => {
+    const user = await resolveCurrentUser(context.req.raw, dependencies.db, dependencies.userProvider)
+    return context.json(await dependencies.historyService.list(user.id))
+  })
+
+  routes.delete('/simulation-history', async (context) => {
+    const user = await resolveCurrentUser(context.req.raw, dependencies.db, dependencies.userProvider)
+    return context.json(await dependencies.historyService.clear(user.id))
+  })
 
   routes.post('/simulations', async (context) => {
     const user = await resolveCurrentUser(context.req.raw, dependencies.db, dependencies.userProvider)
@@ -42,6 +55,12 @@ export function createSimulationRoutes(dependencies: {
     const user = await resolveCurrentUser(context.req.raw, dependencies.db, dependencies.userProvider)
     const snapshot = await dependencies.simulationService.get(user.id, context.req.param('sessionId'))
     return context.json(snapshot)
+  })
+
+  routes.delete('/simulations/:sessionId', async (context) => {
+    const user = await resolveCurrentUser(context.req.raw, dependencies.db, dependencies.userProvider)
+    await dependencies.simulationService.cancel(user.id, context.req.param('sessionId'))
+    return context.body(null, 204)
   })
 
   routes.post('/simulations/:sessionId/answers', async (context) => {
