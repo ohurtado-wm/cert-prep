@@ -9,6 +9,7 @@ import type {
   SimulationAnswerResponse,
   SimulationMode,
   SimulationQuestion,
+  PrintableSimulationQuestion,
   SimulationResult,
   SimulationSnapshot,
   PracticeQuestionProgress,
@@ -329,6 +330,7 @@ export function ResultsScreen({
   certificationName,
   guide,
   result,
+  printableQuestions,
   simulationMode,
   aiUsage,
   restarting,
@@ -340,6 +342,7 @@ export function ResultsScreen({
   certificationName: string
   guide: CertificationGuideResponse | undefined
   result: SimulationResult
+  printableQuestions: PrintableSimulationQuestion[]
   simulationMode: SimulationMode
   aiUsage: AiTokenUsageData | null
   restarting: boolean
@@ -457,6 +460,11 @@ export function ResultsScreen({
       </section>}
 
       <div className="results-actions">
+        {printableQuestions.length === 20 && (
+          <button className="button button-secondary" type="button" onClick={() => window.print()}>
+            {text('printQuestions')}
+          </button>
+        )}
         <button className="button button-primary" type="button" onClick={onRestart} disabled={restarting}>
           {restarting ? text('startingSimulation') : simulationMode === 'real' ? text('restartReal') : text('practiceAgain')}
         </button>
@@ -464,6 +472,14 @@ export function ResultsScreen({
       </div>
       {Boolean(startError) && <p className="results-api-error" role="alert">{simulationErrorMessage(locale, startError)}</p>}
       <p className="results-disclaimer">{text('practiceDisclaimer')}</p>
+      <ol className="printable-answer-sheet" aria-hidden="true">
+        {printableQuestions.map((item, index) => (
+          <li key={`${index}-${item.question}`}>
+            <span>{item.question}</span>
+            <p>- {item.answer}</p>
+          </li>
+        ))}
+      </ol>
     </main>
   )
 }

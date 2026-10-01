@@ -1681,6 +1681,10 @@ select:focus-visible,
   font-weight: 700;
 }
 
+.printable-answer-sheet {
+  display: none;
+}
+
 .results-summary {
   display: grid;
   grid-template-columns: minmax(230px, 0.72fr) minmax(0, 1.28fr);
@@ -2262,6 +2266,49 @@ select:focus-visible,
 
   .results-actions .button {
     width: 100%;
+  }
+}
+
+@page {
+  margin: 14mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .printable-answer-sheet,
+  .printable-answer-sheet * {
+    visibility: visible !important;
+  }
+
+  .printable-answer-sheet {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block !important;
+    width: 100%;
+    margin: 0;
+    padding-left: 1.5em;
+    list-style: decimal;
+    color: #000;
+    background: #fff;
+    font: 12pt/1.35 Arial, Helvetica, sans-serif;
+  }
+
+  .printable-answer-sheet > li {
+    break-inside: avoid;
+    margin-bottom: 0.8em;
+  }
+
+  .printable-answer-sheet > li > p {
+    margin: 0.2em 0 0;
   }
 }
 
