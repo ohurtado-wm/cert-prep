@@ -43,6 +43,7 @@ export function validateGeneratedQuestions(input: {
   guide: CertificationGuideResponse
   language: Locale
   requiredQuestionsByDomain: Record<string, number>
+  requiredQuestionsByTopic?: Record<string, number>
   idFactory: () => string
 }): StoredSimulationQuestion[] {
   const generated = parseGeneratedSet(input.value)
@@ -56,6 +57,7 @@ export function validateGeneratedQuestions(input: {
   const domainsById = new Map(input.guide.domains.map((domain) => [domain.id, domain]))
   const questionStems = new Set<string>()
   const coverage = new Map<string, number>()
+  const topicCoverage = new Map<string, number>()
   const usedQuestionIds = new Set<string>()
 
   const questions = generated.questions.map((question: GeneratedQuestion): StoredSimulationQuestion => {
@@ -82,6 +84,7 @@ export function validateGeneratedQuestions(input: {
     if (!id || usedQuestionIds.has(id)) throw new InvalidQuestionSetError('Generated question IDs must be unique.')
     usedQuestionIds.add(id)
     coverage.set(domain.id, (coverage.get(domain.id) ?? 0) + 1)
+    topicCoverage.set(question.topicId, (topicCoverage.get(question.topicId) ?? 0) + 1)
     const answers: SimulationAnswerOption[] = question.answers.map((text, index) => ({
       id: `${id}:option-${index + 1}`,
       text: text.trim(),
@@ -104,6 +107,10 @@ export function validateGeneratedQuestions(input: {
 
   if (Object.entries(input.requiredQuestionsByDomain).some(([domainId, count]) => (coverage.get(domainId) ?? 0) !== count)) {
     throw new InvalidQuestionSetError('Question coverage does not match the certification domain weights.')
+  }
+  if (input.requiredQuestionsByTopic
+    && Object.entries(input.requiredQuestionsByTopic).some(([topicId, count]) => (topicCoverage.get(topicId) ?? 0) !== count)) {
+    throw new InvalidQuestionSetError('Question coverage does not match the focused topic requirements.')
   }
   return questions
 }

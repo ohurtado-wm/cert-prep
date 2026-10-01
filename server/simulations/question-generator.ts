@@ -28,6 +28,7 @@ export type QuestionGeneratorInput = {
   guide: CertificationGuideResponse
   language: Locale
   requiredQuestionsByDomain: Record<string, number>
+  requiredQuestionsByTopic?: Record<string, number>
   validationFeedback?: string
 }
 
@@ -59,8 +60,14 @@ function buildPrompt(input: QuestionGeneratorInput) {
       id: topic.id,
       name: topic.name[input.language],
       description: topic.description[input.language],
+      ...(input.requiredQuestionsByTopic ? { requiredQuestions: input.requiredQuestionsByTopic[topic.id] ?? 0 } : {}),
     })),
   }))
+  const focusedInstructions = input.requiredQuestionsByTopic
+    ? isSpanish
+      ? 'Esta es una simulación enfocada. Genera preguntas solo de los temas proporcionados y respeta exactamente la cantidad indicada para cada tema.'
+      : 'This is a focused simulation. Generate questions only from the supplied topics and follow the exact requested count for each topic.'
+    : ''
   const instructions = isSpanish
     ? [
       'Genera 20 preguntas originales de práctica para la certificación cloud indicada. No reproduzcas preguntas oficiales ni las presentes como preguntas reales del examen.',
@@ -83,6 +90,7 @@ function buildPrompt(input: QuestionGeneratorInput) {
 
   return [
     ...instructions,
+    focusedInstructions,
     `Language code: ${input.language}`,
     `Certification: ${input.guide.certification.name[input.language]} (${input.guide.certification.id})`,
     `Domains and required coverage: ${JSON.stringify(domainRequirements)}`,

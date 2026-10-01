@@ -12,9 +12,11 @@ import {
   clearSimulationHistory,
   loadCurrentUser,
   loadSimulationHistory,
+  loadWeakTopicAnalysis,
   revealSimulationAnswer,
   SimulationApiError,
   startSimulation,
+  startWeakTopicSimulation,
   submitSimulationAnswer,
 } from '../../src/api/simulations'
 import type {
@@ -25,6 +27,7 @@ import type {
   SimulationResult,
   SimulationSnapshot,
 } from '../../src/api/simulation-contracts'
+import type { WeakTopicAnalysisResponse } from '../../src/api/weak-topic-contracts'
 import type { CurrentUserResponse } from '../../src/api/contracts'
 import { translate } from '../../src/i18n/messages'
 import { readLocalePreference, writeLocalePreference } from '../../src/i18n/preferences'
@@ -80,6 +83,12 @@ function CertificationApp() {
   })
   const catalog = catalogQuery.data ?? []
   const selectedCertification = catalog.find((item) => item.id === selectedCertificationId) ?? catalog[0]
+  const weakTopicsQuery = useQuery({
+    queryKey: ['weak-topic-analysis', userQuery.data?.id, selectedCertification?.id],
+    queryFn: () => loadWeakTopicAnalysis(selectedCertification!.id),
+    enabled: Boolean(userQuery.data?.id && selectedCertification && !userQuery.isError),
+    retry: false,
+  })
   const guideQuery = useQuery({
     queryKey: ['certification-guide', selectedCertification?.id],
     queryFn: () => loadCertificationGuide(selectedCertification!.id),
@@ -96,9 +105,13 @@ function CertificationApp() {
     const previous = previousUserId.current
     if (previous && previous !== nextUserId) {
       queryClient.removeQueries({ queryKey: ['simulation-history', previous] })
+      queryClient.removeQueries({ queryKey: ['weak-topic-analysis', previous] })
     }
     const signedOut = userQuery.isError || (historyQuery.error instanceof SimulationApiError && historyQuery.error.code === 'UNAUTHENTICATED')
-    if (signedOut) queryClient.removeQueries({ queryKey: ['simulation-history'] })
+    if (signedOut) {
+      queryClient.removeQueries({ queryKey: ['simulation-history'] })
+      queryClient.removeQueries({ queryKey: ['weak-topic-analysis'] })
+    }
     previousUserId.current = nextUserId
     if (!userQuery.isError && historyQuery.error instanceof SimulationApiError && historyQuery.error.code === 'UNAUTHENTICATED') {
       void userQuery.refetch()
@@ -106,7 +119,9 @@ function CertificationApp() {
   }, [queryClient, userQuery.data?.id, userQuery.isError, userQuery.refetch, historyQuery.error])
 
   const startMutation = useMutation({
-    mutationFn: () => startSimulation(selectedCertification!.id, simulationMode, locale),
+    mutationFn: (focusWeakTopics: boolean) => focusWeakTopics
+      ? startWeakTopicSimulation(selectedCertification!.id, simulationMode, locale)
+      : startSimulation(selectedCertification!.id, simulationMode, locale),
     onSuccess: (snapshot) => {
       setActiveSession(snapshot)
       setSessionQuestions(snapshot.currentQuestion ? [snapshot.currentQuestion] : [])
@@ -114,7 +129,10 @@ function CertificationApp() {
       setQuestionIndex(0)
       setScreen('quiz')
     },
-    onError: clearHistoryIfUnauthenticated,
+    onError: (error, focusWeakTopics) => {
+      clearHistoryIfUnauthenticated(error)
+      if (focusWeakTopics) void weakTopicsQuery.refetch()
+    },
   })
   useEffect(() => {
     if (!startMutation.isPending) {
@@ -141,6 +159,7 @@ function CertificationApp() {
     onSuccess: async () => {
       if (userQuery.data?.id) {
         await queryClient.invalidateQueries({ queryKey: ['simulation-history', userQuery.data.id] })
+        await queryClient.invalidateQueries({ queryKey: ['weak-topic-analysis', userQuery.data.id] })
       }
     },
     onError: clearHistoryIfUnauthenticated,
@@ -210,13 +229,13 @@ function CertificationApp() {
     setLocale(nextLocale)
   }
 
-  function startSession() {
+  function startSession(focusWeakTopics = false) {
     if (!selectedCertification || !guideReady || !userQuery.data || userQuery.isError) return
     answerMutation.reset()
     revealMutation.reset()
     nextMutation.reset()
     startMutation.reset()
-    startMutation.mutate()
+    startMutation.mutate(focusWeakTopics)
   }
 
   async function answerQuestion(questionId: string, answerId: string): Promise<SimulationAnswerResponse> {
@@ -234,6 +253,7 @@ function CertificationApp() {
         setSessionResult(response.result)
         setScreen('results')
         void queryClient.invalidateQueries({ queryKey: ['simulation-history', userQuery.data?.id] })
+        void queryClient.invalidateQueries({ queryKey: ['weak-topic-analysis', userQuery.data?.id] })
       }
     }
     return response
@@ -250,6 +270,7 @@ function CertificationApp() {
       setSessionResult(snapshot.result)
       setScreen('results')
       void queryClient.invalidateQueries({ queryKey: ['simulation-history', userQuery.data?.id] })
+      void queryClient.invalidateQueries({ queryKey: ['weak-topic-analysis', userQuery.data?.id] })
       return snapshot
     }
     if (snapshot.currentQuestion) {
@@ -308,6 +329,12 @@ function CertificationApp() {
           history={historyQuery.data ?? []}
           historyLoading={historyQuery.isPending && Boolean(userQuery.data) && !userQuery.isError}
           historyError={historyQuery.error ?? clearHistoryMutation.error ?? null}
+          weakTopicAnalysis={weakTopicsQuery.data}
+          weakTopicsLoading={(weakTopicsQuery.isPending || guideQuery.isFetching) && Boolean(userQuery.data) && !userQuery.isError}
+          weakTopicsError={weakTopicsQuery.error}
+          weakTopicStartError={startMutation.variables ? startMutation.error : null}
+          onWeakTopicsRetry={() => void weakTopicsQuery.refetch()}
+          onStartWeakTopics={() => startSession(true)}
           onHistoryRetry={() => {
             clearHistoryMutation.reset()
             void historyQuery.refetch()
@@ -492,6 +519,12 @@ function HomeScreen({
   history,
   historyLoading,
   historyError,
+  weakTopicAnalysis,
+  weakTopicsLoading,
+  weakTopicsError,
+  weakTopicStartError,
+  onWeakTopicsRetry,
+  onStartWeakTopics,
   onHistoryRetry,
   onClearHistory,
   clearingHistory,
@@ -517,6 +550,12 @@ function HomeScreen({
   history: SimulationHistoryItem[]
   historyLoading: boolean
   historyError: unknown | null
+  weakTopicAnalysis: WeakTopicAnalysisResponse | undefined
+  weakTopicsLoading: boolean
+  weakTopicsError: unknown
+  weakTopicStartError: unknown | null
+  onWeakTopicsRetry: () => void
+  onStartWeakTopics: () => void
   onHistoryRetry: () => void
   onClearHistory: () => void
   clearingHistory: boolean
@@ -525,6 +564,20 @@ function HomeScreen({
 }) {
   const text = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values)
   const domains = guide?.domains ?? []
+  const weakTopicsToPractice = (weakTopicAnalysis?.topics ?? []).flatMap((item) => {
+    const domain = domains.find((candidate) => candidate.topics.some((topic) => topic.id === item.topicId))
+    const topic = domain?.topics.find((candidate) => candidate.id === item.topicId)
+    return domain && topic ? [{ ...item, topicName: topic.name[locale], domainName: domain.name[locale] }] : []
+  })
+  const weakTopicStartMessage = weakTopicStartError instanceof SimulationApiError
+    ? weakTopicStartError.code === 'SIMULATION_HISTORY_EMPTY'
+      ? text('weakTopicHistoryEmpty')
+      : weakTopicStartError.code === 'NO_WEAK_TOPICS'
+        ? text('weakTopicNoWeakAreas', { threshold: weakTopicAnalysis?.thresholdPercent ?? 80 })
+        : weakTopicStartError.code === 'WEAK_TOPICS_UNAVAILABLE'
+          ? text('weakTopicGuideChanged')
+          : text('weakTopicStartError')
+    : weakTopicStartError ? text('weakTopicStartError') : null
   const [guideLoadingSeconds, setGuideLoadingSeconds] = useState(0)
 
   useEffect(() => {
@@ -613,6 +666,47 @@ function HomeScreen({
           <button className="button button-inverse" type="button" onClick={onStart} disabled={!canStart}>
             {startingSimulation ? text('startingSimulation') : text('startSession')} <span aria-hidden="true">→</span>
           </button>
+          <div className="weak-topic-practice" aria-labelledby="weak-topic-title">
+            <h3 id="weak-topic-title">{text('weakTopicTitle')}</h3>
+            <p className="weak-topic-description">{text('weakTopicThreshold', { threshold: weakTopicAnalysis?.thresholdPercent ?? 80 })}</p>
+            {weakTopicsLoading && <p className="weak-topic-message" role="status">{text('weakTopicLoading')}</p>}
+            {!weakTopicsLoading && Boolean(weakTopicsError) && (
+              <div className="weak-topic-message has-error" role="alert">
+                <span>{text('weakTopicLoadError')}</span>
+                <button className="button button-text" type="button" onClick={onWeakTopicsRetry}>{text('retry')}</button>
+              </div>
+            )}
+            {!weakTopicsLoading && !weakTopicsError && weakTopicAnalysis?.status === 'history_empty' && (
+              <p className="weak-topic-message">{text('weakTopicHistoryEmpty')}</p>
+            )}
+            {!weakTopicsLoading && !weakTopicsError && weakTopicAnalysis?.status === 'no_weak_topics' && (
+              <p className="weak-topic-message">{text('weakTopicNoWeakAreas', { threshold: weakTopicAnalysis.thresholdPercent })}</p>
+            )}
+            {!weakTopicsLoading && !weakTopicsError && weakTopicAnalysis?.status === 'ready' && weakTopicsToPractice.length === 0 && (
+              <p className="weak-topic-message">{text('weakTopicGuideChanged')}</p>
+            )}
+            {!weakTopicsLoading && !weakTopicsError && weakTopicAnalysis?.status === 'ready' && weakTopicsToPractice.length > 0 && (
+              <>
+                <p className="weak-topic-basis">{text('weakTopicBasedOn', { count: weakTopicAnalysis.analyzedSessionCount })}</p>
+                <ul className="weak-topic-list">
+                  {weakTopicsToPractice.map((item) => (
+                    <li key={item.topicId}>
+                      <span className="weak-topic-name">{item.topicName}</span>
+                      <span className="weak-topic-domain">{item.domainName}</span>
+                      <span className="weak-topic-score">{text('weakTopicScore', { correct: item.correct, total: item.total, accuracy: item.accuracyPercent })}</span>
+                    </li>
+                  ))}
+                </ul>
+                {weakTopicAnalysis.excludedWeakTopicCount > 0 && (
+                  <p className="weak-topic-message">{text('weakTopicMoreAreas', { count: weakTopicAnalysis.excludedWeakTopicCount })}</p>
+                )}
+                <button className="button button-secondary weak-topic-button" type="button" onClick={onStartWeakTopics} disabled={!canStart}>
+                  {text('weakTopicStart')} <span aria-hidden="true">→</span>
+                </button>
+              </>
+            )}
+            {weakTopicStartMessage && weakTopicAnalysis?.status === 'ready' && <p className="weak-topic-message has-error" role="alert">{weakTopicStartMessage}</p>}
+          </div>
           {guideLoading ? (
             <div className="guide-loading" role="status" aria-live="polite" aria-busy="true">
               <div className="guide-loading-heading">

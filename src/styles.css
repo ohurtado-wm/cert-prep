@@ -673,6 +673,88 @@ select:focus-visible,
   line-height: 1.4;
 }
 
+.weak-topic-practice {
+  margin-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
+  padding-top: 20px;
+  color: var(--wm-white);
+}
+
+.weak-topic-practice h3 {
+  margin: 0;
+  font-family: 'IBM Plex Sans', Arial, Helvetica, sans-serif;
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.weak-topic-description,
+.weak-topic-message,
+.weak-topic-basis {
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.weak-topic-message.has-error {
+  color: #FFC700;
+}
+
+.weak-topic-list {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.weak-topic-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 10px;
+  border-left: 3px solid var(--wm-highlight-magenta);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 9px 10px;
+}
+
+.weak-topic-name {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.weak-topic-domain,
+.weak-topic-score {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 11px;
+}
+
+.weak-topic-domain {
+  grid-column: 1;
+}
+
+.weak-topic-score {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  text-align: right;
+}
+
+.certification-panel .weak-topic-button {
+  width: 100%;
+  margin-top: 14px;
+  border-color: var(--wm-white);
+  color: var(--wm-white);
+}
+
+.certification-panel .weak-topic-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.certification-panel .weak-topic-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .topics-section {
   margin-top: 96px;
 }
