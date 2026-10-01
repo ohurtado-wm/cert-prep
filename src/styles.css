@@ -2020,3 +2020,128 @@ select:focus-visible,
     animation-iteration-count: 1 !important;
   }
 }
+
+
+.study-plan-section {
+  margin: 48px 0;
+}
+
+.study-plan-result {
+  display: grid;
+  gap: 14px;
+}
+
+.study-plan-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  border-left: 4px solid var(--wm-highlight-magenta);
+  background: var(--surface);
+  padding: 18px 20px;
+}
+
+.study-plan-summary p {
+  margin: 0 0 8px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.study-plan-summary span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.study-plan-language {
+  border: 1px solid var(--border);
+  padding: 4px 7px;
+  font-weight: 700;
+}
+
+.study-plan-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.study-plan-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 20px;
+}
+
+.study-plan-card-heading {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.study-plan-priority {
+  color: var(--link);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.study-plan-evidence {
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.study-plan-card .eyebrow {
+  margin: 8px 0 0;
+}
+
+.study-plan-card h3 {
+  margin: 0;
+  font-family: 'IBM Plex Sans', Arial, Helvetica, sans-serif;
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.study-plan-card > p:not(.eyebrow) {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.study-plan-actions {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.study-plan-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  padding: 16px 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.study-plan-loading .guide-loading-spinner {
+  border-color: var(--border);
+  border-top-color: var(--progress);
+}
+
+@media (max-width: 760px) {
+  .study-plan-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

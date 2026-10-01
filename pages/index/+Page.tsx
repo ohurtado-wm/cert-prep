@@ -29,6 +29,9 @@ import type { CurrentUserResponse } from '../../src/api/contracts'
 import { translate } from '../../src/i18n/messages'
 import { readLocalePreference, writeLocalePreference } from '../../src/i18n/preferences'
 import { AiTokenUsage } from '../../src/components/AiTokenUsage'
+import { StudyPlanPanel } from '../../src/components/StudyPlanPanel'
+import { generateStudyPlan, loadLatestStudyPlan, StudyPlanApiError } from '../../src/api/study-plans'
+import type { StudyPlan } from '../../src/api/study-plan-contracts'
 import { QuizScreen, ResultsScreen, simulationErrorMessage } from '../../src/components/SimulationScreens'
 import '../../src/styles.css'
 
@@ -80,6 +83,12 @@ function CertificationApp() {
   })
   const catalog = catalogQuery.data ?? []
   const selectedCertification = catalog.find((item) => item.id === selectedCertificationId) ?? catalog[0]
+  const studyPlanQuery = useQuery({
+    queryKey: ['study-plan-latest', userQuery.data?.id, selectedCertification?.id],
+    queryFn: () => loadLatestStudyPlan(selectedCertification!.id),
+    enabled: Boolean(userQuery.data?.id && !userQuery.isError && selectedCertification),
+    retry: false,
+  })
   const guideQuery = useQuery({
     queryKey: ['certification-guide', selectedCertification?.id],
     queryFn: () => loadCertificationGuide(selectedCertification!.id),
@@ -96,14 +105,18 @@ function CertificationApp() {
     const previous = previousUserId.current
     if (previous && previous !== nextUserId) {
       queryClient.removeQueries({ queryKey: ['simulation-history', previous] })
+      queryClient.removeQueries({ queryKey: ['study-plan-latest', previous] })
     }
-    const signedOut = userQuery.isError || (historyQuery.error instanceof SimulationApiError && historyQuery.error.code === 'UNAUTHENTICATED')
-    if (signedOut) queryClient.removeQueries({ queryKey: ['simulation-history'] })
+    const signedOut = userQuery.isError || (historyQuery.error instanceof SimulationApiError && historyQuery.error.code === 'UNAUTHENTICATED') || (studyPlanQuery.error instanceof StudyPlanApiError && studyPlanQuery.error.code === 'UNAUTHENTICATED')
+    if (signedOut) {
+      queryClient.removeQueries({ queryKey: ['simulation-history'] })
+      queryClient.removeQueries({ queryKey: ['study-plan-latest'] })
+    }
     previousUserId.current = nextUserId
-    if (!userQuery.isError && historyQuery.error instanceof SimulationApiError && historyQuery.error.code === 'UNAUTHENTICATED') {
+    if (!userQuery.isError && ((historyQuery.error instanceof SimulationApiError && historyQuery.error.code === 'UNAUTHENTICATED') || (studyPlanQuery.error instanceof StudyPlanApiError && studyPlanQuery.error.code === 'UNAUTHENTICATED'))) {
       void userQuery.refetch()
     }
-  }, [queryClient, userQuery.data?.id, userQuery.isError, userQuery.refetch, historyQuery.error])
+  }, [queryClient, userQuery.data?.id, userQuery.isError, userQuery.refetch, historyQuery.error, studyPlanQuery.error])
 
   const startMutation = useMutation({
     mutationFn: () => startSimulation(selectedCertification!.id, simulationMode, locale),
@@ -140,15 +153,28 @@ function CertificationApp() {
     mutationFn: () => clearSimulationHistory(),
     onSuccess: async () => {
       if (userQuery.data?.id) {
-        await queryClient.invalidateQueries({ queryKey: ['simulation-history', userQuery.data.id] })
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['simulation-history', userQuery.data.id] }),
+          queryClient.invalidateQueries({ queryKey: ['study-plan-latest', userQuery.data.id] }),
+        ])
+      }
+    },
+    onError: clearHistoryIfUnauthenticated,
+  })
+  const studyPlanMutation = useMutation({
+    mutationFn: ({ certificationId, language }: { certificationId: string; language: Locale; userId: string }) => generateStudyPlan(certificationId, language),
+    onSuccess: (plan, variables) => {
+      if (userQuery.data?.id === variables.userId) {
+        queryClient.setQueryData(['study-plan-latest', variables.userId, variables.certificationId], plan)
       }
     },
     onError: clearHistoryIfUnauthenticated,
   })
 
   function clearHistoryIfUnauthenticated(error: unknown) {
-    if (error instanceof SimulationApiError && error.code === 'UNAUTHENTICATED') {
+    if ((error instanceof SimulationApiError || error instanceof StudyPlanApiError) && error.code === 'UNAUTHENTICATED') {
       queryClient.removeQueries({ queryKey: ['simulation-history'] })
+      queryClient.removeQueries({ queryKey: ['study-plan-latest'] })
       void userQuery.refetch()
     }
   }
@@ -217,6 +243,11 @@ function CertificationApp() {
     nextMutation.reset()
     startMutation.reset()
     startMutation.mutate()
+  }
+  function suggestStudyPlan() {
+    if (!selectedCertification || !userQuery.data || userQuery.isError) return
+    studyPlanMutation.reset()
+    studyPlanMutation.mutate({ certificationId: selectedCertification.id, language: locale, userId: userQuery.data.id })
   }
 
   async function answerQuestion(questionId: string, answerId: string): Promise<SimulationAnswerResponse> {
@@ -314,6 +345,13 @@ function CertificationApp() {
           }}
           onClearHistory={() => clearHistoryMutation.mutate()}
           clearingHistory={clearHistoryMutation.isPending}
+          studyPlan={studyPlanQuery.data}
+          studyPlanLoading={studyPlanQuery.isPending}
+          studyPlanError={studyPlanQuery.error ?? null}
+          generatingStudyPlan={studyPlanMutation.isPending}
+          studyPlanGenerationError={studyPlanMutation.error ?? null}
+          onGenerateStudyPlan={suggestStudyPlan}
+          onRetryStudyPlan={() => void studyPlanQuery.refetch()}
           startingSimulation={startMutation.isPending}
           startError={startMutation.error ?? null}
         />
@@ -495,6 +533,13 @@ function HomeScreen({
   onHistoryRetry,
   onClearHistory,
   clearingHistory,
+  studyPlan,
+  studyPlanLoading,
+  studyPlanError,
+  generatingStudyPlan,
+  studyPlanGenerationError,
+  onGenerateStudyPlan,
+  onRetryStudyPlan,
   startingSimulation,
   startError,
 }: {
@@ -520,6 +565,13 @@ function HomeScreen({
   onHistoryRetry: () => void
   onClearHistory: () => void
   clearingHistory: boolean
+  studyPlan: StudyPlan | null | undefined
+  studyPlanLoading: boolean
+  studyPlanError: unknown | null
+  generatingStudyPlan: boolean
+  studyPlanGenerationError: unknown | null
+  onGenerateStudyPlan: () => void
+  onRetryStudyPlan: () => void
   startingSimulation: boolean
   startError: unknown | null
 }) {
@@ -657,6 +709,24 @@ function HomeScreen({
         onClear={() => {
           if (window.confirm(text('clearHistoryConfirm'))) onClearHistory()
         }}
+      />
+
+      <StudyPlanPanel
+        locale={locale}
+        available={Boolean(user)}
+        historyCount={history.filter((session) => session.certificationId === certification.id).length}
+        historyLoading={historyLoading}
+        historyError={historyError}
+        onRetryHistory={onHistoryRetry}
+        guideReady={Boolean(guide && !guideLoading && !guideError)}
+        guideLoading={guideLoading}
+        plan={studyPlan}
+        planLoading={studyPlanLoading}
+        planError={studyPlanError}
+        generating={generatingStudyPlan}
+        generationError={studyPlanGenerationError}
+        onRetry={onRetryStudyPlan}
+        onGenerate={onGenerateStudyPlan}
       />
 
       <section className="topics-section" aria-labelledby="topics-title">

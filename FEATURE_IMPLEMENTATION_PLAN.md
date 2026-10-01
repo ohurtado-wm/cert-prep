@@ -1,7 +1,7 @@
 # Implementation Plan: Cert Helper — producto final
 
-**Estado:** PR-01…PR-04 integrados; PR-05 abierto, con pruebas específicas pendientes; PR-06/PR-07 pendientes
-**Última actualización:** 2026-09-30
+**Estado:** PR-01…PR-04 integrados; PR-05 abierto según el último registro; PR-06 implementado localmente; PR-07 pendiente
+**Última actualización:** 2026-10-01
 
 ## Materiales fuente
 
@@ -17,7 +17,7 @@
 - **Completado:** PoC local aprobado; catálogo y guía oficial bilingües, generación IA de preguntas, sesiones seguras y UI conectada al backend para el historial.
 - **Completado en PR-01:** base Bun/Hono integrada con Vike, contratos Zod, esquema Drizzle/SQLite, migración inicial, resolución de usuario con `/users/me` y pruebas de identidad/rutas/migración.
 - **Completado en PR-02:** catálogo y guías de estudio generadas con IA, compartidas desde SQLite y renovadas bajo demanda cada 30 días.
-- **Pendiente:** terminar la validación de PR-05 y luego implementar el plan de estudio y la simulación enfocada.
+- **En curso:** PR-05 conserva pruebas de integración/E2E pendientes; PR-06 está implementado localmente y espera revisión, un canary real autorizado y publicación. PR-07 sigue pendiente.
 - **Repositorio:** conectado a `https://github.com/ohurtado-wm/cert-prep.git`; PR-01…PR-07 son límites de revisión propuestos.
 
 ## Estado de PR
@@ -29,7 +29,7 @@
 | `PR-03` | Interfaz y contenido en español/inglés | Merged | `PR-02` | Flujo completo del catálogo en ambos idiomas |
 | `PR-04` | Generación de preguntas y sesiones seguras | Merged | `PR-01`, `PR-02` | 20 preguntas válidas; sesiones privadas por usuario |
 | `PR-05` | Sesiones web e historial por usuario en backend | Abierto; pruebas específicas pendientes | `PR-01`, `PR-03`, `PR-04` | Práctica y Simulación Real guardan resultados autenticados |
-| `PR-06` | Plan de estudio personalizado con IA | No iniciado | `PR-05` | Recomendaciones ligadas a resultados y fuentes |
+| `PR-06` | Plan de estudio personalizado con IA | Implementado localmente; canary real y publicación pendientes | `PR-05` | Recomendaciones ligadas a resultados y fuentes oficiales |
 | `PR-07` | Simulación enfocada en temas débiles | No iniciado | `PR-05` | Solo incluye temas aún no superados |
 
 ## Objetivo
@@ -285,23 +285,27 @@ sequenceDiagram
 ## PR-06: Plan de estudio sugerido
 
 **ID:** `PR-06`  
-**Estado:** No iniciado  
+**Estado:** Implementado localmente; pendiente canary con proveedor real y publicación
 **Objetivo:** recomendar qué estudiar a partir de los resultados recientes, sin delegar la aritmética al modelo.  
 **Dependencia:** `PR-05`; puede avanzar en paralelo con `PR-07` una vez compartido el módulo de analítica.
 
 ### Tareas
 
-- [ ] `P6-T01` Añadir botón **Sugerir plan de estudio** y estados para historial ausente, carga y error.
-- [ ] `P6-T02` Leer del backend las últimas 10 sesiones del usuario autenticado, calcular agregados por IDs de tema/dominio y enviar a IA únicamente conteos/tasas y focos fallidos.
-- [ ] `P6-T03` Generar con IA un plan estructurado por prioridad, motivo medible y pasos/recurso oficial; redactar en idioma elegido.
-- [ ] `P6-T04` Guardar cada plan bajo el `gatewayUserId`, mostrar los resultados que sustentan sus prioridades y permitir regenerarlo.
-- [ ] `P6-T05` Probar cálculos con datos fijos y forma/idioma/sources de salida con proveedor falso más canary acotado.
+- [x] `P6-T01` Añadir botón **Sugerir plan de estudio** y estados para historial ausente, carga y error.
+- [x] `P6-T02` Leer del backend las últimas 10 sesiones del usuario autenticado, calcular agregados por IDs de tema/dominio y enviar a IA únicamente conteos/tasas y focos fallidos.
+- [x] `P6-T03` Generar con IA un plan estructurado por prioridad, motivo medible y pasos/recurso oficial; redactar en idioma elegido.
+- [x] `P6-T04` Guardar cada plan bajo el `gatewayUserId`, mostrar los resultados que sustentan sus prioridades y permitir regenerarlo.
+- [x] `P6-T05` Probar cálculos con datos fijos y forma/idioma/fuentes de salida con proveedor falso.
+- [ ] `P6-T06` Ejecutar un canary acotado con OpenAI tras autorizar el costo de la llamada.
 
 ### Criterios de validación
 
-- [ ] Prioridades coinciden con estadísticas determinísticas del historial; la IA redacta y recomienda, no cambia el puntaje.
-- [ ] Plan en español e inglés contiene recursos oficiales y no inventa métricas ni marca “aprobado”.
-- [ ] Request a IA no incluye preguntas, opciones, identificador/correo/avatar ni historial completo.
+- [x] Prioridades coinciden con estadísticas determinísticas del historial; la IA redacta y recomienda, no cambia el puntaje.
+- [x] Plan en español e inglés contiene recursos oficiales; el servidor rechaza métricas inventadas y conclusiones de aprobación.
+- [x] Request a IA no incluye preguntas, opciones, identificador/correo/avatar ni historial completo.
+- [ ] El canary de OpenAI queda pendiente para evitar una llamada facturable no solicitada.
+
+**Validación local:** `bun run typecheck`, `bun test` (40 pruebas; 165 aserciones), `bun run build` y `git diff --check` pasaron. El build terminó con advertencias informativas de entorno/chunk y nombre de grupo.
 
 ## PR-07: Simulación de temas débiles
 
