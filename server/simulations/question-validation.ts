@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto'
 import type { CertificationGuideResponse, Locale } from '../../src/api/certification-contracts'
 import { type SimulationAnswerOption } from '../../src/api/simulation-contracts'
 import { GeneratedQuestionSetSchema, type GeneratedQuestion, type GeneratedQuestionSet } from './question-generator'
@@ -38,6 +39,19 @@ function parseGeneratedSet(value: unknown): GeneratedQuestionSet {
   return parsed.data
 }
 
+function shuffle<T>(items: T[]) {
+  const shuffled = [...items]
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = randomInt(index + 1)
+    ;[shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex]!, shuffled[index]!]
+  }
+  return shuffled
+}
+
+function balancedCorrectAnswerPositions() {
+  return shuffle(Array.from({ length: 20 }, (_, index) => index % 4))
+}
+
 export function validateGeneratedQuestions(input: {
   value: unknown
   guide: CertificationGuideResponse
@@ -59,8 +73,9 @@ export function validateGeneratedQuestions(input: {
   const coverage = new Map<string, number>()
   const topicCoverage = new Map<string, number>()
   const usedQuestionIds = new Set<string>()
+  const correctAnswerPositions = balancedCorrectAnswerPositions()
 
-  const questions = generated.questions.map((question: GeneratedQuestion): StoredSimulationQuestion => {
+  const questions = generated.questions.map((question: GeneratedQuestion, questionIndex): StoredSimulationQuestion => {
     const domain = domainsById.get(question.domainId)
     if (!domain || !domain.topics.some((topic) => topic.id === question.topicId)) {
       throw new InvalidQuestionSetError('A question uses a topic outside its official domain.')
@@ -85,9 +100,15 @@ export function validateGeneratedQuestions(input: {
     usedQuestionIds.add(id)
     coverage.set(domain.id, (coverage.get(domain.id) ?? 0) + 1)
     topicCoverage.set(question.topicId, (topicCoverage.get(question.topicId) ?? 0) + 1)
-    const answers: SimulationAnswerOption[] = question.answers.map((text, index) => ({
+    const correctAnswer = question.answers[question.correctAnswerIndex]!.trim()
+    const distractors = shuffle(question.answers
+      .filter((_answer, index) => index !== question.correctAnswerIndex)
+      .map((answer) => answer.trim()))
+    const correctAnswerPosition = correctAnswerPositions[questionIndex]!
+    distractors.splice(correctAnswerPosition, 0, correctAnswer)
+    const answers: SimulationAnswerOption[] = distractors.map((text, index) => ({
       id: `${id}:option-${index + 1}`,
-      text: text.trim(),
+      text,
     }))
 
     return {
@@ -98,7 +119,7 @@ export function validateGeneratedQuestions(input: {
       service: question.service.trim(),
       question: question.question.trim(),
       answers,
-      correctAnswerId: answers[question.correctAnswerIndex]!.id,
+      correctAnswerId: answers[correctAnswerPosition]!.id,
       explanation: question.explanation.trim(),
       attempts: 0,
       outcome: 'pending',
