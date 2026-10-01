@@ -1,6 +1,6 @@
 # Implementation Plan: Cert Helper — producto final
 
-**Estado:** PR-01…PR-05 integrados en `main`; PR-06 fusionado en la rama de PR-05, pendiente de integración en `main` y canary; PR-07 implementado y publicado en su rama; PR pendiente de apertura.
+**Estado:** PR-01…PR-05 y PR-07 integrados en `main`; PR-06 está abierto como PR #8 hacia `main`, con canary real pendiente.
 **Última actualización:** 2026-10-01
 
 ## Materiales fuente
@@ -17,7 +17,7 @@
 - **Completado:** PoC local aprobado; catálogo y guía oficial bilingües, generación IA de preguntas, sesiones seguras y UI conectada al backend para el historial.
 - **Completado en PR-01:** base Bun/Hono integrada con Vike, contratos Zod, esquema Drizzle/SQLite, migración inicial, resolución de usuario con `/users/me` y pruebas de identidad/rutas/migración.
 - **Completado en PR-02:** catálogo y guías de estudio generadas con IA, compartidas desde SQLite y renovadas bajo demanda cada 30 días.
-- **En curso:** PR-06 está disponible en `feat/pr-05-user-session-history` y aún no está integrado en `main`; su canary real sigue pendiente. PR-07 está publicado desde `main`; la apertura del PR está pendiente.
+- **En curso:** PR-06 está abierto como PR #8 contra `main`; el canary real con OpenAI sigue pendiente de autorización.
 - **Repositorio:** conectado a `https://github.com/ohurtado-wm/cert-prep.git`; PR-01…PR-07 son límites de revisión propuestos.
 
 ## Estado de PR
@@ -29,8 +29,8 @@
 | `PR-03` | Interfaz y contenido en español/inglés | Merged | `PR-02` | Flujo completo del catálogo en ambos idiomas |
 | `PR-04` | Generación de preguntas y sesiones seguras | Merged | `PR-01`, `PR-02` | 20 preguntas válidas; sesiones privadas por usuario |
 | `PR-05` | Sesiones web e historial por usuario en backend | Merged | `PR-01`, `PR-03`, `PR-04` | Práctica y Simulación Real guardan resultados autenticados |
-| `PR-06` | Plan de estudio personalizado con IA | Merged en la rama PR-05; pendiente de integración en `main` y canary | `PR-05` | Recomendaciones ligadas a resultados y fuentes |
-| `PR-07` | Simulación enfocada en temas débiles | Rama publicada; PR pendiente de apertura | `PR-05` | Solo incluye temas aún no superados |
+| `PR-06` | Plan de estudio personalizado con IA | PR #8 abierto contra `main`; canary real pendiente | `PR-05` | Recomendaciones ligadas a resultados y fuentes oficiales |
+| `PR-07` | Simulación enfocada en temas débiles | Merged en `main` | `PR-05` | Solo incluye temas aún no superados |
 
 ## Objetivo
 
@@ -285,7 +285,7 @@ sequenceDiagram
 ## PR-06: Plan de estudio sugerido
 
 **ID:** `PR-06`  
-**Estado:** Fusionado en `feat/pr-05-user-session-history`; pendiente de integración en `main` y canary real
+**Estado:** PR #8 abierto contra `main`; canary real pendiente de autorización
 **Objetivo:** recomendar qué estudiar a partir de los resultados recientes, sin delegar la aritmética al modelo.  
 **Dependencia:** `PR-05`; puede avanzar en paralelo con `PR-07` una vez compartido el módulo de analítica.
 
@@ -301,14 +301,16 @@ sequenceDiagram
 ### Criterios de validación
 
 - [x] Prioridades coinciden con estadísticas determinísticas del historial; la IA redacta y recomienda, no cambia el puntaje.
-- [x] Plan en español e inglés contiene recursos oficiales y no inventa métricas ni marca “aprobado”.
+- [x] Plan en español e inglés contiene recursos oficiales; el servidor rechaza métricas inventadas y conclusiones de aprobación.
 - [x] Request a IA no incluye preguntas, opciones, identificador/correo/avatar ni historial completo.
 - [ ] El canary de OpenAI queda pendiente para evitar una llamada facturable no solicitada.
+
+**Validación local:** `bun run typecheck`, `bun test` (40 pruebas; 165 aserciones), `bun run build` y `git diff --check` pasaron. El build terminó con advertencias informativas de entorno/chunk y nombre de grupo.
 
 ## PR-07: Simulación de temas débiles
 
 **ID:** `PR-07`  
-**Estado:** Implementado localmente sobre `main`
+**Estado:** Integrado en `main` mediante PR #7
 **Objetivo:** generar una simulación nueva que practique únicamente temas no superados recientemente.  
 **Dependencia:** `PR-05`; reutiliza el generador de `PR-04`.
 
