@@ -1,6 +1,6 @@
 # Implementation Plan: Cert Helper — producto final
 
-**Estado:** PR-01…PR-05 y PR-07 integrados en `main`; PR-06 se prepara para un nuevo PR a `main`, con canary real pendiente.
+**Estado:** PR-01…PR-05 y PR-07 integrados en `main`; PR-06 está abierto como PR #8 hacia `main`, con canary real pendiente.
 **Última actualización:** 2026-10-01
 
 ## Materiales fuente
@@ -17,7 +17,7 @@
 - **Completado:** PoC local aprobado; catálogo y guía oficial bilingües, generación IA de preguntas, sesiones seguras y UI conectada al backend para el historial.
 - **Completado en PR-01:** base Bun/Hono integrada con Vike, contratos Zod, esquema Drizzle/SQLite, migración inicial, resolución de usuario con `/users/me` y pruebas de identidad/rutas/migración.
 - **Completado en PR-02:** catálogo y guías de estudio generadas con IA, compartidas desde SQLite y renovadas bajo demanda cada 30 días.
-- **En curso:** PR-06 se integra en una rama basada en `main`; el canary real con OpenAI sigue pendiente de autorización.
+- **En curso:** PR-06 está abierto como PR #8 contra `main`; el canary real con OpenAI sigue pendiente de autorización.
 - **Repositorio:** conectado a `https://github.com/ohurtado-wm/cert-prep.git`; PR-01…PR-07 son límites de revisión propuestos.
 
 ## Estado de PR
@@ -29,7 +29,7 @@
 | `PR-03` | Interfaz y contenido en español/inglés | Merged | `PR-02` | Flujo completo del catálogo en ambos idiomas |
 | `PR-04` | Generación de preguntas y sesiones seguras | Merged | `PR-01`, `PR-02` | 20 preguntas válidas; sesiones privadas por usuario |
 | `PR-05` | Sesiones web e historial por usuario en backend | Merged | `PR-01`, `PR-03`, `PR-04` | Práctica y Simulación Real guardan resultados autenticados |
-| `PR-06` | Plan de estudio personalizado con IA | Nuevo PR a `main` en preparación; canary real pendiente | `PR-05` | Recomendaciones ligadas a resultados y fuentes oficiales |
+| `PR-06` | Plan de estudio personalizado con IA | PR #8 abierto contra `main`; canary real pendiente | `PR-05` | Recomendaciones ligadas a resultados y fuentes oficiales |
 | `PR-07` | Simulación enfocada en temas débiles | Merged en `main` | `PR-05` | Solo incluye temas aún no superados |
 
 ## Objetivo
@@ -285,7 +285,7 @@ sequenceDiagram
 ## PR-06: Plan de estudio sugerido
 
 **ID:** `PR-06`  
-**Estado:** Nuevo PR a `main` en preparación; canary real pendiente de autorización
+**Estado:** PR #8 abierto contra `main`; canary real pendiente de autorización
 **Objetivo:** recomendar qué estudiar a partir de los resultados recientes, sin delegar la aritmética al modelo.  
 **Dependencia:** `PR-05`; puede avanzar en paralelo con `PR-07` una vez compartido el módulo de analítica.
 
