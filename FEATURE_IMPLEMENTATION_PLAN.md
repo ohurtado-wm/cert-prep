@@ -1,6 +1,6 @@
 # Implementation Plan: Cert Helper — producto final
 
-**Estado:** PR-01…PR-05 integrados en `main`; PR-06 fusionado en la rama de PR-05, pendiente de integración en `main` y canary; PR-07 implementado localmente.
+**Estado:** PR-01…PR-05 integrados en `main`; PR-06 fusionado en la rama de PR-05, pendiente de integración en `main` y canary; PR-07 implementado y publicado en su rama; PR pendiente de apertura.
 **Última actualización:** 2026-10-01
 
 ## Materiales fuente
@@ -17,7 +17,7 @@
 - **Completado:** PoC local aprobado; catálogo y guía oficial bilingües, generación IA de preguntas, sesiones seguras y UI conectada al backend para el historial.
 - **Completado en PR-01:** base Bun/Hono integrada con Vike, contratos Zod, esquema Drizzle/SQLite, migración inicial, resolución de usuario con `/users/me` y pruebas de identidad/rutas/migración.
 - **Completado en PR-02:** catálogo y guías de estudio generadas con IA, compartidas desde SQLite y renovadas bajo demanda cada 30 días.
-- **En curso:** PR-06 está disponible en `feat/pr-05-user-session-history` y aún no está integrado en `main`; su canary real sigue pendiente. PR-07 está implementado sobre `main` y listo para revisión.
+- **En curso:** PR-06 está disponible en `feat/pr-05-user-session-history` y aún no está integrado en `main`; su canary real sigue pendiente. PR-07 está publicado desde `main`; la apertura del PR está pendiente.
 - **Repositorio:** conectado a `https://github.com/ohurtado-wm/cert-prep.git`; PR-01…PR-07 son límites de revisión propuestos.
 
 ## Estado de PR
@@ -30,7 +30,7 @@
 | `PR-04` | Generación de preguntas y sesiones seguras | Merged | `PR-01`, `PR-02` | 20 preguntas válidas; sesiones privadas por usuario |
 | `PR-05` | Sesiones web e historial por usuario en backend | Merged | `PR-01`, `PR-03`, `PR-04` | Práctica y Simulación Real guardan resultados autenticados |
 | `PR-06` | Plan de estudio personalizado con IA | Merged en la rama PR-05; pendiente de integración en `main` y canary | `PR-05` | Recomendaciones ligadas a resultados y fuentes |
-| `PR-07` | Simulación enfocada en temas débiles | Implementado localmente; listo para revisión | `PR-05` | Solo incluye temas aún no superados |
+| `PR-07` | Simulación enfocada en temas débiles | Rama publicada; PR pendiente de apertura | `PR-05` | Solo incluye temas aún no superados |
 
 ## Objetivo
 
