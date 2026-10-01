@@ -11,6 +11,8 @@ import type { GuideGenerator } from './catalog/guide-generator'
 import { createSimulationService } from './use-cases/simulation-service'
 import { createSimulationRoutes } from './routes/simulations'
 import { createSimulationHistoryService } from './use-cases/simulation-history-service'
+import { createStudyPlanService } from './use-cases/study-plan-service'
+import { createStudyPlanRoutes } from './routes/study-plans'
 
 type AppDependencies = {
   db: DatabaseHandle
@@ -18,12 +20,14 @@ type AppDependencies = {
   guideService?: ReturnType<typeof createCertificationGuideService>
   guideGenerator?: GuideGenerator
   simulationService?: ReturnType<typeof createSimulationService>
+  studyPlanService?: ReturnType<typeof createStudyPlanService>
 }
 
-export function createApp({ db, userProvider = createEnvironmentUserProvider(), guideService, guideGenerator, simulationService }: AppDependencies) {
+export function createApp({ db, userProvider = createEnvironmentUserProvider(), guideService, guideGenerator, simulationService, studyPlanService }: AppDependencies) {
   const app = new Hono()
   const certificationGuideService = guideService ?? createCertificationGuideService(db, { guideGenerator })
   const sessions = simulationService ?? createSimulationService(db, { guideService: certificationGuideService })
+  const plans = studyPlanService ?? createStudyPlanService(db, { guideService: certificationGuideService })
 
   app.use('/api/*', async (context, next) => {
     const startedAt = Date.now()
@@ -48,6 +52,7 @@ export function createApp({ db, userProvider = createEnvironmentUserProvider(), 
     simulationService: sessions,
     historyService: createSimulationHistoryService(db),
   }))
+  app.route('/api/v1', createStudyPlanRoutes({ db, userProvider, studyPlanService: plans }))
 
   app.onError((error, context) => {
     if (error instanceof ApiException) {
