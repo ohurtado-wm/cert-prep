@@ -23,6 +23,7 @@ Abre `http://localhost:3000`. En desarrollo local se usa el usuario simulado `oh
 - El selector del encabezado permite usar español o inglés. La preferencia `cert-helper-locale` se guarda por separado de `cert-helper-theme`.
 - Cada simulación solicita al servidor 20 preguntas nuevas en el idioma elegido; el navegador recibe opciones sin claves de respuesta.
 - En **Simulación Real**, **Siguiente pregunta** registra la selección y avanza en un clic. El resultado y el desglose por dominio, tema y foco aparecen al finalizar.
+- Al finalizar cualquier modo, **Imprimir preguntas** abre una hoja compacta con las 20 preguntas y solo la respuesta correcta. La hoja se entrega únicamente en la respuesta de finalización y no se guarda en el historial.
 - En práctica puedes reintentar o revelar la respuesta y su explicación. El resultado diferencia aciertos iniciales, aciertos tras reintento y respuestas reveladas.
 - Los últimos 20 resultados se guardan en SQLite bajo el usuario simulado en desarrollo o la identidad verificada por el gateway en otros entornos. El historial se vuelve a cargar tras una recarga y se puede borrar junto con los planes de estudio.
 - **Sugerir plan de estudio** analiza los 10 resultados más recientes de la certificación seleccionada. El servidor calcula las prioridades y métricas por tema/dominio; la IA redacta acciones y elige entre los pasos de la ruta oficial. El último plan aparece al volver a la aplicación y cada regeneración se guarda en SQLite.

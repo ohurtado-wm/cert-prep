@@ -4,6 +4,7 @@ import { and, count, desc, eq, gt, gte, inArray, isNull, lte, or } from 'drizzle
 import {
   SimulationAnswerResponseSchema,
   MAX_SIMULATION_HISTORY_ITEMS,
+  PrintableSimulationQuestionsSchema,
   SimulationRevealResponseSchema,
   SimulationSnapshotSchema,
   type SimulationAnswerResponse,
@@ -163,6 +164,16 @@ function completeState(
     result,
     aiUsage: aiUsage ?? null,
   })
+}
+
+function toPrintableQuestions(questions: StoredSimulationQuestion[]) {
+  return PrintableSimulationQuestionsSchema.parse(questions.map((question) => {
+    const correctAnswer = question.answers.find(({ id }) => id === question.correctAnswerId)
+    if (!correctAnswer) {
+      throw new ApiException(500, 'SIMULATION_STATE_INVALID', 'The saved correct answer could not be found.')
+    }
+    return { question: question.question, answer: correctAnswer.text }
+  }))
 }
 
 function replaceQuestion(state: Extract<StoredSimulationState, { status: 'active' }>, index: number, question: StoredSimulationQuestion) {
@@ -491,9 +502,10 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
 
       if (index === 19) {
         const result = calculateResult(updatedQuestions)
+        const printableQuestions = toPrintableQuestions(updatedQuestions)
         const completed = completeState(state.language, result, state.aiUsage)
         await saveCompletedState(row, userId, state, completed, result)
-        return SimulationAnswerResponseSchema.parse({ mode: 'real', status: 'completed', result })
+        return SimulationAnswerResponseSchema.parse({ mode: 'real', status: 'completed', result, printableQuestions })
       }
 
       const nextState = { ...state, currentIndex: index + 1, questions: updatedQuestions }
@@ -561,9 +573,13 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
 
     if (state.currentIndex === 19) {
       const result = calculateResult(state.questions)
+      const printableQuestions = toPrintableQuestions(state.questions)
       const completed = completeState(state.language, result, state.aiUsage)
       const expiresAt = await saveCompletedState(row, userId, state, completed, result)
-      return toSnapshot({ ...row, state: completed, status: 'completed', expiresAt }, completed)
+      return SimulationSnapshotSchema.parse({
+        ...toSnapshot({ ...row, state: completed, status: 'completed', expiresAt }, completed),
+        printableQuestions,
+      })
     }
 
     const updated = { ...state, currentIndex: state.currentIndex + 1 }

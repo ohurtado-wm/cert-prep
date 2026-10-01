@@ -45,6 +45,12 @@ export const SimulationResultSchema = z.object({
   focusBreakdown: z.array(SimulationBreakdownSchema).default([]),
 })
 
+export const PrintableSimulationQuestionSchema = z.object({
+  question: z.string().min(1),
+  answer: z.string().min(1),
+})
+export const PrintableSimulationQuestionsSchema = z.array(PrintableSimulationQuestionSchema).length(20)
+
 export const SimulationHistoryItemSchema = z.object({
   id: z.string().min(1),
   certificationId: z.string().min(1),
@@ -83,6 +89,7 @@ export const SimulationSnapshotSchema = z.object({
     correctAnswerId: z.string().min(1).optional(),
     explanation: z.string().min(1).optional(),
   }).nullable(),
+  printableQuestions: PrintableSimulationQuestionsSchema.optional(),
   result: SimulationResultSchema.nullable(),
   aiUsage: AiTokenUsageSchema.nullable().optional(),
 })
@@ -100,7 +107,12 @@ const PracticeAnswerResponseSchema = z.object({
 
 const RealAnswerResponseSchema = z.discriminatedUnion('status', [
   z.object({ mode: z.literal('real'), status: z.literal('advanced'), nextQuestion: SimulationQuestionSchema }),
-  z.object({ mode: z.literal('real'), status: z.literal('completed'), result: SimulationResultSchema }),
+  z.object({
+    mode: z.literal('real'),
+    status: z.literal('completed'),
+    result: SimulationResultSchema,
+    printableQuestions: PrintableSimulationQuestionsSchema,
+  }),
 ])
 
 export const SimulationAnswerResponseSchema = z.union([PracticeAnswerResponseSchema, RealAnswerResponseSchema])
@@ -119,6 +131,7 @@ export type SubmitAnswerRequest = z.infer<typeof SubmitAnswerRequestSchema>
 export type SimulationAnswerOption = z.infer<typeof SimulationAnswerOptionSchema>
 export type SimulationQuestion = z.infer<typeof SimulationQuestionSchema>
 export type SimulationResult = z.infer<typeof SimulationResultSchema>
+export type PrintableSimulationQuestion = z.infer<typeof PrintableSimulationQuestionSchema>
 export type SimulationHistoryItem = z.infer<typeof SimulationHistoryItemSchema>
 export type SimulationHistoryResponse = z.infer<typeof SimulationHistoryResponseSchema>
 export type SimulationSnapshot = z.infer<typeof SimulationSnapshotSchema>

@@ -47,6 +47,7 @@ El producto se considera completo solo cuando:
 - `FAC-05`: el plan de estudio y la simulación enfocada usan únicamente estadísticas del historial reciente de ese usuario, explican la prioridad con esos datos y usan recursos oficiales.
 - `FAC-06`: credenciales de IA y claves de respuesta del modo real no se exponen al cliente; la identidad la resuelve el gateway mediante `/users/me`; fallas o salidas inválidas de la IA terminan en un mensaje recuperable, no en una sesión incompleta.
 - `FAC-07`: UI, metadatos, preguntas, explicaciones, planes y estados de error funcionan tanto en español como en inglés.
+- `FAC-08`: al finalizar una simulación, el usuario puede imprimir una hoja con las 20 preguntas y sus respuestas correctas en texto de 12 pt. Esta hoja se entrega solo con la respuesta de finalización; el historial continúa guardando únicamente resultados agregados.
 
 ## Alcance y límites
 

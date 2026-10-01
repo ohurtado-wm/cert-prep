@@ -164,16 +164,28 @@ describe('simulation sessions', () => {
       expect(response.status).toBe(200)
       const body = await response.json() as Record<string, unknown>
       if (index === 19) result = body
-      else question = (body.nextQuestion as typeof question)
+      else {
+        expect(body).not.toHaveProperty('printableQuestions')
+        question = body.nextQuestion as typeof question
+      }
     }
 
     expect(result).toMatchObject({ mode: 'real', status: 'completed', result: { totalQuestions: 20, correctAnswers: 10, score: 50 } })
+    const printableQuestions = result!.printableQuestions as Array<{ question: string; answer: string }>
+    expect(printableQuestions).toHaveLength(20)
+    expect(printableQuestions[0]).toEqual({
+      question: 'Which decision helps solve practical scenario 1-1?',
+      answer: 'Correct option 1-1',
+    })
+    expect(JSON.stringify(printableQuestions)).not.toMatch(/Incorrect alternative|explanation/)
     const [stored] = await db.select().from(simulationSessions)
     expect(stored?.state).toMatchObject({ status: 'completed', questions: [] })
     expect(JSON.stringify(stored?.state)).not.toMatch(/correctAnswerId|explanation|sourceUrl/)
     const completed = await app.request(`/api/v1/simulations/${session.sessionId}`)
     expect(completed.status).toBe(200)
-    expect(JSON.stringify(await completed.json())).not.toMatch(/correctAnswerId|explanation|sourceUrl/)
+    const completedSnapshot = await completed.json() as Record<string, unknown>
+    expect(completedSnapshot).not.toHaveProperty('printableQuestions')
+    expect(JSON.stringify(completedSnapshot)).not.toMatch(/correctAnswerId|explanation|sourceUrl/)
     client.close()
   })
 
@@ -182,14 +194,14 @@ describe('simulation sessions', () => {
     const session = await start(app, 'practice', 'es')
     expect((await app.request(`/api/v1/simulations/${session.sessionId}`)).status).toBe(200)
 
-    const postAnswer = (answerId: string) => app.request(`/api/v1/simulations/${session.sessionId}/answers`, {
+    const postAnswer = (questionId: string, answerId: string) => app.request(`/api/v1/simulations/${session.sessionId}/answers`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ questionId: session.currentQuestion.id, answerId }),
+      body: JSON.stringify({ questionId, answerId }),
     })
-    const wrong = await postAnswer(session.currentQuestion.answers[1]!.id)
+    const wrong = await postAnswer(session.currentQuestion.id, session.currentQuestion.answers[1]!.id)
     expect(await wrong.json()).toMatchObject({ mode: 'practice', status: 'incorrect', canRetry: true, canReveal: true, canContinue: false })
-    const correct = await postAnswer(session.currentQuestion.answers[0]!.id)
+    const correct = await postAnswer(session.currentQuestion.id, session.currentQuestion.answers[0]!.id)
     expect(await correct.json()).toMatchObject({ mode: 'practice', status: 'correct', attempts: 2, canContinue: true, explanation: 'Explicación confidencial de la respuesta.' })
 
     const nextResponse = await app.request(`/api/v1/simulations/${session.sessionId}/next`, { method: 'POST' })
@@ -197,7 +209,22 @@ describe('simulation sessions', () => {
     const nextQuestion = (await nextResponse.json() as { currentQuestion: { id: string; answers: Array<{ id: string }> } }).currentQuestion
     const reveal = await app.request(`/api/v1/simulations/${session.sessionId}/reveal`, { method: 'POST' })
     expect(await reveal.json()).toMatchObject({ mode: 'practice', status: 'revealed', correctAnswerId: `${nextQuestion.id}:option-1`, canContinue: true })
-    expect((await app.request(`/api/v1/simulations/${session.sessionId}/next`, { method: 'POST' })).status).toBe(200)
+    const afterReveal = await app.request(`/api/v1/simulations/${session.sessionId}/next`, { method: 'POST' })
+    expect(afterReveal.status).toBe(200)
+    let current = await afterReveal.json() as SimulationSnapshot
+    for (let index = 2; index < 20; index += 1) {
+      const question = current.currentQuestion!
+      expect((await postAnswer(question.id, question.answers[0]!.id)).status).toBe(200)
+      const next = await app.request(`/api/v1/simulations/${session.sessionId}/next`, { method: 'POST' })
+      expect(next.status).toBe(200)
+      current = await next.json() as SimulationSnapshot
+    }
+    expect(current.status).toBe('completed')
+    expect(current.printableQuestions).toHaveLength(20)
+    expect(current.printableQuestions?.[0]).toEqual({
+      question: '¿Qué decisión ayuda a resolver el escenario práctico 1-1?',
+      answer: 'Opción correcta 1-1',
+    })
     client.close()
   })
 

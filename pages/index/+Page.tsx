@@ -24,6 +24,7 @@ import type {
   SimulationAnswerResponse,
   SimulationHistoryItem,
   SimulationMode,
+  PrintableSimulationQuestion,
   SimulationResult,
   SimulationSnapshot,
 } from '../../src/api/simulation-contracts'
@@ -63,6 +64,7 @@ function CertificationApp() {
   const [activeSession, setActiveSession] = useState<SimulationSnapshot | null>(null)
   const [simulationLoadingSeconds, setSimulationLoadingSeconds] = useState(0)
   const [sessionResult, setSessionResult] = useState<SimulationResult | null>(null)
+  const [printableQuestions, setPrintableQuestions] = useState<PrintableSimulationQuestion[]>([])
   const previousUserId = useRef<string | null>(null)
   const userQuery = useQuery({
     queryKey: ['current-user'],
@@ -147,6 +149,7 @@ function CertificationApp() {
       if (userQuery.data?.id) queryClient.setQueryData(['active-simulation', userQuery.data.id], null)
       setActiveSession(snapshot)
       setSessionResult(null)
+      setPrintableQuestions([])
       setQuestionIndex(0)
       setScreen('quiz')
     },
@@ -314,6 +317,7 @@ function CertificationApp() {
           currentQuestion: response.nextQuestion,
         } : current)
       } else {
+        setPrintableQuestions(response.printableQuestions)
         setSessionResult(response.result)
         setScreen('results')
         if (userQuery.data?.id) void queryClient.invalidateQueries({ queryKey: ['active-simulation', userQuery.data.id] })
@@ -333,6 +337,7 @@ function CertificationApp() {
     const snapshot = await nextMutation.mutateAsync()
     setActiveSession(snapshot)
     if (snapshot.status === 'completed' && snapshot.result) {
+      setPrintableQuestions(snapshot.printableQuestions ?? [])
       setSessionResult(snapshot.result)
       setScreen('results')
       if (userQuery.data?.id) void queryClient.invalidateQueries({ queryKey: ['active-simulation', userQuery.data.id] })
@@ -348,6 +353,7 @@ function CertificationApp() {
   function exitSession() {
     setActiveSession(null)
     setSessionResult(null)
+    setPrintableQuestions([])
     setQuestionIndex(0)
     setScreen('home')
     if (userQuery.data?.id) void queryClient.invalidateQueries({ queryKey: ['active-simulation', userQuery.data.id] })
@@ -444,6 +450,7 @@ function CertificationApp() {
           certificationName={selectedCertification.name[activeSession?.language ?? locale]}
           guide={guideQuery.data}
           result={sessionResult}
+          printableQuestions={printableQuestions}
           simulationMode={activeSession?.mode ?? simulationMode}
           aiUsage={activeSession?.aiUsage ?? null}
           restarting={startMutation.isPending}
@@ -451,6 +458,7 @@ function CertificationApp() {
           onHome={() => {
             setActiveSession(null)
             setSessionResult(null)
+            setPrintableQuestions([])
             setScreen('home')
           }}
           onRestart={startSession}
