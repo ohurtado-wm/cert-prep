@@ -10,6 +10,7 @@ import { simulationSessions } from '../server/db/schema'
 import { createSimulationService } from '../server/use-cases/simulation-service'
 import { createApp } from '../server/app'
 import type { QuestionGenerator } from '../server/simulations/question-generator'
+import { StoredSimulationStateSchema } from '../server/simulations/state'
 
 const certification = certificationCatalog[0]!
 const learningPathUrl = certification.sources.find(({ kind }) => kind === 'learning-path')!.url
@@ -106,6 +107,41 @@ describe('simulation sessions', () => {
     }
   }
 
+  async function answerChoice(
+    sessionId: string,
+    question: { id: string; answers: Array<{ id: string }> },
+    correct = true,
+  ) {
+    const [row] = await db.select({ state: simulationSessions.state }).from(simulationSessions)
+      .where(eq(simulationSessions.id, sessionId))
+    const state = StoredSimulationStateSchema.parse(row?.state)
+    if (state.status !== 'active') throw new Error('Expected an active simulation in test state.')
+    const storedQuestion = state.questions.find(({ id }) => id === question.id)
+    if (!storedQuestion) throw new Error('Expected the question in stored test state.')
+    const answer = question.answers.find(({ id }) => correct
+      ? id === storedQuestion.correctAnswerId
+      : id !== storedQuestion.correctAnswerId)
+    if (!answer) throw new Error('Expected a matching answer option in test state.')
+    return answer.id
+  }
+
+  test('correct answer positions are evenly balanced across each generated set', async () => {
+    const app = makeApp()
+    const session = await start(app)
+    const [row] = await db.select({ state: simulationSessions.state }).from(simulationSessions)
+      .where(eq(simulationSessions.id, session.sessionId))
+    const state = StoredSimulationStateSchema.parse(row?.state)
+    if (state.status !== 'active') throw new Error('Expected an active simulation in test state.')
+    const positionCounts = [0, 0, 0, 0]
+    for (const question of state.questions) {
+      const correctPosition = question.answers.findIndex(({ id }) => id === question.correctAnswerId)
+      positionCounts[correctPosition] = positionCounts[correctPosition]! + 1
+      expect(question.answers[correctPosition]!.text).toStartWith('Correct option ')
+    }
+    expect(positionCounts).toEqual([5, 5, 5, 5])
+    client.close()
+  })
+
   test('real sessions keep answers and explanations server-side until completion', async () => {
     const app = makeApp()
     const session = await start(app)
@@ -159,7 +195,7 @@ describe('simulation sessions', () => {
       const response = await app.request(`/api/v1/simulations/${session.sessionId}/answers`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ questionId: question.id, answerId: question.answers[index % 2 === 0 ? 0 : 1]!.id }),
+        body: JSON.stringify({ questionId: question.id, answerId: await answerChoice(session.sessionId, question, index % 2 === 0) }),
       })
       expect(response.status).toBe(200)
       const body = await response.json() as Record<string, unknown>
@@ -199,22 +235,27 @@ describe('simulation sessions', () => {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ questionId, answerId }),
     })
-    const wrong = await postAnswer(session.currentQuestion.id, session.currentQuestion.answers[1]!.id)
+    const wrong = await postAnswer(session.currentQuestion.id, await answerChoice(session.sessionId, session.currentQuestion, false))
     expect(await wrong.json()).toMatchObject({ mode: 'practice', status: 'incorrect', canRetry: true, canReveal: true, canContinue: false })
-    const correct = await postAnswer(session.currentQuestion.id, session.currentQuestion.answers[0]!.id)
+    const correct = await postAnswer(session.currentQuestion.id, await answerChoice(session.sessionId, session.currentQuestion))
     expect(await correct.json()).toMatchObject({ mode: 'practice', status: 'correct', attempts: 2, canContinue: true, explanation: 'Explicación confidencial de la respuesta.' })
 
     const nextResponse = await app.request(`/api/v1/simulations/${session.sessionId}/next`, { method: 'POST' })
     expect(nextResponse.status).toBe(200)
     const nextQuestion = (await nextResponse.json() as { currentQuestion: { id: string; answers: Array<{ id: string }> } }).currentQuestion
     const reveal = await app.request(`/api/v1/simulations/${session.sessionId}/reveal`, { method: 'POST' })
-    expect(await reveal.json()).toMatchObject({ mode: 'practice', status: 'revealed', correctAnswerId: `${nextQuestion.id}:option-1`, canContinue: true })
+    expect(await reveal.json()).toMatchObject({
+      mode: 'practice',
+      status: 'revealed',
+      correctAnswerId: await answerChoice(session.sessionId, nextQuestion),
+      canContinue: true,
+    })
     const afterReveal = await app.request(`/api/v1/simulations/${session.sessionId}/next`, { method: 'POST' })
     expect(afterReveal.status).toBe(200)
     let current = await afterReveal.json() as SimulationSnapshot
     for (let index = 2; index < 20; index += 1) {
       const question = current.currentQuestion!
-      expect((await postAnswer(question.id, question.answers[0]!.id)).status).toBe(200)
+      expect((await postAnswer(question.id, await answerChoice(session.sessionId, question))).status).toBe(200)
       const next = await app.request(`/api/v1/simulations/${session.sessionId}/next`, { method: 'POST' })
       expect(next.status).toBe(200)
       current = await next.json() as SimulationSnapshot
@@ -300,22 +341,22 @@ describe('simulation sessions', () => {
     expect(await (await app.request(activePath, { headers: { 'x-test-user': 'learner-2' } })).json()).toBeNull()
     expect((await app.request(`/api/v1/simulations/${session.sessionId}`, { headers: { 'x-test-user': 'learner-2' } })).status).toBe(404)
 
-    const submit = (answerIndex: number) => app.request(`/api/v1/simulations/${session.sessionId}/answers`, {
+    const submit = (answerId: string) => app.request(`/api/v1/simulations/${session.sessionId}/answers`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ questionId: session.currentQuestion.id, answerId: session.currentQuestion.answers[answerIndex]!.id }),
+      body: JSON.stringify({ questionId: session.currentQuestion.id, answerId }),
     })
-    expect((await submit(1)).status).toBe(200)
+    expect((await submit(await answerChoice(session.sessionId, session.currentQuestion, false))).status).toBe(200)
     const afterWrong = await (await app.request(activePath)).json() as SimulationSnapshot
     expect(afterWrong.practiceProgress).toMatchObject({ attempts: 1, status: 'incorrect', canRetry: true })
     expect(JSON.stringify(afterWrong)).not.toMatch(/correctAnswerId|explanation/)
 
-    expect((await submit(0)).status).toBe(200)
+    expect((await submit(await answerChoice(session.sessionId, session.currentQuestion))).status).toBe(200)
     const resolved = await (await app.request(activePath)).json() as SimulationSnapshot
     expect(resolved.practiceProgress).toMatchObject({
       attempts: 2,
       status: 'correct',
-      correctAnswerId: `${session.currentQuestion.id}:option-1`,
+      correctAnswerId: await answerChoice(session.sessionId, session.currentQuestion),
       explanation: 'Private answer explanation.',
       canContinue: true,
     })
@@ -326,7 +367,7 @@ describe('simulation sessions', () => {
     expect((await app.request(`/api/v1/simulations/${session.sessionId}/reveal`, { method: 'POST' })).status).toBe(200)
     expect((await (await app.request(activePath)).json() as SimulationSnapshot).practiceProgress).toMatchObject({
       status: 'revealed',
-      correctAnswerId: `${current.currentQuestion!.id}:option-1`,
+      correctAnswerId: await answerChoice(session.sessionId, current.currentQuestion!),
       canContinue: true,
     })
     time = new Date('2026-12-15T00:00:00.000Z')

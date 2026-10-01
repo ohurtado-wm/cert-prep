@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test'
+import { eq } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
 import type { CertificationGuideResponse } from '../src/api/certification-contracts'
 import { certificationCatalog } from '../server/catalog/certifications'
@@ -8,6 +9,7 @@ import { simulationResults, simulationSessions } from '../server/db/schema'
 import { createApp } from '../server/app'
 import { createSimulationService } from '../server/use-cases/simulation-service'
 import type { QuestionGenerator } from '../server/simulations/question-generator'
+import { StoredSimulationStateSchema } from '../server/simulations/state'
 
 const certification = certificationCatalog[0]!
 const guide: CertificationGuideResponse = {
@@ -162,10 +164,17 @@ test('focused start sends only weak topics and exact topic quotas to the questio
   let question = session.currentQuestion
   let completed: Record<string, unknown> | undefined
   for (let index = 0; index < 20; index += 1) {
+    const [row] = await db.select({ state: simulationSessions.state }).from(simulationSessions)
+      .where(eq(simulationSessions.id, session.sessionId))
+    const state = StoredSimulationStateSchema.parse(row?.state)
+    if (state.status !== 'active') throw new Error('Expected an active simulation in test state.')
+    const correctAnswerId = state.questions.find(({ id }) => id === question.id)?.correctAnswerId
+    const correctOption = question.answers.find(({ id }) => id === correctAnswerId)
+    if (!correctOption) throw new Error('Expected the correct option in test state.')
     const answer = await app.request(`/api/v1/simulations/${session.sessionId}/answers`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ questionId: question.id, answerId: question.answers[0]!.id }),
+      body: JSON.stringify({ questionId: question.id, answerId: correctOption.id }),
     })
     expect(answer.status).toBe(200)
     const body = await answer.json() as Record<string, unknown>
