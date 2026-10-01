@@ -11,6 +11,7 @@ import {
   cancelSimulation,
   clearSimulationHistory,
   loadCurrentUser,
+  loadActiveSimulation,
   loadSimulationHistory,
   loadWeakTopicAnalysis,
   revealSimulationAnswer,
@@ -23,7 +24,6 @@ import type {
   SimulationAnswerResponse,
   SimulationHistoryItem,
   SimulationMode,
-  SimulationQuestion,
   SimulationResult,
   SimulationSnapshot,
 } from '../../src/api/simulation-contracts'
@@ -62,7 +62,6 @@ function CertificationApp() {
   const [questionIndex, setQuestionIndex] = useState(0)
   const [activeSession, setActiveSession] = useState<SimulationSnapshot | null>(null)
   const [simulationLoadingSeconds, setSimulationLoadingSeconds] = useState(0)
-  const [sessionQuestions, setSessionQuestions] = useState<SimulationQuestion[]>([])
   const [sessionResult, setSessionResult] = useState<SimulationResult | null>(null)
   const previousUserId = useRef<string | null>(null)
   const userQuery = useQuery({
@@ -74,6 +73,12 @@ function CertificationApp() {
   const historyQuery = useQuery({
     queryKey: ['simulation-history', userQuery.data?.id],
     queryFn: () => loadSimulationHistory(),
+    enabled: Boolean(userQuery.data?.id && !userQuery.isError),
+    retry: false,
+  })
+  const activeSimulationQuery = useQuery({
+    queryKey: ['active-simulation', userQuery.data?.id],
+    queryFn: () => loadActiveSimulation(),
     enabled: Boolean(userQuery.data?.id && !userQuery.isError),
     retry: false,
   })
@@ -114,30 +119,33 @@ function CertificationApp() {
     const previous = previousUserId.current
     if (previous && previous !== nextUserId) {
       queryClient.removeQueries({ queryKey: ['simulation-history', previous] })
+      queryClient.removeQueries({ queryKey: ['active-simulation', previous] })
       queryClient.removeQueries({ queryKey: ['weak-topic-analysis', previous] })
       queryClient.removeQueries({ queryKey: ['study-plan-latest', previous] })
     }
     const signedOut = userQuery.isError
       || (historyQuery.error instanceof SimulationApiError && historyQuery.error.code === 'UNAUTHENTICATED')
+      || (activeSimulationQuery.error instanceof SimulationApiError && activeSimulationQuery.error.code === 'UNAUTHENTICATED')
       || (studyPlanQuery.error instanceof StudyPlanApiError && studyPlanQuery.error.code === 'UNAUTHENTICATED')
     if (signedOut) {
       queryClient.removeQueries({ queryKey: ['simulation-history'] })
+      queryClient.removeQueries({ queryKey: ['active-simulation'] })
       queryClient.removeQueries({ queryKey: ['weak-topic-analysis'] })
       queryClient.removeQueries({ queryKey: ['study-plan-latest'] })
     }
     previousUserId.current = nextUserId
-    if (!userQuery.isError && ((historyQuery.error instanceof SimulationApiError && historyQuery.error.code === 'UNAUTHENTICATED') || (studyPlanQuery.error instanceof StudyPlanApiError && studyPlanQuery.error.code === 'UNAUTHENTICATED'))) {
+    if (!userQuery.isError && ((historyQuery.error instanceof SimulationApiError && historyQuery.error.code === 'UNAUTHENTICATED') || (activeSimulationQuery.error instanceof SimulationApiError && activeSimulationQuery.error.code === 'UNAUTHENTICATED') || (studyPlanQuery.error instanceof StudyPlanApiError && studyPlanQuery.error.code === 'UNAUTHENTICATED'))) {
       void userQuery.refetch()
     }
-  }, [queryClient, userQuery.data?.id, userQuery.isError, userQuery.refetch, historyQuery.error, studyPlanQuery.error])
+  }, [queryClient, userQuery.data?.id, userQuery.isError, userQuery.refetch, historyQuery.error, activeSimulationQuery.error, studyPlanQuery.error])
 
   const startMutation = useMutation({
     mutationFn: (focusWeakTopics: boolean) => focusWeakTopics
       ? startWeakTopicSimulation(selectedCertification!.id, simulationMode, locale)
       : startSimulation(selectedCertification!.id, simulationMode, locale),
     onSuccess: (snapshot) => {
+      if (userQuery.data?.id) queryClient.setQueryData(['active-simulation', userQuery.data.id], null)
       setActiveSession(snapshot)
-      setSessionQuestions(snapshot.currentQuestion ? [snapshot.currentQuestion] : [])
       setSessionResult(null)
       setQuestionIndex(0)
       setScreen('quiz')
@@ -146,6 +154,15 @@ function CertificationApp() {
       clearHistoryIfUnauthenticated(error)
       if (focusWeakTopics) void weakTopicsQuery.refetch()
     },
+  })
+  const discardSessionMutation = useMutation({
+    mutationFn: (sessionId: string) => cancelSimulation(sessionId),
+    onSuccess: async () => {
+      if (userQuery.data?.id) {
+        await queryClient.invalidateQueries({ queryKey: ['active-simulation', userQuery.data.id] })
+      }
+    },
+    onError: clearHistoryIfUnauthenticated,
   })
   useEffect(() => {
     if (!startMutation.isPending) {
@@ -193,6 +210,7 @@ function CertificationApp() {
   function clearHistoryIfUnauthenticated(error: unknown) {
     if ((error instanceof SimulationApiError || error instanceof StudyPlanApiError) && error.code === 'UNAUTHENTICATED') {
       queryClient.removeQueries({ queryKey: ['simulation-history'] })
+      queryClient.removeQueries({ queryKey: ['active-simulation'] })
       queryClient.removeQueries({ queryKey: ['weak-topic-analysis'] })
       queryClient.removeQueries({ queryKey: ['study-plan-latest'] })
       void userQuery.refetch()
@@ -258,11 +276,26 @@ function CertificationApp() {
 
   function startSession(focusWeakTopics = false) {
     if (!selectedCertification || !guideReady || !userQuery.data || userQuery.isError) return
+    if (activeSimulationQuery.isPending || activeSimulationQuery.isError) return
+    if (activeSimulationQuery.data && !window.confirm(translate(locale, 'replacePendingConfirm'))) return
     answerMutation.reset()
     revealMutation.reset()
     nextMutation.reset()
     startMutation.reset()
     startMutation.mutate(focusWeakTopics)
+  }
+  function resumeSession(snapshot: SimulationSnapshot) {
+    const certification = catalog.find(({ id }) => id === snapshot.certificationId)
+    if (!certification) return
+    setSelectedCertificationId(snapshot.certificationId)
+    setSimulationMode(snapshot.mode)
+    setActiveSession(snapshot)
+    setQuestionIndex(snapshot.currentIndex)
+    setSessionResult(null)
+    answerMutation.reset()
+    revealMutation.reset()
+    nextMutation.reset()
+    setScreen('quiz')
   }
   function suggestStudyPlan() {
     if (!selectedCertification || !userQuery.data || userQuery.isError) return
@@ -274,7 +307,6 @@ function CertificationApp() {
     const response = await answerMutation.mutateAsync({ questionId, answerId })
     if (response.mode === 'real') {
       if (response.status === 'advanced') {
-        setSessionQuestions((questions) => [...questions, response.nextQuestion])
         setQuestionIndex((index) => index + 1)
         setActiveSession((current) => current ? {
           ...current,
@@ -284,6 +316,7 @@ function CertificationApp() {
       } else {
         setSessionResult(response.result)
         setScreen('results')
+        if (userQuery.data?.id) void queryClient.invalidateQueries({ queryKey: ['active-simulation', userQuery.data.id] })
         void queryClient.invalidateQueries({ queryKey: ['simulation-history', userQuery.data?.id] })
         void queryClient.invalidateQueries({ queryKey: ['weak-topic-analysis', userQuery.data?.id] })
         void queryClient.invalidateQueries({ queryKey: ['study-plan-latest', userQuery.data?.id] })
@@ -302,33 +335,22 @@ function CertificationApp() {
     if (snapshot.status === 'completed' && snapshot.result) {
       setSessionResult(snapshot.result)
       setScreen('results')
+      if (userQuery.data?.id) void queryClient.invalidateQueries({ queryKey: ['active-simulation', userQuery.data.id] })
       void queryClient.invalidateQueries({ queryKey: ['simulation-history', userQuery.data?.id] })
       void queryClient.invalidateQueries({ queryKey: ['weak-topic-analysis', userQuery.data?.id] })
       void queryClient.invalidateQueries({ queryKey: ['study-plan-latest', userQuery.data?.id] })
       return snapshot
     }
-    if (snapshot.currentQuestion) {
-      setSessionQuestions((questions) => questions.length > snapshot.currentIndex
-        ? questions
-        : [...questions, snapshot.currentQuestion!])
-    }
     setQuestionIndex(snapshot.currentIndex)
     return snapshot
   }
 
-  async function exitSession() {
-    if (activeSession) {
-      try {
-        await cancelSimulation(activeSession.sessionId)
-      } catch (error) {
-        clearHistoryIfUnauthenticated(error)
-      }
-    }
+  function exitSession() {
     setActiveSession(null)
-    setSessionQuestions([])
     setSessionResult(null)
     setQuestionIndex(0)
     setScreen('home')
+    if (userQuery.data?.id) void queryClient.invalidateQueries({ queryKey: ['active-simulation', userQuery.data.id] })
   }
 
   return (
@@ -363,6 +385,16 @@ function CertificationApp() {
           history={historyQuery.data ?? []}
           historyLoading={historyQuery.isPending && Boolean(userQuery.data) && !userQuery.isError}
           historyError={historyQuery.error ?? clearHistoryMutation.error ?? null}
+          pendingSession={activeSimulationQuery.data ?? null}
+          pendingSessionLoading={activeSimulationQuery.isPending && Boolean(userQuery.data) && !userQuery.isError}
+          pendingSessionError={activeSimulationQuery.error ?? null}
+          discardSessionError={discardSessionMutation.error ?? null}
+          onPendingSessionRetry={() => void activeSimulationQuery.refetch()}
+          onResumeSession={resumeSession}
+          onDiscardSession={(sessionId) => {
+            if (window.confirm(translate(locale, 'discardPendingConfirm'))) discardSessionMutation.mutate(sessionId)
+          }}
+          discardingPendingSession={discardSessionMutation.isPending}
           weakTopicAnalysis={weakTopicsQuery.data}
           weakTopicsLoading={(weakTopicsQuery.isPending || guideQuery.isFetching) && Boolean(userQuery.data) && !userQuery.isError}
           weakTopicsError={weakTopicsQuery.error}
@@ -391,8 +423,9 @@ function CertificationApp() {
           locale={activeSession.language}
           certificationName={selectedCertification.name[activeSession.language]}
           domains={guideQuery.data?.domains ?? []}
-          questions={sessionQuestions}
+          currentQuestion={activeSession.currentQuestion}
           questionIndex={questionIndex}
+          practiceProgress={activeSession.practiceProgress}
           simulationMode={activeSession.mode}
           aiUsage={activeSession.aiUsage ?? null}
           submitting={answerMutation.isPending}
@@ -417,7 +450,6 @@ function CertificationApp() {
           startError={startMutation.error ?? null}
           onHome={() => {
             setActiveSession(null)
-            setSessionQuestions([])
             setSessionResult(null)
             setScreen('home')
           }}
@@ -560,6 +592,14 @@ function HomeScreen({
   history,
   historyLoading,
   historyError,
+  pendingSession,
+  pendingSessionLoading,
+  pendingSessionError,
+  discardSessionError,
+  onPendingSessionRetry,
+  onResumeSession,
+  onDiscardSession,
+  discardingPendingSession,
   weakTopicAnalysis,
   weakTopicsLoading,
   weakTopicsError,
@@ -598,6 +638,14 @@ function HomeScreen({
   history: SimulationHistoryItem[]
   historyLoading: boolean
   historyError: unknown | null
+  pendingSession: SimulationSnapshot | null
+  pendingSessionLoading: boolean
+  pendingSessionError: unknown | null
+  discardSessionError: unknown | null
+  onPendingSessionRetry: () => void
+  onResumeSession: (snapshot: SimulationSnapshot) => void
+  onDiscardSession: (sessionId: string) => void
+  discardingPendingSession: boolean
   weakTopicAnalysis: WeakTopicAnalysisResponse | undefined
   weakTopicsLoading: boolean
   weakTopicsError: unknown
@@ -658,7 +706,7 @@ function HomeScreen({
     certification: text('sourceCertification'),
     'learning-path': text('sourceLearningPath'),
   }
-  const canStart = Boolean(guide && user && !userLoading && !userError && !guideLoading && !guideError && !startingSimulation)
+  const canStart = Boolean(guide && user && !userLoading && !userError && !guideLoading && !guideError && !startingSimulation && !pendingSessionLoading && !pendingSessionError)
   const startStatus = userLoading
     ? text('profileLoading')
     : userError || !user
@@ -756,6 +804,35 @@ function HomeScreen({
           )}
         </section>
       </section>
+
+      {pendingSessionLoading && <p className="pending-session-state" role="status">{text('pendingSessionLoading')}</p>}
+      {Boolean(pendingSessionError) && (
+        <div className="pending-session-state pending-session-error" role="alert">
+          <span>{text('pendingSessionError')}</span>
+          <button className="button button-text" type="button" onClick={onPendingSessionRetry}>{text('retry')}</button>
+        </div>
+      )}
+      {pendingSession && (
+        <section className="pending-session-card" aria-labelledby="pending-session-title">
+          <div className="pending-session-copy">
+            <p className="eyebrow">{text('pendingSessionEyebrow')}</p>
+            <h2 id="pending-session-title">{text('pendingSessionTitle')}</h2>
+            <p>{certifications.find(({ id }) => id === pendingSession.certificationId)?.name[locale] ?? pendingSession.certificationId}</p>
+            <p className="pending-session-meta">
+              {text(pendingSession.mode === 'real' ? 'historyRealMode' : 'historyPracticeMode')}
+              {' · '}{text('pendingSessionProgress', { current: pendingSession.currentIndex + 1, total: pendingSession.questionCount })}
+              {' · '}{formatDate(pendingSession.createdAt, locale)}
+            </p>
+          </div>
+          <div className="pending-session-actions">
+            {Boolean(discardSessionError) && <p className="pending-session-action-error" role="alert">{text('discardSessionError')}</p>}
+            <button className="button button-primary" type="button" onClick={() => onResumeSession(pendingSession)}>{text('continueSession')}</button>
+            <button className="button button-text" type="button" onClick={() => onDiscardSession(pendingSession.sessionId)} disabled={discardingPendingSession}>
+              {text(discardingPendingSession ? 'discardingSession' : 'discardSession')}
+            </button>
+          </div>
+        </section>
+      )}
 
       <SimulationHistory
         locale={locale}

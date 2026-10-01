@@ -926,6 +926,69 @@ select:focus-visible,
   margin-top: 72px;
 }
 
+.pending-session-state {
+  margin: 40px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.pending-session-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border);
+  padding: 12px 16px;
+  color: var(--text);
+}
+
+.pending-session-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 40px;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--wm-highlight-magenta);
+  background: var(--surface);
+  padding: 24px;
+  color: var(--text);
+}
+
+.pending-session-copy {
+  min-width: 0;
+}
+
+.pending-session-copy h2 {
+  margin: 0;
+  font-family: 'IBM Plex Sans', Arial, Helvetica, sans-serif;
+  font-size: 19px;
+}
+
+.pending-session-copy > p:not(.eyebrow) {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+
+.pending-session-copy .pending-session-meta {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.pending-session-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.pending-session-action-error {
+  max-width: 240px;
+  margin: 0;
+  color: #A32135;
+  font-size: 12px;
+}
+
 .history-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1971,6 +2034,22 @@ select:focus-visible,
 
   .history-section {
     margin-top: 56px;
+  }
+
+  .pending-session-card,
+  .pending-session-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pending-session-card {
+    gap: 16px;
+    margin-top: 32px;
+    padding: 16px;
+  }
+
+  .pending-session-actions .button {
+    justify-content: center;
   }
 
   .weak-topic-practice {

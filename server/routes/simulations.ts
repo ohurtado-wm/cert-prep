@@ -70,6 +70,11 @@ export function createSimulationRoutes(dependencies: {
     return context.json(await dependencies.simulationService.startWeakTopics(user.id, input), 201)
   })
 
+  routes.get('/simulations/active', async (context) => {
+    const user = await resolveCurrentUser(context.req.raw, dependencies.db, dependencies.userProvider)
+    return context.json(await dependencies.simulationService.getActive(user.id))
+  })
+
   routes.get('/simulations/:sessionId', async (context) => {
     const user = await resolveCurrentUser(context.req.raw, dependencies.db, dependencies.userProvider)
     const snapshot = await dependencies.simulationService.get(user.id, context.req.param('sessionId'))

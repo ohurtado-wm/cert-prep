@@ -256,7 +256,7 @@ sequenceDiagram
 
 **Validación local:** `bun run typecheck`, `bun test` (26 pruebas) y `bun run build` pasaron. Las pruebas usan un generador falso; no se realizó una llamada real a OpenAI. La validación de idioma confirma el locale declarado por el modelo y el prompt exige que todos los textos estén en ese idioma; no hay un clasificador independiente de idioma ni una evaluación semántica de calidad en esta fase.
 
-**Límites de operación:** sesiones con TTL de 2 horas, hasta 2 sesiones activas por usuario y 3 inicios por hora. El bloqueo de generación es local al proceso y los contadores de inicios fallidos viven en memoria; una instalación con varias instancias requerirá un lease/limitador compartido.
+**Límites de operación (objetivo tras PR-08):** una sesión pendiente por usuario sin vencimiento; una nueva simulación la reemplaza solo después de generar y validar las preguntas. Las filas completadas conservan una retención breve de dos horas. Se mantienen hasta tres intentos de inicio por hora; reanudar no consume el límite. El bloqueo de generación es local al proceso y los contadores de inicios fallidos viven en memoria; una instalación con varias instancias requerirá un lease/limitador compartido.
 
 ## PR-05: Sesión web e historial por usuario
 
