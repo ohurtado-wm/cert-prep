@@ -624,6 +624,11 @@ function HomeScreen({
     const topic = domain?.topics.find((candidate) => candidate.id === item.topicId)
     return domain && topic ? [{ ...item, topicName: topic.name[locale], domainName: domain.name[locale] }] : []
   })
+  const getWeakTopicScoreText = (item: (typeof weakTopicsToPractice)[number]) => text('weakTopicScore', {
+    correct: item.correct,
+    total: item.total,
+    accuracy: item.accuracyPercent,
+  })
   const weakTopicStartMessage = weakTopicStartError instanceof SimulationApiError
     ? weakTopicStartError.code === 'SIMULATION_HISTORY_EMPTY'
       ? text('weakTopicHistoryEmpty')
@@ -721,47 +726,6 @@ function HomeScreen({
           <button className="button button-inverse" type="button" onClick={onStart} disabled={!canStart}>
             {startingSimulation ? text('startingSimulation') : text('startSession')} <span aria-hidden="true">→</span>
           </button>
-          <div className="weak-topic-practice" aria-labelledby="weak-topic-title">
-            <h3 id="weak-topic-title">{text('weakTopicTitle')}</h3>
-            <p className="weak-topic-description">{text('weakTopicThreshold', { threshold: weakTopicAnalysis?.thresholdPercent ?? 80 })}</p>
-            {weakTopicsLoading && <p className="weak-topic-message" role="status">{text('weakTopicLoading')}</p>}
-            {!weakTopicsLoading && Boolean(weakTopicsError) && (
-              <div className="weak-topic-message has-error" role="alert">
-                <span>{text('weakTopicLoadError')}</span>
-                <button className="button button-text" type="button" onClick={onWeakTopicsRetry}>{text('retry')}</button>
-              </div>
-            )}
-            {!weakTopicsLoading && !weakTopicsError && weakTopicAnalysis?.status === 'history_empty' && (
-              <p className="weak-topic-message">{text('weakTopicHistoryEmpty')}</p>
-            )}
-            {!weakTopicsLoading && !weakTopicsError && weakTopicAnalysis?.status === 'no_weak_topics' && (
-              <p className="weak-topic-message">{text('weakTopicNoWeakAreas', { threshold: weakTopicAnalysis.thresholdPercent })}</p>
-            )}
-            {!weakTopicsLoading && !weakTopicsError && weakTopicAnalysis?.status === 'ready' && weakTopicsToPractice.length === 0 && (
-              <p className="weak-topic-message">{text('weakTopicGuideChanged')}</p>
-            )}
-            {!weakTopicsLoading && !weakTopicsError && weakTopicAnalysis?.status === 'ready' && weakTopicsToPractice.length > 0 && (
-              <>
-                <p className="weak-topic-basis">{text('weakTopicBasedOn', { count: weakTopicAnalysis.analyzedSessionCount })}</p>
-                <ul className="weak-topic-list">
-                  {weakTopicsToPractice.map((item) => (
-                    <li key={item.topicId}>
-                      <span className="weak-topic-name">{item.topicName}</span>
-                      <span className="weak-topic-domain">{item.domainName}</span>
-                      <span className="weak-topic-score">{text('weakTopicScore', { correct: item.correct, total: item.total, accuracy: item.accuracyPercent })}</span>
-                    </li>
-                  ))}
-                </ul>
-                {weakTopicAnalysis.excludedWeakTopicCount > 0 && (
-                  <p className="weak-topic-message">{text('weakTopicMoreAreas', { count: weakTopicAnalysis.excludedWeakTopicCount })}</p>
-                )}
-                <button className="button button-secondary weak-topic-button" type="button" onClick={onStartWeakTopics} disabled={!canStart}>
-                  {text('weakTopicStart')} <span aria-hidden="true">→</span>
-                </button>
-              </>
-            )}
-            {weakTopicStartMessage && weakTopicAnalysis?.status === 'ready' && <p className="weak-topic-message has-error" role="alert">{weakTopicStartMessage}</p>}
-          </div>
           {guideLoading ? (
             <div className="guide-loading" role="status" aria-live="polite" aria-busy="true">
               <div className="guide-loading-heading">
@@ -807,6 +771,82 @@ function HomeScreen({
           if (window.confirm(text('clearHistoryConfirm'))) onClearHistory()
         }}
       />
+
+      <section className="weak-topic-practice" aria-labelledby="weak-topic-title">
+        <div className="weak-topic-copy">
+          <h2 id="weak-topic-title">{text('weakTopicTitle')}</h2>
+          <p className="weak-topic-description">{text('weakTopicThreshold', { threshold: weakTopicAnalysis?.thresholdPercent ?? 80 })}</p>
+        </div>
+        <div className="weak-topic-inline">
+          {weakTopicsLoading && <p className="weak-topic-message" role="status">{text('weakTopicLoading')}</p>}
+          {!weakTopicsLoading && Boolean(weakTopicsError) && (
+            <div className="weak-topic-message has-error" role="alert">
+              <span>{text('weakTopicLoadError')}</span>
+              <button className="button button-text" type="button" onClick={onWeakTopicsRetry}>{text('retry')}</button>
+            </div>
+          )}
+          {!weakTopicsLoading && !weakTopicsError && weakTopicAnalysis?.status === 'history_empty' && (
+            <p className="weak-topic-message">{text('weakTopicHistoryEmpty')}</p>
+          )}
+          {!weakTopicsLoading && !weakTopicsError && weakTopicAnalysis?.status === 'no_weak_topics' && (
+            <p className="weak-topic-message">{text('weakTopicNoWeakAreas', { threshold: weakTopicAnalysis.thresholdPercent })}</p>
+          )}
+          {!weakTopicsLoading && !weakTopicsError && weakTopicAnalysis?.status === 'ready' && weakTopicsToPractice.length === 0 && (
+            <p className="weak-topic-message">{text('weakTopicGuideChanged')}</p>
+          )}
+          {!weakTopicsLoading && !weakTopicsError && weakTopicAnalysis?.status === 'ready' && weakTopicsToPractice.length > 0 && (
+            <>
+              <span className="weak-topic-basis">
+                {weakTopicAnalysis.analyzedSessionCount === 1
+                  ? text('weakTopicRecentSingle')
+                  : text('weakTopicRecentCount', { count: weakTopicAnalysis.analyzedSessionCount })}
+              </span>
+              {weakTopicsToPractice.length === 1 ? (
+                <div className="weak-topic-priority">
+                  <strong className="weak-topic-name">{weakTopicsToPractice[0]!.topicName}</strong>
+                  <span className="weak-topic-score">{getWeakTopicScoreText(weakTopicsToPractice[0]!)}</span>
+                </div>
+              ) : (
+                <details className="weak-topic-details">
+                  <summary>
+                    <span className="weak-topic-priority">
+                      <strong className="weak-topic-name">{weakTopicsToPractice[0]!.topicName}</strong>
+                      <span className="weak-topic-score">{getWeakTopicScoreText(weakTopicsToPractice[0]!)}</span>
+                    </span>
+                    <span className="weak-topic-more">{text('weakTopicMoreCompact', { count: weakTopicsToPractice.length - 1 })}</span>
+                    <span className="weak-topic-disclosure" aria-hidden="true" />
+                  </summary>
+                  <ul className="weak-topic-list">
+                    {weakTopicsToPractice.map((item) => (
+                      <li key={item.topicId}>
+                        <span className="weak-topic-name">{item.topicName}</span>
+                        <span className="weak-topic-domain">{item.domainName}</span>
+                        <span className="weak-topic-score">{getWeakTopicScoreText(item)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              {weakTopicAnalysis.excludedWeakTopicCount > 0 && (
+                <span
+                  className="weak-topic-excluded"
+                  role="note"
+                  title={text('weakTopicMoreAreas', { count: weakTopicAnalysis.excludedWeakTopicCount })}
+                  aria-label={text('weakTopicMoreAreas', { count: weakTopicAnalysis.excludedWeakTopicCount })}
+                >
+                  {text('weakTopicExcludedCompact', { count: weakTopicAnalysis.excludedWeakTopicCount })}
+                </span>
+              )}
+            </>
+          )}
+        </div>
+        {!weakTopicsLoading && !weakTopicsError && weakTopicAnalysis?.status === 'ready' && weakTopicsToPractice.length > 0 && (
+          <button className="button button-secondary weak-topic-button" type="button" onClick={onStartWeakTopics} disabled={!canStart}>
+            {text('weakTopicStart')} <span aria-hidden="true">→</span>
+          </button>
+        )}
+        {weakTopicStartMessage && weakTopicAnalysis?.status === 'ready' && <p className="weak-topic-message weak-topic-start-error has-error" role="alert">{weakTopicStartMessage}</p>}
+      </section>
 
       <StudyPlanPanel
         locale={locale}
