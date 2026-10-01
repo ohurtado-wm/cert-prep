@@ -226,3 +226,33 @@ test('weak topic analysis is limited to the ten most recent completed results', 
   expect(await response.json()).toMatchObject({ status: 'no_weak_topics', analyzedSessionCount: 10, topics: [] })
   client.close()
 })
+
+test('a successful weak-topic start replaces the pending session and failed eligibility preserves it', async () => {
+  const { app, db, client } = await makeContext()
+  await saveResult(db, 'learner-1', 'weak-result', {
+    'weak-topic': { correct: 6, total: 10 },
+    'passed-topic': { correct: 8, total: 10 },
+  })
+  const startWeakTopics = () => app.request('/api/v1/simulations/weak-topics', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ certificationId: certification.id, mode: 'practice', language: 'en' }),
+  })
+
+  const first = await startWeakTopics()
+  expect(first.status).toBe(201)
+  const firstSession = await first.json() as { sessionId: string }
+  const second = await startWeakTopics()
+  expect(second.status).toBe(201)
+  const secondSession = await second.json() as { sessionId: string }
+  expect(secondSession.sessionId).not.toBe(firstSession.sessionId)
+  expect((await (await app.request('/api/v1/simulations/active')).json() as { sessionId: string }).sessionId).toBe(secondSession.sessionId)
+  expect((await app.request(`/api/v1/simulations/${firstSession.sessionId}`)).status).toBe(404)
+
+  await app.request('/api/v1/simulation-history', { method: 'DELETE' })
+  const noLongerEligible = await startWeakTopics()
+  expect(noLongerEligible.status).toBe(409)
+  expect(await noLongerEligible.json()).toMatchObject({ error: { code: 'SIMULATION_HISTORY_EMPTY' } })
+  expect((await (await app.request('/api/v1/simulations/active')).json() as { sessionId: string }).sessionId).toBe(secondSession.sessionId)
+  client.close()
+})

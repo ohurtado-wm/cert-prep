@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { AiTokenUsageSchema, type AiTokenUsage } from '../../src/api/ai-usage-contracts'
-import { and, count, desc, eq, gt, gte, inArray, lte } from 'drizzle-orm'
+import { and, count, desc, eq, gt, gte, inArray, isNull, lte, or } from 'drizzle-orm'
 import {
   SimulationAnswerResponseSchema,
   MAX_SIMULATION_HISTORY_ITEMS,
@@ -26,7 +26,6 @@ import { StoredSimulationStateSchema, type StoredSimulationQuestion, type Stored
 const SESSION_LIFETIME_MS = 2 * 60 * 60 * 1_000
 const RATE_WINDOW_MS = 60 * 60 * 1_000
 const MAX_STARTS_PER_HOUR = 3
-const MAX_ACTIVE_SESSIONS = 2
 const MAX_ANSWER_ATTEMPTS = 3
 const MAX_QUESTION_GENERATION_ATTEMPTS = 2
 
@@ -61,16 +60,33 @@ function publicQuestion(question: StoredSimulationQuestion) {
 }
 
 function toSnapshot(row: SessionRow, state: StoredSimulationState): SimulationSnapshot {
+  const current = state.status === 'active' ? state.questions[state.currentIndex]! : null
+  const practiceProgress = row.mode !== 'practice' || !current
+    ? null
+    : {
+      attempts: current.attempts,
+      status: current.outcome === 'pending' && current.attempts === 0 ? 'answering' as const
+        : current.outcome === 'pending' || current.outcome === 'incorrect' ? 'incorrect' as const
+          : current.outcome === 'revealed' ? 'revealed' as const : 'correct' as const,
+      canRetry: current.outcome === 'pending' && current.attempts > 0,
+      canReveal: current.outcome === 'pending' || current.outcome === 'incorrect',
+      canContinue: ['incorrect', 'first_try', 'retry', 'revealed'].includes(current.outcome),
+      ...(['first_try', 'retry', 'revealed'].includes(current.outcome)
+        ? { correctAnswerId: current.correctAnswerId, explanation: current.explanation }
+        : {}),
+    }
   return SimulationSnapshotSchema.parse({
     sessionId: row.id,
     certificationId: row.certificationId,
+    createdAt: row.createdAt.toISOString(),
     mode: row.mode,
     language: state.language,
     status: state.status,
     questionCount: 20,
     currentIndex: state.currentIndex,
-    expiresAt: row.expiresAt.toISOString(),
-    currentQuestion: state.status === 'active' ? publicQuestion(state.questions[state.currentIndex]!) : null,
+    expiresAt: row.expiresAt?.toISOString() ?? null,
+    currentQuestion: current ? publicQuestion(current) : null,
+    practiceProgress,
     result: state.status === 'completed' ? state.result : null,
     aiUsage: state.aiUsage ?? null,
   })
@@ -101,11 +117,6 @@ function aggregateTokenUsage(usages: AiTokenUsage[]): AiTokenUsage | null {
     outputTokens,
     totalTokens: reportedTotal ?? (inputTokens !== null && outputTokens !== null ? inputTokens + outputTokens : null),
   }
-}
-
-function isActiveState(value: unknown) {
-  const parsed = StoredSimulationStateSchema.safeParse(value)
-  return !parsed.success || parsed.data.status === 'active'
 }
 
 function calculateResult(questions: StoredSimulationQuestion[]): SimulationResult {
@@ -178,7 +189,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
       where: and(eq(simulationSessions.id, sessionId), eq(simulationSessions.gatewayUserId, userId)),
     })
     if (!row) throw new ApiException(404, 'SIMULATION_NOT_FOUND', 'No se encontró esa sesión.')
-    if (row.expiresAt.getTime() <= now().getTime()) {
+    if (row.expiresAt && row.expiresAt.getTime() <= now().getTime()) {
       await db.delete(simulationSessions).where(and(
         eq(simulationSessions.id, sessionId),
         eq(simulationSessions.gatewayUserId, userId),
@@ -193,7 +204,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
       eq(simulationSessions.id, row.id),
       eq(simulationSessions.gatewayUserId, userId),
       eq(simulationSessions.state, oldState),
-      gt(simulationSessions.expiresAt, now()),
+      or(isNull(simulationSessions.expiresAt), gt(simulationSessions.expiresAt, now())),
     )).returning({ id: simulationSessions.id })
     if (updated.length === 0) throw new ApiException(409, 'SIMULATION_CONFLICT', 'La sesión cambió. Recarga la pregunta actual.')
   }
@@ -205,13 +216,18 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
     nextState: StoredSimulationState,
     result: SimulationResult,
   ) {
-    await db.transaction(async (tx) => {
+    return db.transaction(async (tx) => {
       const completedAt = now()
-      const updated = await tx.update(simulationSessions).set({ state: nextState }).where(and(
+      const expiresAt = new Date(completedAt.getTime() + SESSION_LIFETIME_MS)
+      const updated = await tx.update(simulationSessions).set({
+        state: nextState,
+        status: 'completed',
+        expiresAt,
+      }).where(and(
         eq(simulationSessions.id, row.id),
         eq(simulationSessions.gatewayUserId, userId),
         eq(simulationSessions.state, oldState),
-        gt(simulationSessions.expiresAt, completedAt),
+        or(isNull(simulationSessions.expiresAt), gt(simulationSessions.expiresAt, completedAt)),
       )).returning({ id: simulationSessions.id })
       if (updated.length === 0) {
         throw new ApiException(409, 'SIMULATION_CONFLICT', 'La sesión cambió. Recarga la pregunta actual.')
@@ -249,6 +265,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
           inArray(simulationSessions.id, expiredIds),
         ))
       }
+      return expiresAt
     })
   }
 
@@ -308,14 +325,6 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
       ))
       if ((recentStartCount?.value ?? 0) + failures.length >= MAX_STARTS_PER_HOUR) {
         throw new ApiException(429, 'SIMULATION_RATE_LIMITED', 'Alcanzaste el límite de simulaciones por hora. Intenta más tarde.')
-      }
-
-      const activeRows = await db.select({ state: simulationSessions.state }).from(simulationSessions).where(and(
-        eq(simulationSessions.gatewayUserId, userId),
-        gt(simulationSessions.expiresAt, requestTime),
-      ))
-      if (activeRows.filter(({ state }) => isActiveState(state)).length >= MAX_ACTIVE_SESSIONS) {
-        throw new ApiException(429, 'ACTIVE_SIMULATION_LIMIT', 'Completa o espera a que venza una simulación activa antes de iniciar otra.')
       }
 
       generationAttempted = true
@@ -391,7 +400,6 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
       }
 
       const sessionId = sessionIdFactory()
-      const expiry = new Date(requestTime.getTime() + SESSION_LIFETIME_MS)
       const state = StoredSimulationStateSchema.parse({
         version: 1,
         language: request.language,
@@ -406,11 +414,16 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
         certificationId: guide.certification.id,
         mode: request.mode,
         guideVersion: guide.version,
+        status: 'active' as const,
         state,
         createdAt: requestTime,
-        expiresAt: expiry,
+        expiresAt: null,
       }
       await db.transaction(async (tx) => {
+        await tx.delete(simulationSessions).where(and(
+          eq(simulationSessions.gatewayUserId, userId),
+          eq(simulationSessions.status, 'active'),
+        ))
         await tx.insert(simulationSessions).values(rowValues)
         await tx.insert(simulationStartEvents).values({ id: sessionId, gatewayUserId: userId, startedAt: requestTime })
       })
@@ -433,6 +446,14 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
 
   async function get(userId: string, sessionId: string): Promise<SimulationSnapshot> {
     const row = await ownedSession(userId, sessionId)
+    return toSnapshot(row, parseState(row.state))
+  }
+
+  async function getActive(userId: string): Promise<SimulationSnapshot | null> {
+    const row = await db.query.simulationSessions.findFirst({
+      where: and(eq(simulationSessions.gatewayUserId, userId), eq(simulationSessions.status, 'active')),
+    })
+    if (!row) return null
     return toSnapshot(row, parseState(row.state))
   }
 
@@ -541,8 +562,8 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
     if (state.currentIndex === 19) {
       const result = calculateResult(state.questions)
       const completed = completeState(state.language, result, state.aiUsage)
-      await saveCompletedState(row, userId, state, completed, result)
-      return toSnapshot({ ...row, state: completed }, completed)
+      const expiresAt = await saveCompletedState(row, userId, state, completed, result)
+      return toSnapshot({ ...row, state: completed, status: 'completed', expiresAt }, completed)
     }
 
     const updated = { ...state, currentIndex: state.currentIndex + 1 }
@@ -550,5 +571,5 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
     return toSnapshot({ ...row, state: updated }, updated)
   }
 
-  return { start, startWeakTopics, getWeakTopicAnalysis, get, cancel, answer, reveal, next }
+  return { start, startWeakTopics, getWeakTopicAnalysis, get, getActive, cancel, answer, reveal, next }
 }

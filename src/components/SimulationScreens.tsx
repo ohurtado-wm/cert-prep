@@ -11,6 +11,7 @@ import type {
   SimulationQuestion,
   SimulationResult,
   SimulationSnapshot,
+  PracticeQuestionProgress,
 } from '../api/simulation-contracts'
 import { translate } from '../i18n/messages'
 
@@ -20,8 +21,9 @@ export function QuizScreen({
   locale,
   certificationName,
   domains,
-  questions,
+  currentQuestion,
   questionIndex,
+  practiceProgress,
   simulationMode,
   aiUsage,
   submitting,
@@ -36,8 +38,9 @@ export function QuizScreen({
   locale: Locale
   certificationName: string
   domains: GuideDomain[]
-  questions: SimulationQuestion[]
+  currentQuestion: SimulationQuestion | null
   questionIndex: number
+  practiceProgress: PracticeQuestionProgress | null
   simulationMode: SimulationMode
   aiUsage: AiTokenUsageData | null
   submitting: boolean
@@ -50,7 +53,7 @@ export function QuizScreen({
   onExit: () => void
 }) {
   const text = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values)
-  const question = questions[questionIndex]
+  const question = currentQuestion
   const questionNumber = questionIndex + 1
   const totalQuestions = 20
   const progress = (questionNumber / totalQuestions) * 100
@@ -95,6 +98,7 @@ export function QuizScreen({
           simulationMode={simulationMode}
           questionNumber={questionNumber}
           totalQuestions={totalQuestions}
+          practiceProgress={practiceProgress}
           submitting={submitting}
           revealing={revealing}
           advancing={advancing}
@@ -133,6 +137,7 @@ function QuestionCard({
   simulationMode,
   questionNumber,
   totalQuestions,
+  practiceProgress,
   submitting,
   revealing,
   advancing,
@@ -147,6 +152,7 @@ function QuestionCard({
   simulationMode: SimulationMode
   questionNumber: number
   totalQuestions: number
+  practiceProgress: PracticeQuestionProgress | null
   submitting: boolean
   revealing: boolean
   advancing: boolean
@@ -157,13 +163,13 @@ function QuestionCard({
 }) {
   const text = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values)
   const [selectedAnswerId, setSelectedAnswerId] = useState<string | null>(null)
-  const [attempts, setAttempts] = useState(0)
-  const [status, setStatus] = useState<'answering' | 'incorrect' | 'correct' | 'revealed'>('answering')
-  const [canRetry, setCanRetry] = useState(false)
-  const [canReveal, setCanReveal] = useState(false)
-  const [canContinue, setCanContinue] = useState(false)
-  const [correctAnswerId, setCorrectAnswerId] = useState<string | null>(null)
-  const [explanation, setExplanation] = useState<string | null>(null)
+  const [attempts, setAttempts] = useState(practiceProgress?.attempts ?? 0)
+  const [status, setStatus] = useState<'answering' | 'incorrect' | 'correct' | 'revealed'>(practiceProgress?.status ?? 'answering')
+  const [canRetry, setCanRetry] = useState(practiceProgress?.canRetry ?? false)
+  const [canReveal, setCanReveal] = useState(practiceProgress?.canReveal ?? false)
+  const [canContinue, setCanContinue] = useState(practiceProgress?.canContinue ?? false)
+  const [correctAnswerId, setCorrectAnswerId] = useState<string | null>(practiceProgress?.correctAnswerId ?? null)
+  const [explanation, setExplanation] = useState<string | null>(practiceProgress?.explanation ?? null)
   const selectedAnswer = question.answers.find((answer) => answer.id === selectedAnswerId)
   const topic = domain?.topics.find(({ id }) => id === question.topicId)
   const isResolved = status === 'correct' || status === 'revealed'

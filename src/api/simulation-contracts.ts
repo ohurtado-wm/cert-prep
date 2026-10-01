@@ -66,13 +66,23 @@ export const ClearSimulationHistoryResponseSchema = z.object({
 export const SimulationSnapshotSchema = z.object({
   sessionId: z.string().min(1),
   certificationId: z.string().min(1),
+  createdAt: z.string().datetime(),
   mode: SimulationModeSchema,
   language: LocaleSchema,
   status: z.enum(['active', 'completed']),
   questionCount: z.literal(20),
   currentIndex: z.number().int().min(0).max(20),
-  expiresAt: z.string().datetime(),
+  expiresAt: z.string().datetime().nullable(),
   currentQuestion: SimulationQuestionSchema.nullable(),
+  practiceProgress: z.object({
+    attempts: z.number().int().min(0).max(3),
+    status: z.enum(['answering', 'incorrect', 'correct', 'revealed']),
+    canRetry: z.boolean(),
+    canReveal: z.boolean(),
+    canContinue: z.boolean(),
+    correctAnswerId: z.string().min(1).optional(),
+    explanation: z.string().min(1).optional(),
+  }).nullable(),
   result: SimulationResultSchema.nullable(),
   aiUsage: AiTokenUsageSchema.nullable().optional(),
 })
@@ -112,5 +122,6 @@ export type SimulationResult = z.infer<typeof SimulationResultSchema>
 export type SimulationHistoryItem = z.infer<typeof SimulationHistoryItemSchema>
 export type SimulationHistoryResponse = z.infer<typeof SimulationHistoryResponseSchema>
 export type SimulationSnapshot = z.infer<typeof SimulationSnapshotSchema>
+export type PracticeQuestionProgress = NonNullable<SimulationSnapshot['practiceProgress']>
 export type SimulationAnswerResponse = z.infer<typeof SimulationAnswerResponseSchema>
 export type SimulationRevealResponse = z.infer<typeof SimulationRevealResponseSchema>

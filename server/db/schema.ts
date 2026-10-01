@@ -1,4 +1,5 @@
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { sql } from 'drizzle-orm'
 import type { GuideDomain, StudyPathStep } from '../../src/api/certification-contracts'
 import type { AiTokenUsage } from '../../src/api/ai-usage-contracts'
 import type { CachedOfficialSources } from '../catalog/source-types'
@@ -48,10 +49,13 @@ export const simulationSessions = sqliteTable('simulation_sessions', {
   certificationId: text('certification_id').notNull().references(() => certifications.id),
   mode: text('mode', { enum: ['practice', 'real'] }).notNull(),
   guideVersion: integer('guide_version').notNull().default(1),
+  status: text('status', { enum: ['active', 'completed'] }).notNull().default('active'),
   state: jsonText<StoredSimulationState>('state').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
-  expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
-})
+  expiresAt: integer('expires_at', { mode: 'timestamp_ms' }),
+}, (table) => [
+  uniqueIndex('simulation_sessions_one_active_per_user').on(table.gatewayUserId).where(sql`${table.status} = 'active'`),
+])
 
 export const simulationStartEvents = sqliteTable('simulation_start_events', {
   id: text('id').primaryKey(),

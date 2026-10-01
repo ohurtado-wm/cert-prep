@@ -87,6 +87,10 @@ export async function startWeakTopicSimulation(
   return requestJson('/api/v1/simulations/weak-topics', SimulationSnapshotSchema, postJson({ certificationId, mode, language }), fetcher)
 }
 
+export async function loadActiveSimulation(fetcher: Fetcher = fetch): Promise<SimulationSnapshot | null> {
+  return requestJson('/api/v1/simulations/active', z.union([SimulationSnapshotSchema, z.null()]), {}, fetcher)
+}
+
 export async function cancelSimulation(sessionId: string, fetcher: Fetcher = fetch): Promise<void> {
   let response: Response
   try {

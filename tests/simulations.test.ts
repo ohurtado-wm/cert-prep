@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, test } from 'bun:test'
+import { eq } from 'drizzle-orm'
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
 import type { CertificationGuideResponse, Locale } from '../src/api/certification-contracts'
+import type { SimulationSnapshot } from '../src/api/simulation-contracts'
 import { certificationCatalog } from '../server/catalog/certifications'
 import { syncCertificationCatalog } from '../server/catalog/repository'
 import { createDatabase } from '../server/db/client'
@@ -70,10 +72,14 @@ describe('simulation sessions', () => {
     await syncCertificationCatalog(db, certificationCatalog, new Date('2026-09-30T12:00:00.000Z'))
   })
 
-  function makeApp(generator: QuestionGenerator = async ({ language }) => generatedSet(language)) {
+  function makeApp(
+    generator: QuestionGenerator = async ({ language }) => generatedSet(language),
+    now?: () => Date,
+  ) {
     const service = createSimulationService(db, {
       guideService: { getGuide: async () => guide },
       questionGenerator: generator,
+      ...(now ? { now } : {}),
     })
     return createApp({
       db,
@@ -239,6 +245,161 @@ describe('simulation sessions', () => {
     })
     const responses = await Promise.all([submit(), submit()])
     expect(responses.map(({ status }) => status).sort()).toEqual([200, 409])
+    client.close()
+  })
+
+  test('the owner can resume pending practice state without generating questions or leaking unanswered keys', async () => {
+    let time = new Date('2026-10-01T00:00:00.000Z')
+    let generationCalls = 0
+    const app = makeApp(async ({ language }) => {
+      generationCalls += 1
+      return generatedSet(language)
+    }, () => time)
+    const session = await start(app, 'practice')
+
+    const activePath = '/api/v1/simulations/active'
+    const initial = await app.request(activePath)
+    expect(initial.status).toBe(200)
+    const initialSnapshot = await initial.json() as SimulationSnapshot
+    expect(initialSnapshot).toMatchObject({
+      sessionId: session.sessionId,
+      certificationId: certification.id,
+      mode: 'practice',
+      currentIndex: 0,
+      expiresAt: null,
+      practiceProgress: { attempts: 0, status: 'answering' },
+    })
+    expect(JSON.stringify(initialSnapshot)).not.toMatch(/correctAnswerId|explanation/)
+    expect(await (await app.request(activePath, { headers: { 'x-test-user': 'learner-2' } })).json()).toBeNull()
+    expect((await app.request(`/api/v1/simulations/${session.sessionId}`, { headers: { 'x-test-user': 'learner-2' } })).status).toBe(404)
+
+    const submit = (answerIndex: number) => app.request(`/api/v1/simulations/${session.sessionId}/answers`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ questionId: session.currentQuestion.id, answerId: session.currentQuestion.answers[answerIndex]!.id }),
+    })
+    expect((await submit(1)).status).toBe(200)
+    const afterWrong = await (await app.request(activePath)).json() as SimulationSnapshot
+    expect(afterWrong.practiceProgress).toMatchObject({ attempts: 1, status: 'incorrect', canRetry: true })
+    expect(JSON.stringify(afterWrong)).not.toMatch(/correctAnswerId|explanation/)
+
+    expect((await submit(0)).status).toBe(200)
+    const resolved = await (await app.request(activePath)).json() as SimulationSnapshot
+    expect(resolved.practiceProgress).toMatchObject({
+      attempts: 2,
+      status: 'correct',
+      correctAnswerId: `${session.currentQuestion.id}:option-1`,
+      explanation: 'Private answer explanation.',
+      canContinue: true,
+    })
+    const advanced = await app.request(`/api/v1/simulations/${session.sessionId}/next`, { method: 'POST' })
+    expect(advanced.status).toBe(200)
+    const current = await (await app.request(activePath)).json() as SimulationSnapshot
+    expect(current.currentIndex).toBe(1)
+    expect((await app.request(`/api/v1/simulations/${session.sessionId}/reveal`, { method: 'POST' })).status).toBe(200)
+    expect((await (await app.request(activePath)).json() as SimulationSnapshot).practiceProgress).toMatchObject({
+      status: 'revealed',
+      correctAnswerId: `${current.currentQuestion!.id}:option-1`,
+      canContinue: true,
+    })
+    time = new Date('2026-12-15T00:00:00.000Z')
+    expect((await (await app.request(activePath)).json() as SimulationSnapshot).sessionId).toBe(session.sessionId)
+    expect(generationCalls).toBe(1)
+
+    expect((await app.request(`/api/v1/simulations/${session.sessionId}`, {
+      method: 'DELETE',
+      headers: { 'x-test-user': 'learner-2' },
+    })).status).toBe(404)
+    expect((await app.request(`/api/v1/simulations/${session.sessionId}`, { method: 'DELETE' })).status).toBe(204)
+    expect(await (await app.request(activePath)).json()).toBeNull()
+    client.close()
+  })
+
+  test('successful starts replace pending progress, failed generation preserves it, and retries keep the hourly limit', async () => {
+    let generationCalls = 0
+    const app = makeApp(async ({ language }) => {
+      generationCalls += 1
+      const generated = generatedSet(language)
+      if (generationCalls === 2 || generationCalls === 3) generated.questions = []
+      return generated
+    })
+    const first = await start(app)
+    for (let index = 0; index < 4; index += 1) {
+      expect((await app.request('/api/v1/simulations/active')).status).toBe(200)
+    }
+    const failedReplacement = await app.request('/api/v1/simulations', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ certificationId: certification.id, mode: 'real', language: 'en' }),
+    })
+    expect(failedReplacement.status).toBe(503)
+    expect((await (await app.request('/api/v1/simulations/active')).json() as SimulationSnapshot).sessionId).toBe(first.sessionId)
+
+    const replacement = await start(app)
+    expect(replacement.sessionId).not.toBe(first.sessionId)
+    expect((await app.request(`/api/v1/simulations/${first.sessionId}`)).status).toBe(404)
+    const rateLimited = await app.request('/api/v1/simulations', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ certificationId: certification.id, mode: 'real', language: 'en' }),
+    })
+    expect(rateLimited.status).toBe(429)
+    expect((await (await app.request('/api/v1/simulations/active')).json() as SimulationSnapshot).sessionId).toBe(replacement.sessionId)
+    client.close()
+  })
+
+  test('completed session rows keep short retention while their result remains in history', async () => {
+    let time = new Date('2026-10-01T00:00:00.000Z')
+    const app = makeApp(undefined, () => time)
+    const session = await start(app)
+    let question = session.currentQuestion
+
+    for (let index = 0; index < 20; index += 1) {
+      const response = await app.request(`/api/v1/simulations/${session.sessionId}/answers`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ questionId: question.id, answerId: question.answers[0]!.id }),
+      })
+      expect(response.status).toBe(200)
+      const body = await response.json() as Record<string, unknown>
+      if (index < 19) question = body.nextQuestion as typeof question
+    }
+
+    const completed = await (await app.request(`/api/v1/simulations/${session.sessionId}`)).json() as SimulationSnapshot
+    expect(completed.status).toBe('completed')
+    expect(completed.expiresAt).toBe('2026-10-01T02:00:00.000Z')
+    time = new Date('2026-10-01T02:00:01.000Z')
+    expect((await app.request(`/api/v1/simulations/${session.sessionId}`)).status).toBe(404)
+    const history = await (await app.request('/api/v1/simulation-history')).json() as { sessions: unknown[] }
+    expect(history.sessions).toHaveLength(1)
+    client.close()
+  })
+
+  test('concurrent service instances leave at most one pending session for the user', async () => {
+    let entered = 0
+    let release!: () => void
+    const generationBarrier = new Promise<void>((resolve) => { release = resolve })
+    const generator: QuestionGenerator = async ({ language }) => {
+      entered += 1
+      if (entered === 2) release()
+      await generationBarrier
+      return generatedSet(language)
+    }
+    const firstApp = makeApp(generator)
+    const secondApp = makeApp(generator)
+    const startRequest = () => ({
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ certificationId: certification.id, mode: 'real', language: 'en' }),
+    })
+    const responses = await Promise.all([
+      firstApp.request('/api/v1/simulations', startRequest()),
+      secondApp.request('/api/v1/simulations', startRequest()),
+    ])
+
+    expect(responses.filter(({ status }) => status === 201)).toHaveLength(1)
+    expect(await db.select().from(simulationSessions).where(eq(simulationSessions.status, 'active'))).toHaveLength(1)
+    expect(await (await firstApp.request('/api/v1/simulations/active')).json()).toMatchObject({ status: 'active', expiresAt: null })
     client.close()
   })
 })
