@@ -44,7 +44,7 @@ type SessionRow = typeof simulationSessions.$inferSelect
 
 function parseState(value: unknown): StoredSimulationState {
   const parsed = StoredSimulationStateSchema.safeParse(value)
-  if (!parsed.success) throw new ApiException(500, 'SIMULATION_STATE_INVALID', 'No se pudo leer la sesión guardada.')
+  if (!parsed.success) throw new ApiException(500, 'SIMULATION_STATE_INVALID', 'The saved simulation session could not be read.')
   return parsed.data
 }
 
@@ -122,7 +122,7 @@ function aggregateTokenUsage(usages: AiTokenUsage[]): AiTokenUsage | null {
 
 function calculateResult(questions: StoredSimulationQuestion[]): SimulationResult {
   if (questions.length !== 20 || questions.some(({ outcome }) => outcome === 'pending')) {
-    throw new ApiException(409, 'SIMULATION_INCOMPLETE', 'Debes responder las 20 preguntas antes de ver el resultado.')
+    throw new ApiException(409, 'SIMULATION_INCOMPLETE', 'Answer all 20 questions before viewing the results.')
   }
 
   const tally = (key: 'domainId' | 'topicId' | 'focus') => {
@@ -199,13 +199,13 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
     const row = await db.query.simulationSessions.findFirst({
       where: and(eq(simulationSessions.id, sessionId), eq(simulationSessions.gatewayUserId, userId)),
     })
-    if (!row) throw new ApiException(404, 'SIMULATION_NOT_FOUND', 'No se encontró esa sesión.')
+    if (!row) throw new ApiException(404, 'SIMULATION_NOT_FOUND', 'The simulation session was not found.')
     if (row.expiresAt && row.expiresAt.getTime() <= now().getTime()) {
       await db.delete(simulationSessions).where(and(
         eq(simulationSessions.id, sessionId),
         eq(simulationSessions.gatewayUserId, userId),
       ))
-      throw new ApiException(404, 'SIMULATION_EXPIRED', 'La sesión venció. Inicia una nueva simulación.')
+      throw new ApiException(404, 'SIMULATION_EXPIRED', 'The session has expired. Start a new simulation.')
     }
     return row
   }
@@ -217,7 +217,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
       eq(simulationSessions.state, oldState),
       or(isNull(simulationSessions.expiresAt), gt(simulationSessions.expiresAt, now())),
     )).returning({ id: simulationSessions.id })
-    if (updated.length === 0) throw new ApiException(409, 'SIMULATION_CONFLICT', 'La sesión cambió. Recarga la pregunta actual.')
+    if (updated.length === 0) throw new ApiException(409, 'SIMULATION_CONFLICT', 'The session changed. Reload the current question.')
   }
 
   async function saveCompletedState(
@@ -241,7 +241,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
         or(isNull(simulationSessions.expiresAt), gt(simulationSessions.expiresAt, completedAt)),
       )).returning({ id: simulationSessions.id })
       if (updated.length === 0) {
-        throw new ApiException(409, 'SIMULATION_CONFLICT', 'La sesión cambió. Recarga la pregunta actual.')
+        throw new ApiException(409, 'SIMULATION_CONFLICT', 'The session changed. Reload the current question.')
       }
 
       await tx.insert(simulationResults).values({
@@ -314,7 +314,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
     if (failures.length === 0) failedStartAttempts.delete(userId)
     else failedStartAttempts.set(userId, failures)
     if (generationInProgress.has(userId)) {
-      throw new ApiException(429, 'SIMULATION_GENERATION_IN_PROGRESS', 'Ya se están preparando preguntas para ti.')
+      throw new ApiException(429, 'SIMULATION_GENERATION_IN_PROGRESS', 'Your questions are already being prepared.')
     }
 
     generationInProgress.add(userId)
@@ -335,7 +335,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
         gte(simulationStartEvents.startedAt, new Date(cutoff)),
       ))
       if ((recentStartCount?.value ?? 0) + failures.length >= MAX_STARTS_PER_HOUR) {
-        throw new ApiException(429, 'SIMULATION_RATE_LIMITED', 'Alcanzaste el límite de simulaciones por hora. Intenta más tarde.')
+        throw new ApiException(429, 'SIMULATION_RATE_LIMITED', 'You have reached the hourly simulation limit. Try again later.')
       }
 
       generationAttempted = true
@@ -345,15 +345,15 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
         ? await loadWeakTopicAnalysis(userId, request.certificationId, guideTopicIds)
         : undefined
       if (weakAnalysis?.status === 'history_empty') {
-        throw new ApiException(409, 'SIMULATION_HISTORY_EMPTY', 'Completa una simulación antes de practicar temas débiles.')
+        throw new ApiException(409, 'SIMULATION_HISTORY_EMPTY', 'Complete a simulation before practicing weak topics.')
       }
       if (weakAnalysis?.status === 'no_weak_topics') {
-        throw new ApiException(409, 'NO_WEAK_TOPICS', 'No hay temas por debajo del umbral para practicar. Puedes iniciar una simulación normal.')
+        throw new ApiException(409, 'NO_WEAK_TOPICS', 'There are no topics below the practice threshold. You can start a regular simulation instead.')
       }
 
       const focusedTopics: WeakTopic[] | undefined = weakAnalysis?.topics.filter(({ topicId }) => guideTopicIds.has(topicId))
       if (focusWeakTopics && focusedTopics?.length === 0) {
-        throw new ApiException(409, 'WEAK_TOPICS_UNAVAILABLE', 'Los temas débiles ya no están en la guía actual. Actualiza el análisis antes de iniciar.')
+        throw new ApiException(409, 'WEAK_TOPICS_UNAVAILABLE', 'These weak topics are no longer in the current guide. Refresh the analysis before starting.')
       }
       const focusedTopicCounts = focusedTopics ? allocateFocusedQuestions(focusedTopics) : undefined
       const questionGuide = focusedTopics
@@ -405,9 +405,9 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
 
       if (!questions) {
         if (lastValidationError instanceof InvalidQuestionSetError) {
-          throw new ApiException(503, 'QUESTION_SET_INVALID', 'Las preguntas generadas no pasaron la validación. Puedes volver a intentarlo.')
+          throw new ApiException(503, 'QUESTION_SET_INVALID', 'The generated questions did not pass validation. You can try again.')
         }
-        throw new ApiException(503, 'QUESTION_GENERATION_UNAVAILABLE', 'No se pudieron generar las preguntas. Intenta de nuevo.')
+        throw new ApiException(503, 'QUESTION_GENERATION_UNAVAILABLE', 'Questions could not be generated. Try again.')
       }
 
       const sessionId = sessionIdFactory()
@@ -447,9 +447,9 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
       }
       if (error instanceof ApiException) throw error
       if (error instanceof InvalidQuestionSetError) {
-        throw new ApiException(503, 'GUIDE_INVALID', 'La guía de certificación no se pudo usar para crear la simulación.')
+        throw new ApiException(503, 'GUIDE_INVALID', 'The certification guide could not be used to create the simulation.')
       }
-      throw new ApiException(503, 'QUESTION_GENERATION_UNAVAILABLE', 'No se pudieron generar las preguntas. Intenta de nuevo.')
+      throw new ApiException(503, 'QUESTION_GENERATION_UNAVAILABLE', 'Questions could not be generated. Try again.')
     } finally {
       generationInProgress.delete(userId)
     }
@@ -473,24 +473,24 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
       eq(simulationSessions.id, sessionId),
       eq(simulationSessions.gatewayUserId, userId),
     )).returning({ id: simulationSessions.id })
-    if (row.length === 0) throw new ApiException(404, 'SIMULATION_NOT_FOUND', 'No se encontró esa sesión.')
+    if (row.length === 0) throw new ApiException(404, 'SIMULATION_NOT_FOUND', 'The simulation session was not found.')
   }
 
   async function answer(userId: string, sessionId: string, input: SubmitAnswerRequest): Promise<SimulationAnswerResponse> {
     const row = await ownedSession(userId, sessionId)
     const state = parseState(row.state)
-    if (state.status !== 'active') throw new ApiException(409, 'SIMULATION_COMPLETED', 'La simulación ya terminó.')
+    if (state.status !== 'active') throw new ApiException(409, 'SIMULATION_COMPLETED', 'The simulation is already complete.')
 
     const index = state.currentIndex
     const question = state.questions[index]!
-    if (input.questionId !== question.id) throw new ApiException(409, 'QUESTION_OUT_OF_ORDER', 'Responde la pregunta actual antes de avanzar.')
+    if (input.questionId !== question.id) throw new ApiException(409, 'QUESTION_OUT_OF_ORDER', 'Answer the current question before moving on.')
     if (!question.answers.some(({ id }) => id === input.answerId)) {
-      throw new ApiException(422, 'ANSWER_NOT_IN_QUESTION', 'La opción seleccionada no pertenece a esta pregunta.')
+      throw new ApiException(422, 'ANSWER_NOT_IN_QUESTION', 'The selected answer does not belong to this question.')
     }
 
     if (row.mode === 'real') {
       if (question.attempts !== 0 || question.outcome !== 'pending') {
-        throw new ApiException(409, 'QUESTION_ALREADY_ANSWERED', 'Esta pregunta ya tiene una respuesta registrada.')
+        throw new ApiException(409, 'QUESTION_ALREADY_ANSWERED', 'This question has already been answered.')
       }
       const updatedQuestion = {
         ...question,
@@ -518,7 +518,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
     }
 
     if (question.outcome !== 'pending' || question.attempts >= MAX_ANSWER_ATTEMPTS) {
-      throw new ApiException(409, 'QUESTION_ALREADY_ANSWERED', 'Continúa a la siguiente pregunta o revela la respuesta correcta.')
+      throw new ApiException(409, 'QUESTION_ALREADY_ANSWERED', 'Continue to the next question or reveal the correct answer.')
     }
 
     const attempts = question.attempts + 1
@@ -541,13 +541,13 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
 
   async function reveal(userId: string, sessionId: string): Promise<SimulationRevealResponse> {
     const row = await ownedSession(userId, sessionId)
-    if (row.mode !== 'practice') throw new ApiException(409, 'REVEAL_NOT_ALLOWED', 'La Simulación Real no revela respuestas durante la sesión.')
+    if (row.mode !== 'practice') throw new ApiException(409, 'REVEAL_NOT_ALLOWED', 'Real simulations do not reveal answers during the session.')
     const state = parseState(row.state)
-    if (state.status !== 'active') throw new ApiException(409, 'SIMULATION_COMPLETED', 'La simulación ya terminó.')
+    if (state.status !== 'active') throw new ApiException(409, 'SIMULATION_COMPLETED', 'The simulation is already complete.')
     const index = state.currentIndex
     const question = state.questions[index]!
     if (question.outcome !== 'pending' && question.outcome !== 'incorrect') {
-      throw new ApiException(409, 'QUESTION_ALREADY_ANSWERED', 'Esta pregunta ya está resuelta.')
+      throw new ApiException(409, 'QUESTION_ALREADY_ANSWERED', 'This question has already been resolved.')
     }
 
     const nextState = replaceQuestion(state, index, { ...question, outcome: 'revealed' })
@@ -563,12 +563,12 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
 
   async function next(userId: string, sessionId: string): Promise<SimulationSnapshot> {
     const row = await ownedSession(userId, sessionId)
-    if (row.mode !== 'practice') throw new ApiException(409, 'NEXT_NOT_ALLOWED', 'En Simulación Real la respuesta mueve a la siguiente pregunta automáticamente.')
+    if (row.mode !== 'practice') throw new ApiException(409, 'NEXT_NOT_ALLOWED', 'In a real simulation, answering automatically moves to the next question.')
     const state = parseState(row.state)
-    if (state.status !== 'active') throw new ApiException(409, 'SIMULATION_COMPLETED', 'La simulación ya terminó.')
+    if (state.status !== 'active') throw new ApiException(409, 'SIMULATION_COMPLETED', 'The simulation is already complete.')
     const current = state.questions[state.currentIndex]!
     if (!['first_try', 'retry', 'revealed', 'incorrect'].includes(current.outcome)) {
-      throw new ApiException(409, 'QUESTION_NOT_RESOLVED', 'Resuelve o revela la pregunta actual antes de continuar.')
+      throw new ApiException(409, 'QUESTION_NOT_RESOLVED', 'Answer or reveal the current question before continuing.')
     }
 
     if (state.currentIndex === 19) {

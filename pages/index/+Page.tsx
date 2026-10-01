@@ -383,7 +383,7 @@ function CertificationApp() {
           onSelect={setSelectedCertificationId}
           simulationMode={simulationMode}
           onSimulationModeChange={setSimulationMode}
-          onStart={startSession}
+          onStart={() => startSession(false)}
           user={userQuery.isError ? null : userQuery.data ?? null}
           userLoading={userQuery.isPending}
           userError={userQuery.error ?? null}
@@ -461,7 +461,7 @@ function CertificationApp() {
             setPrintableQuestions([])
             setScreen('home')
           }}
-          onRestart={startSession}
+          onRestart={() => startSession(false)}
         />
       )}
       {startMutation.isPending && (
