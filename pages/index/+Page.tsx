@@ -453,7 +453,7 @@ function CertificationApp() {
             setSessionResult(null)
             setScreen('home')
           }}
-          onRestart={startSession}
+          onRestart={() => startSession(false)}
         />
       )}
       {startMutation.isPending && (
