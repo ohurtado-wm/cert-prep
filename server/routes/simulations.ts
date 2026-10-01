@@ -20,10 +20,10 @@ async function parseBody<T>(request: Request, schema: z.ZodType<T>): Promise<T> 
   try {
     value = await request.json()
   } catch {
-    throw new ApiException(400, 'INVALID_REQUEST', 'El cuerpo de la solicitud no es JSON válido.')
+    throw new ApiException(400, 'INVALID_REQUEST', 'The request body must be valid JSON.')
   }
   const parsed = schema.safeParse(value)
-  if (!parsed.success) throw new ApiException(400, 'INVALID_REQUEST', 'La solicitud no cumple el formato esperado.')
+  if (!parsed.success) throw new ApiException(400, 'INVALID_REQUEST', 'The request does not match the expected format.')
   return parsed.data
 }
 
@@ -57,7 +57,7 @@ export function createSimulationRoutes(dependencies: {
     const query = WeakTopicAnalysisQuerySchema.safeParse({
       certificationId: context.req.query('certificationId'),
     })
-    if (!query.success) throw new ApiException(400, 'INVALID_REQUEST', 'La certificación no es válida.')
+    if (!query.success) throw new ApiException(400, 'INVALID_REQUEST', 'The certification is invalid.')
     return context.json(await dependencies.simulationService.getWeakTopicAnalysis(
       user.id,
       query.data.certificationId,

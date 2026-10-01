@@ -166,7 +166,7 @@ export function createAiQuestionGenerator(options: {
         outcome: 'failure',
       })
       if (error instanceof ApiException) throw error
-      throw new ApiException(503, 'QUESTION_GENERATION_UNAVAILABLE', 'No se pudieron generar las preguntas. Intenta de nuevo.')
+      throw new ApiException(503, 'QUESTION_GENERATION_UNAVAILABLE', 'Questions could not be generated. Try again.')
     }
   }
 }
