@@ -13,6 +13,7 @@ import {
   type SimulationSnapshot,
 } from './simulation-contracts'
 import type { Locale } from './certification-contracts'
+import { WeakTopicAnalysisResponseSchema, type WeakTopicAnalysisResponse } from './weak-topic-contracts'
 
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 
@@ -67,6 +68,23 @@ export async function startSimulation(
   fetcher: Fetcher = fetch,
 ): Promise<SimulationSnapshot> {
   return requestJson('/api/v1/simulations', SimulationSnapshotSchema, postJson({ certificationId, mode, language }), fetcher)
+}
+
+export async function loadWeakTopicAnalysis(
+  certificationId: string,
+  fetcher: Fetcher = fetch,
+): Promise<WeakTopicAnalysisResponse> {
+  const query = new URLSearchParams({ certificationId })
+  return requestJson(`/api/v1/simulations/weak-topics?${query}`, WeakTopicAnalysisResponseSchema, {}, fetcher)
+}
+
+export async function startWeakTopicSimulation(
+  certificationId: string,
+  mode: SimulationMode,
+  language: Locale,
+  fetcher: Fetcher = fetch,
+): Promise<SimulationSnapshot> {
+  return requestJson('/api/v1/simulations/weak-topics', SimulationSnapshotSchema, postJson({ certificationId, mode, language }), fetcher)
 }
 
 export async function cancelSimulation(sessionId: string, fetcher: Fetcher = fetch): Promise<void> {

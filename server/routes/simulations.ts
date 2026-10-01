@@ -4,6 +4,7 @@ import {
   StartSimulationRequestSchema,
   SubmitAnswerRequestSchema,
 } from '../../src/api/simulation-contracts'
+import { WeakTopicAnalysisQuerySchema } from '../../src/api/weak-topic-contracts'
 import type { DatabaseHandle } from '../db/client'
 import { ApiException } from '../errors'
 import type { UserProvider } from '../gateway/user-provider'
@@ -49,6 +50,24 @@ export function createSimulationRoutes(dependencies: {
     const input = await parseBody(context.req.raw, StartSimulationRequestSchema)
     const snapshot = await dependencies.simulationService.start(user.id, input)
     return context.json(snapshot, 201)
+  })
+
+  routes.get('/simulations/weak-topics', async (context) => {
+    const user = await resolveCurrentUser(context.req.raw, dependencies.db, dependencies.userProvider)
+    const query = WeakTopicAnalysisQuerySchema.safeParse({
+      certificationId: context.req.query('certificationId'),
+    })
+    if (!query.success) throw new ApiException(400, 'INVALID_REQUEST', 'La certificación no es válida.')
+    return context.json(await dependencies.simulationService.getWeakTopicAnalysis(
+      user.id,
+      query.data.certificationId,
+    ))
+  })
+
+  routes.post('/simulations/weak-topics', async (context) => {
+    const user = await resolveCurrentUser(context.req.raw, dependencies.db, dependencies.userProvider)
+    const input = await parseBody(context.req.raw, StartSimulationRequestSchema)
+    return context.json(await dependencies.simulationService.startWeakTopics(user.id, input), 201)
   })
 
   routes.get('/simulations/:sessionId', async (context) => {

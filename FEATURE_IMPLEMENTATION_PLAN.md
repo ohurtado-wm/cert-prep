@@ -1,7 +1,7 @@
 # Implementation Plan: Cert Helper — producto final
 
-**Estado:** PR-01…PR-04 integrados; PR-05 abierto, con pruebas específicas pendientes; PR-06/PR-07 pendientes
-**Última actualización:** 2026-09-30
+**Estado:** PR-01…PR-05 integrados en `main`; PR-06 fusionado en la rama de PR-05, pendiente de integración en `main` y canary; PR-07 implementado localmente.
+**Última actualización:** 2026-10-01
 
 ## Materiales fuente
 
@@ -17,7 +17,7 @@
 - **Completado:** PoC local aprobado; catálogo y guía oficial bilingües, generación IA de preguntas, sesiones seguras y UI conectada al backend para el historial.
 - **Completado en PR-01:** base Bun/Hono integrada con Vike, contratos Zod, esquema Drizzle/SQLite, migración inicial, resolución de usuario con `/users/me` y pruebas de identidad/rutas/migración.
 - **Completado en PR-02:** catálogo y guías de estudio generadas con IA, compartidas desde SQLite y renovadas bajo demanda cada 30 días.
-- **Pendiente:** terminar la validación de PR-05 y luego implementar el plan de estudio y la simulación enfocada.
+- **En curso:** PR-06 está disponible en `feat/pr-05-user-session-history` y aún no está integrado en `main`; su canary real sigue pendiente. PR-07 está implementado sobre `main` y listo para revisión.
 - **Repositorio:** conectado a `https://github.com/ohurtado-wm/cert-prep.git`; PR-01…PR-07 son límites de revisión propuestos.
 
 ## Estado de PR
@@ -28,9 +28,9 @@
 | `PR-02` | Catálogo y descubrimiento de guías oficiales | Merged | `PR-01` | Dominios y ruta con fuentes verificables |
 | `PR-03` | Interfaz y contenido en español/inglés | Merged | `PR-02` | Flujo completo del catálogo en ambos idiomas |
 | `PR-04` | Generación de preguntas y sesiones seguras | Merged | `PR-01`, `PR-02` | 20 preguntas válidas; sesiones privadas por usuario |
-| `PR-05` | Sesiones web e historial por usuario en backend | Abierto; pruebas específicas pendientes | `PR-01`, `PR-03`, `PR-04` | Práctica y Simulación Real guardan resultados autenticados |
-| `PR-06` | Plan de estudio personalizado con IA | No iniciado | `PR-05` | Recomendaciones ligadas a resultados y fuentes |
-| `PR-07` | Simulación enfocada en temas débiles | No iniciado | `PR-05` | Solo incluye temas aún no superados |
+| `PR-05` | Sesiones web e historial por usuario en backend | Merged | `PR-01`, `PR-03`, `PR-04` | Práctica y Simulación Real guardan resultados autenticados |
+| `PR-06` | Plan de estudio personalizado con IA | Merged en la rama PR-05; pendiente de integración en `main` y canary | `PR-05` | Recomendaciones ligadas a resultados y fuentes |
+| `PR-07` | Simulación enfocada en temas débiles | Implementado localmente; listo para revisión | `PR-05` | Solo incluye temas aún no superados |
 
 ## Objetivo
 
@@ -285,44 +285,48 @@ sequenceDiagram
 ## PR-06: Plan de estudio sugerido
 
 **ID:** `PR-06`  
-**Estado:** No iniciado  
+**Estado:** Fusionado en `feat/pr-05-user-session-history`; pendiente de integración en `main` y canary real
 **Objetivo:** recomendar qué estudiar a partir de los resultados recientes, sin delegar la aritmética al modelo.  
 **Dependencia:** `PR-05`; puede avanzar en paralelo con `PR-07` una vez compartido el módulo de analítica.
 
 ### Tareas
 
-- [ ] `P6-T01` Añadir botón **Sugerir plan de estudio** y estados para historial ausente, carga y error.
-- [ ] `P6-T02` Leer del backend las últimas 10 sesiones del usuario autenticado, calcular agregados por IDs de tema/dominio y enviar a IA únicamente conteos/tasas y focos fallidos.
-- [ ] `P6-T03` Generar con IA un plan estructurado por prioridad, motivo medible y pasos/recurso oficial; redactar en idioma elegido.
-- [ ] `P6-T04` Guardar cada plan bajo el `gatewayUserId`, mostrar los resultados que sustentan sus prioridades y permitir regenerarlo.
-- [ ] `P6-T05` Probar cálculos con datos fijos y forma/idioma/sources de salida con proveedor falso más canary acotado.
+- [x] `P6-T01` Añadir botón **Sugerir plan de estudio** y estados para historial ausente, carga y error.
+- [x] `P6-T02` Leer del backend las últimas 10 sesiones del usuario autenticado, calcular agregados por IDs de tema/dominio y enviar a IA únicamente conteos/tasas y focos fallidos.
+- [x] `P6-T03` Generar con IA un plan estructurado por prioridad, motivo medible y pasos/recurso oficial; redactar en idioma elegido.
+- [x] `P6-T04` Guardar cada plan bajo el `gatewayUserId`, mostrar los resultados que sustentan sus prioridades y permitir regenerarlo.
+- [x] `P6-T05` Probar cálculos con datos fijos y forma/idioma/fuentes de salida con proveedor falso.
+- [ ] `P6-T06` Ejecutar un canary acotado con OpenAI tras autorizar el costo de la llamada.
 
 ### Criterios de validación
 
-- [ ] Prioridades coinciden con estadísticas determinísticas del historial; la IA redacta y recomienda, no cambia el puntaje.
-- [ ] Plan en español e inglés contiene recursos oficiales y no inventa métricas ni marca “aprobado”.
-- [ ] Request a IA no incluye preguntas, opciones, identificador/correo/avatar ni historial completo.
+- [x] Prioridades coinciden con estadísticas determinísticas del historial; la IA redacta y recomienda, no cambia el puntaje.
+- [x] Plan en español e inglés contiene recursos oficiales y no inventa métricas ni marca “aprobado”.
+- [x] Request a IA no incluye preguntas, opciones, identificador/correo/avatar ni historial completo.
+- [ ] El canary de OpenAI queda pendiente para evitar una llamada facturable no solicitada.
 
 ## PR-07: Simulación de temas débiles
 
 **ID:** `PR-07`  
-**Estado:** No iniciado  
+**Estado:** Implementado localmente sobre `main`
 **Objetivo:** generar una simulación nueva que practique únicamente temas no superados recientemente.  
 **Dependencia:** `PR-05`; reutiliza el generador de `PR-04`.
 
 ### Tareas
 
-- [ ] `P7-T01` Derivar temas débiles desde las 10 sesiones más recientes con exactitud y cantidad de errores por tema/foco.
-- [ ] `P7-T02` Ordenar áreas por más errores, menor exactitud y recencia; aplicar el umbral acordado para excluir temas superados.
-- [ ] `P7-T03` Añadir botón **Practicar temas débiles**, mostrar antes de iniciar qué temas se incluirán y pedir 20 preguntas solo de ellos.
-- [ ] `P7-T04` Si no hay historial o áreas débiles, explicar el estado y ofrecer práctica normal sin mezclar temas superados silenciosamente.
-- [ ] `P7-T05` Guardar el resultado como sesión normal y validar elegibilidad/exclusión con casos límite.
+- [x] `P7-T01` Derivar temas débiles desde las 10 simulaciones completadas más recientes con exactitud y cantidad de errores por tema.
+- [x] `P7-T02` Ordenar áreas por errores, menor exactitud y recencia; usar 80% como umbral inicial de acierto al primer intento para considerar un tema superado.
+- [x] `P7-T03` Añadir botón **Practicar temas débiles**, mostrar los temas y sus métricas antes de iniciar y generar 20 preguntas solo de ellos.
+- [x] `P7-T04` Si no hay historial o áreas débiles, explicar el estado y mantener disponible la práctica normal.
+- [x] `P7-T05` Guardar el resultado como sesión normal y validar elegibilidad/exclusión con casos límite.
 
 ### Criterios de validación
 
-- [ ] Ninguna pregunta generada pertenece a un dominio/tema que el análisis marcó superado.
-- [ ] Si las áreas débiles no cubren 20 preguntas, el generador distribuye las 20 únicamente entre ellas.
-- [ ] Historial vacío, todos los temas superados y resultados muy recientes/incompletos producen estados claros.
+- [x] Ninguna pregunta generada pertenece a un tema fuera del alcance débil calculado por el servidor.
+- [x] Las 20 preguntas se distribuyen solo entre temas débiles; cada tema seleccionado recibe al menos una.
+- [x] Historial vacío, todos los temas superados y resultados recientes/incompletos producen estados claros.
+
+**Validación local:** `bun run typecheck`, `bun test` (41 pruebas; 174 aserciones), `bun run build` y `git diff --check` pasaron. No se hizo una llamada pagada a OpenAI ni una revisión visual manual.
 
 ## Validación transversal
 
@@ -340,5 +344,5 @@ sequenceDiagram
 
 - ¿Cuál certificación AWS debe incluirse: Solutions Architect Associate SAA-C03, Professional SAP-C02 u otra? El código de examen es necesario para fijar guía y dominios.
 - ¿Qué proveedor/modelo aprobado usará Vercel AI SDK y cuál es el presupuesto/latencia máxima por selección, simulación y recomendación?
-- Confirmar los valores propuestos de historial: 20 sesiones guardadas, 10 para análisis y 80% como umbral de tema superado.
+- Revisar con datos de uso si el umbral inicial configurable de 80% para considerar un tema superado necesita ajuste.
 - ¿El destino inicial será local/una instancia (SQLite) o habrá despliegue multi-instancia (PostgreSQL)? Esto determina la base de producción y expiración de sesiones.
