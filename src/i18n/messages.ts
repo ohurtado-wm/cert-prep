@@ -203,7 +203,7 @@ const messages = {
   en: {
     pageTitle: 'Certification Helper | Certification practice',
     brandLabel: 'West Monroe',
-    localBadge: 'Local PoC',
+    localBadge: 'v1',
     languageLabel: 'Application language',
     languageSpanish: 'Switch language to Spanish',
     languageEnglish: 'Switch language to English',
