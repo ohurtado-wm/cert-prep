@@ -1,7 +1,7 @@
 # Implementation Plan: Migrar Cert Prep de SQLite a PostgreSQL
 
-**Status:** Implemented and locally validated on `codex/postgresql-migration`; review/PR pending
-**Last Updated:** 2026-10-02
+**Status:** Implemented and validated; [PR #14](https://github.com/ohurtado-wm/cert-prep/pull/14) is open for review
+**Last Updated:** 2026-10-05
 
 ## Source Materials
 
@@ -23,7 +23,7 @@
 | PR | Alcance | Estado | Dependencia | Gate de validación |
 |---|---|---|---|---|
 | `PR-08` | Reanudación de simulaciones pendientes y retención | Integrado en `main` (`e63502d`) | `PR-05` | Contrato final de sesiones aplicado antes de la migración |
-| `PR-DB-01` | Cambiar persistencia runtime a PostgreSQL, ejecutar app + base con Docker y cerrar brechas de concurrencia entre procesos | Implementado y validado localmente en `codex/postgresql-migration`; review/PR pendiente | `PR-08` integrado; host local con Docker Compose y volumen persistente | Suite PostgreSQL, despliegue, persistencia del volumen y backup/restore pasan |
+| `PR-DB-01` | Cambiar persistencia runtime a PostgreSQL, ejecutar app + base con Docker y cerrar brechas de concurrencia entre procesos | Abierto para revisión: [PR #14](https://github.com/ohurtado-wm/cert-prep/pull/14) | `PR-08` integrado; host local con Docker Compose y volumen persistente | Suite PostgreSQL, despliegue, persistencia del volumen y backup/restore pasan |
 
 ## Goal
 
@@ -88,7 +88,7 @@ Usar PostgreSQL como único dialecto runtime de Cert Prep, tanto localmente como
 ## PR 1: PostgreSQL runtime en Docker
 
 **PR ID:** `PR-DB-01`  
-**Status:** Implementado y validado localmente; review/PR pendiente
+**Status:** Implementado y validado; [PR #14](https://github.com/ohurtado-wm/cert-prep/pull/14) abierto para revisión
 **Objective:** Cambiar la fuente de verdad a PostgreSQL, desplegar app + base en Docker sobre un host y demostrar aislamiento y comportamiento entre procesos desde una base vacía.
 **Depends On:** Host local de producción con Docker Compose y almacenamiento persistente disponible.
 **Parallelism:** La matriz de pruebas de base vacía y el Dockerfile pueden prepararse en paralelo; driver, schema y migraciones deben acordarse antes de adaptar servicios y pruebas.

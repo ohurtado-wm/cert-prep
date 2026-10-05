@@ -1,7 +1,7 @@
 # Implementation Plan: Cert Helper — producto final
 
-**Estado:** PR-01…PR-08 integrados en el `main` local; PR-DB-01 está implementado y validado localmente en `codex/postgresql-migration`, con review/PR pendiente. El canary real de IA sigue pendiente.
-**Última actualización:** 2026-10-02
+**Estado:** PR-01…PR-08 integrados en el `main` local; PR-DB-01 está implementado y validado, con [PR #14](https://github.com/ohurtado-wm/cert-prep/pull/14) abierto para revisión. El canary real de IA sigue pendiente.
+**Última actualización:** 2026-10-05
 
 ## Materiales fuente
 
@@ -18,8 +18,8 @@
 - **Completado en PR-01:** base Bun/Hono integrada con Vike, contratos Zod, esquema Drizzle/SQLite, migración inicial, resolución de usuario con `/users/me` y pruebas de identidad/rutas/migración.
 - **Completado en PR-02:** catálogo y guías de estudio generadas con IA, compartidas desde SQLite y renovadas bajo demanda cada 30 días.
 - **Integrado en `main`:** PR-08 define el ciclo de vida de sesiones reanudables; su merge local es `e63502d`.
-- **Implementado y validado localmente en `codex/postgresql-migration`:** PR-DB-01 migra la persistencia a PostgreSQL y Docker local; no importa ni conserva los datos de SQLite. Typecheck, build, configuración de Compose, migración limpia/repetible, suite PostgreSQL (53 pruebas; 368 aserciones), healthcheck, persistencia tras recrear PostgreSQL y ensayo de backup/restore pasan. Los cambios siguen locales; review/PR pendiente.
-- **Pendiente:** canary real con OpenAI, sujeto a autorización. El estado remoto de PRs no pudo verificarse porque GitHub CLI no tiene una sesión autenticada.
+- **En revisión en [PR #14](https://github.com/ohurtado-wm/cert-prep/pull/14):** PR-DB-01 migra la persistencia a PostgreSQL y Docker local; no importa ni conserva los datos de SQLite. Typecheck, build, configuración de Compose, migración limpia/repetible, suite PostgreSQL (53 pruebas; 368 aserciones), healthcheck, persistencia tras recrear PostgreSQL y ensayo de backup/restore pasan.
+- **Pendiente:** canary real con OpenAI, sujeto a autorización.
 
 ## Estado de PR
 
@@ -33,7 +33,7 @@
 | `PR-06` | Plan de estudio personalizado con IA | Código integrado localmente en `main` (`a428cda`); canary pendiente; estado remoto no verificado | `PR-05` | Recomendaciones ligadas a resultados y fuentes oficiales |
 | `PR-07` | Simulación enfocada en temas débiles | Merged en `main` | `PR-05` | Solo incluye temas aún no superados |
 | `PR-08` | Reanudación de simulaciones pendientes y retención | Integrado en `main` (`e63502d`) | `PR-05` | Una sesión pendiente por usuario; las completadas vencen en dos horas |
-| `PR-DB-01` | PostgreSQL y Docker Compose local para desarrollo y producción | Implementado y validado localmente en `codex/postgresql-migration`; review/PR pendiente | `PR-08` | Suite PostgreSQL, despliegue, persistencia del volumen y backup/restore pasan |
+| `PR-DB-01` | PostgreSQL y Docker Compose local para desarrollo y producción | Abierto para revisión: [PR #14](https://github.com/ohurtado-wm/cert-prep/pull/14) | `PR-08` | Suite PostgreSQL, despliegue, persistencia del volumen y backup/restore pasan |
 
 ## Objetivo
 
