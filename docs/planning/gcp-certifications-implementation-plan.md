@@ -1,6 +1,6 @@
 # Plan de implementación: ampliar certificaciones de Google Cloud
 
-**Estado:** En implementación
+**Estado:** PR-01 y P2-T01–T04 integrados en `main` mediante PR #15; PR-02 completo y en revisión en PR #16.
 **Última actualización:** 2026-10-05
 
 ## Objetivo
@@ -9,10 +9,11 @@ Ampliar el catálogo activo a cinco certificaciones profesionales: conservar Pro
 
 ## Estado actual
 
-- El catálogo anterior contenía solo Cloud Developer; la UI y las APIs ya usan `certificationId` para separar el contenido.
+- El catálogo de cinco certificaciones y el recorrido por `certificationId` están integrados en `main` mediante PR #15.
 - La guía se cachea 30 días y se renueva bajo demanda mediante una lease por certificación.
 - El modelo no tenía navegación web. El antiguo lector HTML solo manejaba Cloud Developer y no estaba conectado al servicio de generación.
 - El esquema PostgreSQL ya tiene `sourceHash`, `sourceSnapshot` y `lastSourceCheckedAt`; no se anticipa migración.
+- La rama `codex/gcp-certifications-pr02` agrega el bloqueo del selector mientras se consulta la guía o se inicia una simulación, toma el nombre de certificación desde la sesión activa y refuerza las instrucciones bilingües para generar simulaciones alineadas al examen sin copiar preguntas oficiales.
 
 ## Decisión de implementación
 
@@ -38,8 +39,8 @@ Ampliar el catálogo activo a cinco certificaciones profesionales: conservar Pro
 
 | PR | Alcance | Estado | Gate |
 |---|---|---|---|
-| `PR-01` | Búsqueda oficial obligatoria, verificación de citas, snapshot y pesos fraccionarios | En implementación | Una guía solo se publica después de citar una fuente oficial del examen; pruebas deterministas sin llamadas reales a IA |
-| `PR-02` | Catálogo de cinco certificaciones, recorrido por ID e instrucciones operativas | En implementación | El catálogo y la UI exponen cinco opciones y las operaciones permanecen aisladas por certificación |
+| `PR-01` | Búsqueda oficial obligatoria, verificación de citas, snapshot y pesos fraccionarios | Integrado mediante PR #15 | Suite completa con generadores falsos; no se hicieron llamadas reales a OpenAI |
+| `PR-02` | Catálogo de cinco certificaciones, recorrido por ID e instrucciones operativas | En revisión en PR #16 | Catálogo, guías por ID, recorrido, bloqueo durante IA y prompt bilingüe de simulación |
 
 ## PR-01: Generación basada en búsqueda oficial
 
@@ -56,9 +57,9 @@ Ampliar el catálogo activo a cinco certificaciones profesionales: conservar Pro
 
 - [x] Typecheck y build.
 - [x] Pruebas puras: allowlist y citas del prompt; asignación y rechazo de pesos fraccionarios inválidos.
-- [ ] Pruebas enfocadas del servicio/catálogo; requieren `TEST_DATABASE_URL`, que no está configurada en este entorno.
+- [x] Pruebas de integración del servicio y catálogo ejecutadas contra PostgreSQL temporal; los generadores son falsos.
 - [x] Generadores falsos cubren en código: fuentes oficiales guardadas, fuente externa rechazada, peso fraccionario, suma inválida, caché/renovación y preservación de la última guía válida.
-- [ ] No hacer llamadas reales ni pagadas a OpenAI; la integración real se valida con el uso normal del usuario y las fuentes citadas en pantalla.
+- [x] No se hicieron llamadas reales ni pagadas a OpenAI; la integración real se valida con el uso normal del usuario y las fuentes citadas en pantalla.
 
 ## PR-02: Catálogo y recorrido
 
@@ -66,15 +67,19 @@ Ampliar el catálogo activo a cinco certificaciones profesionales: conservar Pro
 
 - [x] `P2-T01` Agregar cuatro IDs nuevos y sus URLs oficiales, manteniendo Cloud Developer primero para no cambiar la selección inicial actual.
 - [x] `P2-T02` Añadir contratos de catálogo y cobertura de pesos fraccionarios.
-- [x] `P2-T03` El flujo actual sigue usando `certificationId` para catálogo, guía, simulación, historial, planes y temas débiles; falta ejecutar las pruebas de integración.
+- [x] `P2-T03` El flujo usa `certificationId` para catálogo, guía, simulación, historial, planes y temas débiles.
 - [x] `P2-T04` Actualizar README y mostrar las fuentes citadas y su fecha en la interfaz.
+- [x] `P2-T05` Bloquear el selector durante la carga/renovación de la guía y el inicio de la simulación; mostrar la certificación asociada al ID de la sesión activa.
+- [x] `P2-T06` Mejorar las instrucciones en español e inglés para generar preguntas que reflejen el formato y el razonamiento del examen vigente, usando los dominios y temas como alcance y evitando copiar preguntas oficiales.
 
 ### Validación
 
-- [ ] `GET /api/v1/certifications` devuelve los cinco IDs en el orden definido (prueba añadida; ejecución pendiente por falta de `TEST_DATABASE_URL`).
-- [ ] Para cada ID, la API devuelve una guía estructurada con referencias oficiales verificadas y suma de pesos de 100%.
-- [ ] Simulación, historial, plan y temas débiles conservan el ID seleccionado; Cloud Developer sigue como opción inicial (integración no ejecutada).
-- [ ] UI en español e inglés y validación visual manual.
+- [x] `GET /api/v1/certifications` devuelve los cinco IDs en el orden definido.
+- [x] Para cada ID, la API devuelve una guía estructurada con una cita al exam guide oficial y pesos que suman 100%.
+- [x] Simulación, historial, plan y temas débiles conservan el ID seleccionado; Cloud Developer sigue como opción inicial. Las pruebas de integración cubren esos recorridos con generadores falsos.
+- [x] El selector se bloquea mientras la consulta de guía está pendiente o activa y mientras inicia la simulación; quiz y resultados usan el ID de la sesión activa. Typecheck/build pasaron.
+- [x] Revisión manual de la UI en inglés y español: el catálogo muestra las cinco opciones y Cloud Developer inicia seleccionado. No se simuló una demora real de IA.
+- [x] Revisión del prompt de simulación en ambos idiomas; no se ejecutaron llamadas reales a OpenAI.
 
 ## Fuera de alcance
 
@@ -86,4 +91,4 @@ Ampliar el catálogo activo a cinco certificaciones profesionales: conservar Pro
 
 La aplicación comprueba que el modelo consultó y citó fuentes de Google, que los dominios tengan secciones únicas y que sus pesos sumen 100%. Como el servidor no extrae el PDF ni compara los porcentajes con una transcripción independiente, una lectura incorrecta del modelo puede publicarse. El usuario podrá abrir las citas desde la guía para revisar su procedencia.
 
-**Validación de esta implementación:** `bun run typecheck`, `bun run build`, `git diff --check`, las 7 pruebas puras de catálogo/generación/pesos y las 8 pruebas de datos de UI/API pasaron. Las pruebas de integración del servicio/catálogo no pudieron iniciar porque falta `TEST_DATABASE_URL`. No se hicieron llamadas a OpenAI.
+**Validación de PR-02:** `bun run typecheck`, `bun run build`, `git diff --check` y `bun test` pasaron. Las 55 pruebas cubren 11 archivos y corrieron contra PostgreSQL temporal; OpenAI quedó deshabilitado. La UI local y el prompt de simulación se revisaron en ambos idiomas. La ruta de bloqueo durante una solicitud demorada se confirmó en la condición de UI y compilación, pero no se forzó una llamada real o demorada a IA.

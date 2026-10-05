@@ -70,23 +70,23 @@ function buildPrompt(input: QuestionGeneratorInput) {
     : ''
   const instructions = isSpanish
     ? [
-      'Genera 20 preguntas originales de práctica para la certificación cloud indicada. No reproduzcas preguntas oficiales ni las presentes como preguntas reales del examen.',
+      'Actúa como diseñador experto de exámenes de certificación técnica de Google Cloud. Genera 20 preguntas originales de práctica que reflejen fielmente el formato, la dificultad, el nivel de razonamiento y los tipos de escenarios del examen vigente para la certificación indicada, alineadas con los dominios y temas proporcionados. Usa situaciones realistas que requieran aplicar conocimientos y elegir la mejor opción entre alternativas plausibles. No copies ni reproduzcas de cerca preguntas oficiales, ni afirmes que estas preguntas son oficiales o que aparecerán en el examen.',
       'Escribe todos los textos para el estudiante en español: enfoque, servicio, enunciado, opciones y explicación.',
       'Usa escenarios prácticos de desarrollo, operación y arquitectura de aplicaciones cloud; crea distractores plausibles y exactamente una opción correcta.',
       'Haz que las cuatro opciones tengan estructura gramatical, nivel de detalle y longitud comparables. Cada distractor debe ser técnicamente plausible y pertinente al escenario; evita respuestas obviamente absurdas o menos específicas que la correcta.',
       'Varía la posición de la opción correcta y no la pongas siempre primero. correctAnswerIndex debe señalar exactamente la opción correcta.',
-      'Toma como referencia principal la guía oficial vigente de Google Cloud para esta certificación y respeta los dominios y temas proporcionados.',
+      'Usa los dominios, temas y descripciones proporcionados como referencia de alcance; están basados en la guía oficial de examen de Google Cloud para esta certificación.',
       'Respeta exactamente la cantidad solicitada por dominio. Cada tema y dominio debe usar sus IDs estables proporcionados.',
       'Cada pregunta debe evaluar un solo objetivo, tener cuatro opciones distintas y una explicación breve de la opción correcta.',
       'No incluyas enlaces ni afirmes haber consultado fuentes en tiempo real.',
     ]
     : [
-      'Generate 20 original practice questions for the specified cloud certification. Do not reproduce official questions or present these as real exam questions.',
+      'Act as an expert designer of Google Cloud technical certification exams. Generate 20 original practice questions that closely reflect the format, difficulty, reasoning level, and scenario types of the current exam for the specified certification, aligned with the supplied domains and topics. Use realistic situations that require applying knowledge and choosing the best option among plausible alternatives. Do not copy or closely reproduce official questions, or claim these questions are official or will appear on the exam.',
       'Write all student-facing text in English: focus, service, question, options, and explanation.',
       'Use practical cloud application development, operations, and architecture scenarios; create plausible distractors and exactly one correct option.',
       'Keep all four options comparable in grammatical structure, level of detail, and length. Each distractor must be technically plausible and relevant to the scenario; avoid obviously absurd or less specific alternatives.',
       'Vary the correct option position instead of always placing it first. correctAnswerIndex must identify the exact correct option.',
-      'Use the current official Google Cloud exam guide for this certification as the primary reference and follow the supplied domains and topics.',
+      'Use the supplied domains, topics, and descriptions as the scope reference; they are based on the official Google Cloud exam guide for this certification.',
       'Follow the exact requested count per domain. Use the supplied stable domain and topic IDs.',
       'Each question should assess one objective, contain four distinct options, and provide a short explanation for the correct option.',
       'Do not include links or claim to have consulted live sources.',
