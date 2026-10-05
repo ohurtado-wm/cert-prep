@@ -8,11 +8,9 @@ let apiAppPromise: ReturnType<typeof createApiApp> | undefined
 function createApiApp() {
   return Promise.all([
     import('./server/db/client'),
-    import('drizzle-orm/bun-sqlite/migrator'),
     import('./server/app'),
-  ]).then(([databaseModule, migratorModule, appModule]) => {
+  ]).then(([databaseModule, appModule]) => {
     const { client, db } = databaseModule.createDatabase()
-    migratorModule.migrate(db, { migrationsFolder: './drizzle' })
     return { app: appModule.createApp({ db }), client }
   })
 }
@@ -25,10 +23,17 @@ app.all('/api/*', async (context) => {
 
 vike(app)
 
-export default { fetch: app.fetch } satisfies Server
+const server = { fetch: app.fetch, gracefulShutdown: true }
+export default server satisfies Server
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
-    void apiAppPromise?.then(({ client }) => client.close())
+    void apiAppPromise?.then(({ client }) => client.end())
   })
+} else {
+  const closePool = () => {
+    void apiAppPromise?.then(({ client }) => client.end())
+  }
+  process.once('SIGTERM', closePool)
+  process.once('SIGINT', closePool)
 }

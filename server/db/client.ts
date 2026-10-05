@@ -1,14 +1,34 @@
-import { mkdirSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { Database } from 'bun:sqlite'
-import { drizzle } from 'drizzle-orm/bun-sqlite'
+import { Pool, type PoolConfig } from 'pg'
+import { drizzle } from 'drizzle-orm/node-postgres'
 import * as schema from './schema'
 
-export function createDatabase(path = process.env.DATABASE_PATH ?? './data/cert-prep.sqlite') {
-  if (path !== ':memory:') mkdirSync(dirname(resolve(path)), { recursive: true })
+const DEFAULT_POOL_SIZE = 10
+const MAX_POOL_SIZE = 50
 
-  const client = new Database(path, { create: true })
-  client.exec('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;')
+function poolSize(value: string | undefined) {
+  if (!value) return DEFAULT_POOL_SIZE
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > MAX_POOL_SIZE) {
+    throw new Error(`DATABASE_POOL_MAX must be an integer between 1 and ${MAX_POOL_SIZE}.`)
+  }
+  return parsed
+}
+
+export function createDatabase(
+  databaseUrl = process.env.DATABASE_URL,
+  poolOptions: Omit<PoolConfig, 'connectionString'> = {},
+) {
+  if (!databaseUrl) throw new Error('DATABASE_URL is required to connect to PostgreSQL.')
+
+  const client = new Pool({
+    connectionString: databaseUrl,
+    max: poolSize(process.env.DATABASE_POOL_MAX),
+    connectionTimeoutMillis: 5_000,
+    idleTimeoutMillis: 30_000,
+    application_name: 'cert-prep',
+    ...poolOptions,
+  })
+
   return { client, db: drizzle({ client, schema }) }
 }
 

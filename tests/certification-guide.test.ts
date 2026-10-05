@@ -1,11 +1,11 @@
-import { beforeEach, describe, expect, test } from 'bun:test'
-import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { certificationCatalog } from '../server/catalog/certifications'
 import { createAiGuideGenerator, type GuideGenerator } from '../server/catalog/guide-generator'
-import { createDatabase } from '../server/db/client'
+import type { DatabaseHandle } from '../server/db/client'
 import { getCertificationGuide } from '../server/catalog/repository'
 import { createCertificationGuideService } from '../server/use-cases/certification-guide-service'
 import { createApp } from '../server/app'
+import { createTestDatabase } from './test-database'
 
 const certification = certificationCatalog[0]
 const sectionWeights = [33, 26, 19, 22]
@@ -31,15 +31,16 @@ function draftFromGuide(titleSuffix = '') {
 }
 
 describe('certification guide refresh', () => {
-  let client: ReturnType<typeof createDatabase>['client']
-  let db: ReturnType<typeof createDatabase>['db']
+  let db: DatabaseHandle
+  let testDatabase: Awaited<ReturnType<typeof createTestDatabase>>
 
-  beforeEach(() => {
-    const database = createDatabase(':memory:')
-    client = database.client
-    db = database.db
-    migrate(db, { migrationsFolder: './drizzle' })
+  beforeAll(async () => {
+    testDatabase = await createTestDatabase()
+    db = testDatabase.db
   })
+
+  beforeEach(async () => testDatabase.reset())
+  afterAll(async () => testDatabase?.close())
 
   test('catalog endpoint returns the supported certification without fetching upstream', async () => {
     const app = createApp({
@@ -52,7 +53,6 @@ describe('certification guide refresh', () => {
     expect(body.certifications).toHaveLength(1)
     expect(body.certifications[0]?.id).toBe('gcp-professional-cloud-developer')
     expect(body.certifications[0]?.sources).toHaveLength(3)
-    client.close()
   })
 
   test('first selection generates a guide and subsequent fresh reads avoid AI', async () => {
@@ -73,7 +73,6 @@ describe('certification guide refresh', () => {
     expect(firstBody.guide.sources).toHaveLength(3)
     expect(second.status).toBe(200)
     expect(aiCalls).toBe(1)
-    client.close()
   })
 
   test('monthly refresh calls AI and keeps the version when generated content is unchanged', async () => {
@@ -91,7 +90,6 @@ describe('certification guide refresh', () => {
     expect(first.version).toBe(1)
     expect(refreshed.version).toBe(1)
     expect(refreshed.freshness.aiRefreshedAt).toBe(currentTime.toISOString())
-    client.close()
   })
 
   test('changed generated guide publishes a new version atomically', async () => {
@@ -109,7 +107,6 @@ describe('certification guide refresh', () => {
     expect(first.version).toBe(1)
     expect(refreshed.version).toBe(2)
     expect(refreshed.domains[0]?.name.en).toContain('refreshed')
-    client.close()
   })
 
   test('concurrent stale-guide requests share one refresh lease', async () => {
@@ -130,7 +127,6 @@ describe('certification guide refresh', () => {
     ])
     expect(results.map((result) => result.version)).toEqual([1, 1])
     expect(aiCalls).toBe(1)
-    client.close()
   })
 
   test('AI failure leaves the last good guide intact and returns a recoverable error', async () => {
@@ -156,7 +152,6 @@ describe('certification guide refresh', () => {
     expect(stored?.version).toBe(1)
     expect(stored?.lastAiRefreshedAt?.toISOString()).toBe(original.freshness.aiRefreshedAt)
     expect(stored?.domains[0]?.name.en).toBe(original.domains[0]?.name.en)
-    client.close()
   })
 
   test('invalid AI output cannot replace a valid published guide', async () => {
@@ -181,7 +176,6 @@ describe('certification guide refresh', () => {
     const stored = await getCertificationGuide(db, certification.id)
     expect(stored?.version).toBe(1)
     expect(stored?.studyPath[0]?.url).toBe(certification.sources.find((source) => source.kind === 'learning-path')?.url)
-    client.close()
   })
 
   test('AI generation stays disabled until a model is configured', async () => {
@@ -190,6 +184,5 @@ describe('certification guide refresh', () => {
       code: 'AI_NOT_CONFIGURED',
       status: 503,
     })
-    client.close()
   })
 })

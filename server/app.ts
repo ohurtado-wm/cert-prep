@@ -3,7 +3,7 @@ import type { DatabaseHandle } from './db/client'
 import { ApiException } from './errors'
 import { logServerEvent } from './logger'
 import { createEnvironmentUserProvider, type UserProvider } from './gateway/user-provider'
-import { healthRoutes } from './routes/health'
+import { createHealthRoutes } from './routes/health'
 import { createMeRoutes } from './routes/me'
 import { createCertificationRoutes } from './routes/certifications'
 import { createCertificationGuideService } from './use-cases/certification-guide-service'
@@ -43,7 +43,7 @@ export function createApp({ db, userProvider = createEnvironmentUserProvider(), 
     }
   })
 
-  app.route('/api', healthRoutes)
+  app.route('/api', createHealthRoutes(db))
   app.route('/api/v1', createMeRoutes({ db, userProvider }))
   app.route('/api/v1', createCertificationRoutes(certificationGuideService))
   app.route('/api/v1', createSimulationRoutes({

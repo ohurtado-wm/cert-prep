@@ -1,37 +1,50 @@
-import { beforeEach, describe, expect, test } from 'bun:test'
-import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { ApiErrorSchema, CurrentUserResponseSchema, HealthResponseSchema } from '../src/api/contracts'
 import { createApp } from '../server/app'
 import { createDatabase } from '../server/db/client'
 import { recordGatewayUser } from '../server/db/repository'
 import { users } from '../server/db/schema'
 import { ApiException } from '../server/errors'
+import { migrate } from 'drizzle-orm/node-postgres/migrator'
+import { createTestDatabase } from './test-database'
 
 describe('API foundation', () => {
   let client: ReturnType<typeof createDatabase>['client']
   let db: ReturnType<typeof createDatabase>['db']
+  let testDatabase: Awaited<ReturnType<typeof createTestDatabase>>
 
-  beforeEach(() => {
-    const database = createDatabase(':memory:')
-    client = database.client
-    db = database.db
-    migrate(db, { migrationsFolder: './drizzle' })
+  beforeAll(async () => {
+    testDatabase = await createTestDatabase()
+    client = testDatabase.client
+    db = testDatabase.db
   })
+
+  beforeEach(async () => testDatabase.reset())
+  afterAll(async () => testDatabase?.close())
 
   test('health check is public', async () => {
     const app = createApp({ db, userProvider: async () => { throw new Error('should not be called') } })
     const response = await app.request('/api/healthz')
     expect(response.status).toBe(200)
     expect(HealthResponseSchema.parse(await response.json())).toEqual({ status: 'ok' })
-    client.close()
   })
 
-  test('fresh migration creates the intended SQL column names', () => {
-    const guideColumns = client.query('PRAGMA table_info(certification_guides)').all() as Array<{ name: string }>
-    const resultColumns = client.query('PRAGMA table_info(simulation_results)').all() as Array<{ name: string }>
-    expect(guideColumns.map((column) => column.name)).toContain('study_path')
-    expect(resultColumns.map((column) => column.name)).toContain('topic_breakdown')
-    client.close()
+  test('fresh migration creates the intended SQL column names', async () => {
+    const guideColumns = await client.query<{ column_name: string }>(
+      `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1`,
+      ['certification_guides'],
+    )
+    const resultColumns = await client.query<{ column_name: string }>(
+      `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1`,
+      ['simulation_results'],
+    )
+    expect(guideColumns.rows.map((column) => column.column_name)).toContain('study_path')
+    expect(resultColumns.rows.map((column) => column.column_name)).toContain('topic_breakdown')
+    await migrate(db, { migrationsFolder: './drizzle/postgresql', migrationsSchema: 'drizzle' })
+    const migrationCount = await client.query<{ count: number }>(
+      'SELECT COUNT(*)::int AS count FROM "drizzle"."__drizzle_migrations"',
+    )
+    expect(migrationCount.rows[0]?.count).toBe(1)
   })
 
   test('identity comes from the gateway and only the stable id is persisted', async () => {
@@ -57,7 +70,6 @@ describe('API foundation', () => {
     expect(await db.select().from(users)).toEqual([
       expect.objectContaining({ gatewayUserId: 'gateway-user-123' }),
     ])
-    client.close()
   })
 
   test('unauthenticated gateway response uses the stable API error envelope', async () => {
@@ -69,13 +81,11 @@ describe('API foundation', () => {
     expect(ApiErrorSchema.parse(await response.json())).toEqual({
       error: { code: 'UNAUTHENTICATED', message: 'Inicia sesión para continuar.' },
     })
-    client.close()
   })
 
   test('upserts the gateway identity without storing profile details', async () => {
     await recordGatewayUser(db, 'stable-id')
     await recordGatewayUser(db, 'stable-id')
     expect(await db.select().from(users)).toHaveLength(1)
-    client.close()
   })
 })

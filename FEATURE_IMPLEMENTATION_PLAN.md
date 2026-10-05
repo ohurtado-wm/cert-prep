@@ -1,7 +1,7 @@
 # Implementation Plan: Cert Helper — producto final
 
-**Estado:** PR-01…PR-05 y PR-07 integrados en `main`; PR-06 está abierto como PR #8 hacia `main`, con canary real pendiente.
-**Última actualización:** 2026-10-01
+**Estado:** PR-01…PR-08 integrados en el `main` local; PR-DB-01 está implementado y validado localmente en `codex/postgresql-migration`, con review/PR pendiente. El canary real de IA sigue pendiente.
+**Última actualización:** 2026-10-02
 
 ## Materiales fuente
 
@@ -17,8 +17,9 @@
 - **Completado:** PoC local aprobado; catálogo y guía oficial bilingües, generación IA de preguntas, sesiones seguras y UI conectada al backend para el historial.
 - **Completado en PR-01:** base Bun/Hono integrada con Vike, contratos Zod, esquema Drizzle/SQLite, migración inicial, resolución de usuario con `/users/me` y pruebas de identidad/rutas/migración.
 - **Completado en PR-02:** catálogo y guías de estudio generadas con IA, compartidas desde SQLite y renovadas bajo demanda cada 30 días.
-- **En curso:** PR-06 está abierto como PR #8 contra `main`; el canary real con OpenAI sigue pendiente de autorización.
-- **Repositorio:** conectado a `https://github.com/ohurtado-wm/cert-prep.git`; PR-01…PR-07 son límites de revisión propuestos.
+- **Integrado en `main`:** PR-08 define el ciclo de vida de sesiones reanudables; su merge local es `e63502d`.
+- **Implementado y validado localmente en `codex/postgresql-migration`:** PR-DB-01 migra la persistencia a PostgreSQL y Docker local; no importa ni conserva los datos de SQLite. Typecheck, build, configuración de Compose, migración limpia/repetible, suite PostgreSQL (53 pruebas; 368 aserciones), healthcheck, persistencia tras recrear PostgreSQL y ensayo de backup/restore pasan. Los cambios siguen locales; review/PR pendiente.
+- **Pendiente:** canary real con OpenAI, sujeto a autorización. El estado remoto de PRs no pudo verificarse porque GitHub CLI no tiene una sesión autenticada.
 
 ## Estado de PR
 
@@ -29,8 +30,10 @@
 | `PR-03` | Interfaz y contenido en español/inglés | Merged | `PR-02` | Flujo completo del catálogo en ambos idiomas |
 | `PR-04` | Generación de preguntas y sesiones seguras | Merged | `PR-01`, `PR-02` | 20 preguntas válidas; sesiones privadas por usuario |
 | `PR-05` | Sesiones web e historial por usuario en backend | Merged | `PR-01`, `PR-03`, `PR-04` | Práctica y Simulación Real guardan resultados autenticados |
-| `PR-06` | Plan de estudio personalizado con IA | PR #8 abierto contra `main`; canary real pendiente | `PR-05` | Recomendaciones ligadas a resultados y fuentes oficiales |
+| `PR-06` | Plan de estudio personalizado con IA | Código integrado localmente en `main` (`a428cda`); canary pendiente; estado remoto no verificado | `PR-05` | Recomendaciones ligadas a resultados y fuentes oficiales |
 | `PR-07` | Simulación enfocada en temas débiles | Merged en `main` | `PR-05` | Solo incluye temas aún no superados |
+| `PR-08` | Reanudación de simulaciones pendientes y retención | Integrado en `main` (`e63502d`) | `PR-05` | Una sesión pendiente por usuario; las completadas vencen en dos horas |
+| `PR-DB-01` | PostgreSQL y Docker Compose local para desarrollo y producción | Implementado y validado localmente en `codex/postgresql-migration`; review/PR pendiente | `PR-08` | Suite PostgreSQL, despliegue, persistencia del volumen y backup/restore pasan |
 
 ## Objetivo
 
@@ -57,17 +60,17 @@ El producto se considera completo solo cuando:
 - **Historial propuesto:** conservar las últimas 20 sesiones completadas por usuario y usar las 10 más recientes para recomendaciones. Guardar identificadores estables de dominio/tema, métricas y temas fallidos, no preguntas completas ni respuestas del usuario. Ofrecer una acción para borrar el historial.
 - **Frescura de guías:** `lastAiRefreshedAt` registra cuándo se generó la guía con IA, no una verificación de Google. Al cumplirse 30 días desde esa fecha, la primera solicitud de cualquier usuario puede disparar una actualización bajo demanda. Una lease SQL adquirida atómicamente permite un solo actualizador por certificación; las solicitudes concurrentes esperan o se unen al mismo trabajo. La lease tiene vencimiento para recuperarse si el proceso se interrumpe. El catálogo persistido se comparte entre usuarios, así que no se genera una guía por usuario. La renovación mensual es una llamada facturable a OpenAI y el prompt no realiza búsqueda web ni verifica cambios de Google en tiempo real; por ello, la guía puede no coincidir con el documento vigente incluso después de renovarla.
 - **Umbral inicial propuesto:** considerar un tema débil cuando el acierto reciente quede por debajo de 80%; este umbral es configurable y no representa el puntaje de aprobación oficial.
-- **Stack:** React + TypeScript estricto + Vike sobre Vite; Tailwind CSS, Zod, `fetch` nativo y TanStack Query; Bun + Hono para la API; Drizzle con SQLite para desarrollo local/una instancia, y PostgreSQL si el despliegue requiere varias instancias; Vercel AI SDK (`ai`) para las llamadas al modelo.
+- **Stack:** React + TypeScript estricto + Vike sobre Vite; Tailwind CSS, Zod, `fetch` nativo y TanStack Query; Bun + Hono para la API; Drizzle ORM con PostgreSQL como base runtime en desarrollo y producción local con Docker; Vercel AI SDK (`ai`) para las llamadas al modelo. La instalación PostgreSQL empieza vacía y descarta el SQLite existente.
 - **Seguridad y privacidad:** la API deriva el propietario desde una identidad validada con el gateway y aplica aislamiento por usuario en cada lectura/escritura; nunca confía en un `userId` enviado por el cliente. Usar `id` como clave, no el correo. Persistir solo ese ID externo por defecto; obtener correo/avatar del gateway si la UI los necesita y no guardar permisos ni enviarlos a IA. La IA recibe agregados mínimos calculados en servidor, sin identificadores ni datos personales.
 - **Datos del navegador:** `localStorage` conserva preferencias como idioma/tema; TanStack Query mantiene caché de UI en memoria y se limpia al cerrar sesión o cambiar de identidad. El backend es la fuente de verdad para historial y planes.
 - **Fuera del alcance:** contraseñas/cuentas propias, panel editorial, predicción de aprobación, reutilización de preguntas oficiales o garantía de que el contenido generativo equivalga al examen real.
-- **Despliegue:** una sola versión coherente del producto. El destino de producción aún no está definido.
+- **Despliegue:** una sola versión coherente del producto. PostgreSQL y la aplicación corren en Docker Compose en un host local; la base conserva su volumen, no se expone externamente y se respalda fuera del host/volumen.
 
 ## Forma de implementación
 
 - **Descubrimiento de certificación:** el catálogo expone la certificación y sus recursos oficiales, sin enviarlos como enlaces al modelo. Al seleccionar una certificación, la API devuelve la guía cacheada si se generó hace menos de 30 días. Al vencer, la petición intenta adquirir atómicamente una lease con vencimiento y genera dominios/ruta con Vercel AI SDK; las solicitudes concurrentes esperan o se unen al mismo trabajo. El prompt pide usar la guía oficial vigente de Google Cloud como referencia principal, sin búsqueda web ni verificación de cambios en tiempo real. La fecha reportada es de generación, no de validación; la salida estructurada valida pesos, dominios y pasos antes de publicarse. En caso de error, conserva la última versión buena y presenta un error recuperable.
 - **Generación:** la API compone preguntas según dominios y pesos de la certificación, pide salida estructurada con Zod, valida cantidad/opciones/respuesta única/cobertura y aplica un reintento acotado si falla. Si aún no cumple, cancela la sesión y presenta error recuperable.
-- **Sesión real:** la API conserva temporalmente preguntas y claves de respuesta en SQLite/PostgreSQL, asociadas al ID verificado del usuario. Solo ese usuario puede avanzar o consultar el resultado. El navegador recibe pregunta y opciones; cada clic en **Siguiente pregunta** envía la respuesta y recibe la próxima pregunta. La API devuelve puntuación y desglose únicamente al finalizar. Las sesiones incompletas expiran y se limpian.
+- **Sesión real:** la API conserva temporalmente preguntas y claves de respuesta en PostgreSQL, asociadas al ID verificado del usuario. Solo ese usuario puede avanzar o consultar el resultado. El navegador recibe pregunta y opciones; cada clic en **Siguiente pregunta** envía la respuesta y recibe la próxima pregunta. La API devuelve puntuación y desglose únicamente al finalizar. Las sesiones completadas expiran y se limpian; una sesión pendiente puede reanudarse.
 - **Identidad y autorización:** la aplicación consulta `/users/me` y usa el usuario que el gateway devuelve automáticamente. La API toma el `id` de esa respuesta como propietario; no acepta el `id`, correo ni permisos como autoridad si vienen solo en el cuerpo del cliente. El gateway gestiona credenciales y resolución de identidad; cada consulta de historial se limita al usuario devuelto para esa solicitud.
 - **Historial y personalización:** la API guarda resúmenes de sesiones completadas con `gatewayUserId` y calcula exactitud/fallos por tema al atender recomendaciones o simulaciones débiles. Solo manda los agregados necesarios a IA, sin perfil personal; los planes generados se guardan asociados al mismo usuario. La UI consume historial/planes mediante `fetch` y TanStack Query; `localStorage` queda para preferencias y caché de interfaz.
 
@@ -128,7 +131,7 @@ sequenceDiagram
 | `src/i18n/` (nuevo) | Catálogo de cadenas y preferencia ES/EN | Pruebas de claves faltantes y cambio de idioma |
 | `src/api/simulations.ts` | Cliente API/cache para perfil, sesiones e historial por usuario; `localStorage` solo para preferencias/UI | Integración de carga, aislamiento y estados de error |
 | `server/` (nuevo) | Hono, capas de rutas/casos de uso/proveedores, validación Zod y errores | `bun:test` de lógica y rutas |
-| `drizzle/` (nuevo) | Esquema/migraciones de usuarios externos, sesiones/resultados/planes por propietario, guías, lease y sesiones efímeras | Migraciones sobre SQLite y PostgreSQL objetivo |
+| `drizzle/postgresql/` (nuevo) | Migraciones PostgreSQL para usuarios, sesiones/resultados/planes por propietario, guías, leases y eventos operativos; `drizzle/` queda como historial SQLite heredado | Migraciones sobre PostgreSQL vacío |
 | `tests/fixtures/certifications-es.json`, `tests/fixtures/certifications-en.json` | Mantener los bancos PoC solo como fixtures; no servir claves de respuestas desde assets públicos | Pruebas del esquema/idioma heredados |
 | `package.json` | Scripts de API, migración, pruebas, E2E y ejecución local | Ejecutar los comandos documentados |
 | `tests/` (nuevo) | Fixtures oficiales anonimizados, modelos falsos, evaluaciones y recorridos browser | CI y canary AI controlado |
@@ -257,7 +260,7 @@ sequenceDiagram
 
 **Validación local:** `bun run typecheck`, `bun test` (26 pruebas) y `bun run build` pasaron. Las pruebas usan un generador falso; no se realizó una llamada real a OpenAI. La validación de idioma confirma el locale declarado por el modelo y el prompt exige que todos los textos estén en ese idioma; no hay un clasificador independiente de idioma ni una evaluación semántica de calidad en esta fase.
 
-**Límites de operación (objetivo tras PR-08):** una sesión pendiente por usuario sin vencimiento; una nueva simulación la reemplaza solo después de generar y validar las preguntas. Las filas completadas conservan una retención breve de dos horas. Se mantienen hasta tres intentos de inicio por hora; reanudar no consume el límite. El bloqueo de generación es local al proceso y los contadores de inicios fallidos viven en memoria; una instalación con varias instancias requerirá un lease/limitador compartido.
+**Límites de operación tras PR-08:** una sesión pendiente por usuario sin vencimiento; una nueva simulación la reemplaza solo después de generar y validar las preguntas. Las filas completadas conservan una retención de dos horas. Se mantienen hasta tres intentos de inicio por hora y reanudar no consume el límite. En `main`, el bloqueo de generación y los inicios fallidos viven en memoria; PR-DB-01 los reemplaza en esta rama con leases y eventos persistidos en PostgreSQL.
 
 ## PR-05: Sesión web e historial por usuario
 
@@ -286,7 +289,7 @@ sequenceDiagram
 ## PR-06: Plan de estudio sugerido
 
 **ID:** `PR-06`  
-**Estado:** PR #8 abierto contra `main`; canary real pendiente de autorización
+**Estado:** código integrado localmente en `main` (`a428cda`); canary real pendiente de autorización y estado remoto no verificado
 **Objetivo:** recomendar qué estudiar a partir de los resultados recientes, sin delegar la aritmética al modelo.  
 **Dependencia:** `PR-05`; puede avanzar en paralelo con `PR-07` una vez compartido el módulo de analítica.
 
@@ -334,18 +337,18 @@ sequenceDiagram
 ## Validación transversal
 
 - [ ] Pruebas `bun:test` para esquemas, identidad/aislamiento, puntuación, prioridad de recomendaciones, retención por usuario y lógica de exclusión.
-- [ ] Pruebas de integración Hono + Drizzle contra SQLite temporal; validar el dialecto PostgreSQL antes del despliegue que lo requiera.
+- [ ] Pruebas de integración Hono + Drizzle contra PostgreSQL aislado; verificar migraciones, aislamiento por usuario y persistencia tras reinicios.
 - [ ] E2E en ES/EN de selección → ruta → generación → práctica y modo real → resultado → historial → plan/temas débiles.
 - [ ] Canaries AI pequeños, versionados y con presupuesto limitado; CI usa proveedor falso y fixtures oficiales congelados.
 - [ ] Ejecutar `typecheck`, build Vike, migraciones y E2E desde comandos documentados.
 - [ ] Inspeccionar respuestas de red del modo real y bundles cliente para comprobar que no publican claves ni secretos.
 - [ ] Verificar sesión ausente/expirada, aislamiento entre usuarios, borrado propio y que la IA no reciba identificadores del gateway.
 - [ ] Verificar errores de fuente/proveedor, timeout, salida inválida, límite de uso y fallos de almacenamiento/red.
-- [ ] Probar el TTL de 30 días, leases y actualización concurrente sobre SQLite; validar el mismo contrato en PostgreSQL antes de multi-instancia.
+- [ ] Probar el TTL de 30 días, leases y actualización concurrente sobre PostgreSQL.
 
 ## Preguntas abiertas
 
 - ¿Cuál certificación AWS debe incluirse: Solutions Architect Associate SAA-C03, Professional SAP-C02 u otra? El código de examen es necesario para fijar guía y dominios.
 - ¿Qué proveedor/modelo aprobado usará Vercel AI SDK y cuál es el presupuesto/latencia máxima por selección, simulación y recomendación?
 - Revisar con datos de uso si el umbral inicial configurable de 80% para considerar un tema superado necesita ajuste.
-- ¿El destino inicial será local/una instancia (SQLite) o habrá despliegue multi-instancia (PostgreSQL)? Esto determina la base de producción y expiración de sesiones.
+- ¿Dónde se almacenarán los backups PostgreSQL fuera del host y cuál será su retención antes de habilitar usuarios reales?
