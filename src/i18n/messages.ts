@@ -4,7 +4,7 @@ const messages = {
   es: {
     pageTitle: 'Certification Helper | Simulador de certificaciones',
     brandLabel: 'West Monroe',
-    localBadge: 'PoC local',
+    localBadge: 'v1',
     languageLabel: 'Idioma de la aplicación',
     languageSpanish: 'Cambiar idioma a español',
     languageEnglish: 'Cambiar idioma a inglés',
