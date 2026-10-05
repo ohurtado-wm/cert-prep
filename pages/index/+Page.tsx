@@ -531,7 +531,7 @@ function Header({
             height="36"
           />
           <span className="brand-divider" aria-hidden="true" />
-          <span className="product-name">Certification HELPER</span>
+          <span className="product-name">CERTIFICATION HELPER</span>
         </div>
         <div className="header-actions">
           <span className="local-badge"><span aria-hidden="true" /> {text('localBadge')}</span>
