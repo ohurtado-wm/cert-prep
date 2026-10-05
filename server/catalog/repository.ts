@@ -4,6 +4,17 @@ import { certificationGuides, certifications, guideRefreshLeases } from '../db/s
 import type { CertificationCatalogItem, GuideDomain, StudyPathStep } from '../../src/api/certification-contracts'
 import type { AiTokenUsage } from '../../src/api/ai-usage-contracts'
 
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`
+  if (typeof value === 'object' && value !== null) {
+    const entries = Object.entries(value).sort(([left], [right]) => left.localeCompare(right))
+    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`).join(',')}}`
+  }
+  const serialized = JSON.stringify(value)
+  if (serialized === undefined) throw new Error('Guide data must be JSON serializable.')
+  return serialized
+}
+
 export async function syncCertificationCatalog(
   db: DatabaseHandle,
   catalog: CertificationCatalogItem[],
@@ -93,8 +104,8 @@ export async function publishGuide(
       where: eq(certificationGuides.certificationId, input.certificationId),
     })
     const contentChanged = !previous
-      || JSON.stringify(previous.domains) !== JSON.stringify(input.domains)
-      || JSON.stringify(previous.studyPath) !== JSON.stringify(input.studyPath)
+      || stableJson(previous.domains) !== stableJson(input.domains)
+      || stableJson(previous.studyPath) !== stableJson(input.studyPath)
     const version = (previous?.version ?? 0) + (contentChanged ? 1 : 0)
 
     await transaction.insert(certificationGuides).values({

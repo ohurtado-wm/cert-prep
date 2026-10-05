@@ -1,4 +1,10 @@
+import { sql } from 'drizzle-orm'
 import { Hono } from 'hono'
+import type { DatabaseHandle } from '../db/client'
 
-export const healthRoutes = new Hono().get('/healthz', (context) =>
-  context.json({ status: 'ok' as const }))
+export function createHealthRoutes(db: DatabaseHandle) {
+  return new Hono().get('/healthz', async (context) => {
+    await db.execute(sql`select 1`)
+    return context.json({ status: 'ok' as const })
+  })
+}

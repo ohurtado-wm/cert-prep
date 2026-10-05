@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { AiTokenUsageSchema, type AiTokenUsage } from '../../src/api/ai-usage-contracts'
-import { and, count, desc, eq, gt, gte, inArray, isNull, lte, or } from 'drizzle-orm'
+import { and, desc, eq, gt, inArray, isNull, lte, or } from 'drizzle-orm'
 import {
   SimulationAnswerResponseSchema,
   MAX_SIMULATION_HISTORY_ITEMS,
@@ -18,6 +18,7 @@ import { WeakTopicAnalysisResponseSchema, type WeakTopic } from '../../src/api/w
 import type { DatabaseHandle } from '../db/client'
 import { certificationGuides, simulationResults, simulationSessions, simulationStartEvents } from '../db/schema'
 import { ApiException } from '../errors'
+import { acquireGenerationLease, finishSimulationStart, releaseGenerationLease, reserveSimulationStart } from '../simulations/repository'
 import type { createCertificationGuideService } from './certification-guide-service'
 import { createAiQuestionGenerator, type QuestionGenerator } from '../simulations/question-generator'
 import { InvalidQuestionSetError, allocateQuestionsByWeight, validateGeneratedQuestions } from '../simulations/question-validation'
@@ -26,6 +27,7 @@ import { StoredSimulationStateSchema, type StoredSimulationQuestion, type Stored
 
 const SESSION_LIFETIME_MS = 2 * 60 * 60 * 1_000
 const RATE_WINDOW_MS = 60 * 60 * 1_000
+const GENERATION_LEASE_MS = 5 * 60 * 1_000
 const MAX_STARTS_PER_HOUR = 3
 const MAX_ANSWER_ATTEMPTS = 3
 const MAX_QUESTION_GENERATION_ATTEMPTS = 2
@@ -192,9 +194,6 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
   const now = options.now ?? (() => new Date())
   const sessionIdFactory = options.sessionIdFactory ?? randomUUID
   const questionIdFactory = options.questionIdFactory ?? randomUUID
-  const generationInProgress = new Set<string>()
-  const failedStartAttempts = new Map<string, number[]>()
-
   async function ownedSession(userId: string, sessionId: string) {
     const row = await db.query.simulationSessions.findFirst({
       where: and(eq(simulationSessions.id, sessionId), eq(simulationSessions.gatewayUserId, userId)),
@@ -309,36 +308,40 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
 
   async function startInternal(userId: string, request: StartSimulationRequest, focusWeakTopics: boolean): Promise<SimulationSnapshot> {
     const requestTime = now()
-    const cutoff = requestTime.getTime() - RATE_WINDOW_MS
-    const failures = (failedStartAttempts.get(userId) ?? []).filter((timestamp) => timestamp > cutoff)
-    if (failures.length === 0) failedStartAttempts.delete(userId)
-    else failedStartAttempts.set(userId, failures)
-    if (generationInProgress.has(userId)) {
+    const cutoff = new Date(requestTime.getTime() - RATE_WINDOW_MS)
+    const leaseToken = randomUUID()
+    const leaseAcquired = await acquireGenerationLease(
+      db,
+      userId,
+      requestTime,
+      new Date(requestTime.getTime() + GENERATION_LEASE_MS),
+      leaseToken,
+    )
+    if (!leaseAcquired) {
       throw new ApiException(429, 'SIMULATION_GENERATION_IN_PROGRESS', 'Your questions are already being prepared.')
     }
 
-    generationInProgress.add(userId)
+    let startEventId: string | undefined
     let saved = false
-    let generationAttempted = false
     try {
       await db.delete(simulationSessions).where(and(
         eq(simulationSessions.gatewayUserId, userId),
         lte(simulationSessions.expiresAt, requestTime),
       ))
 
-      await db.delete(simulationStartEvents).where(and(
-        eq(simulationStartEvents.gatewayUserId, userId),
-        lte(simulationStartEvents.startedAt, new Date(cutoff)),
-      ))
-      const [recentStartCount] = await db.select({ value: count() }).from(simulationStartEvents).where(and(
-        eq(simulationStartEvents.gatewayUserId, userId),
-        gte(simulationStartEvents.startedAt, new Date(cutoff)),
-      ))
-      if ((recentStartCount?.value ?? 0) + failures.length >= MAX_STARTS_PER_HOUR) {
+      const reservedStartId = randomUUID()
+      const reserved = await reserveSimulationStart(db, {
+        id: reservedStartId,
+        userId,
+        startedAt: requestTime,
+        cutoff,
+        limit: MAX_STARTS_PER_HOUR,
+      })
+      if (!reserved) {
         throw new ApiException(429, 'SIMULATION_RATE_LIMITED', 'You have reached the hourly simulation limit. Try again later.')
       }
+      startEventId = reservedStartId
 
-      generationAttempted = true
       const guide = await options.guideService.getGuide(request.certificationId)
       const guideTopicIds = new Set(guide.domains.flatMap((domain) => domain.topics.map((topic) => topic.id)))
       const weakAnalysis = focusWeakTopics
@@ -436,14 +439,20 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
           eq(simulationSessions.status, 'active'),
         ))
         await tx.insert(simulationSessions).values(rowValues)
-        await tx.insert(simulationStartEvents).values({ id: sessionId, gatewayUserId: userId, startedAt: requestTime })
+        await tx.update(simulationStartEvents).set({ status: 'succeeded' }).where(and(
+          eq(simulationStartEvents.id, reservedStartId),
+          eq(simulationStartEvents.gatewayUserId, userId),
+        ))
       })
       saved = true
       return toSnapshot(rowValues, state)
     } catch (error) {
-      if (generationAttempted && !saved) {
-        const nextFailures = [...(failedStartAttempts.get(userId) ?? []), requestTime.getTime()]
-        failedStartAttempts.set(userId, nextFailures)
+      if (startEventId && !saved) {
+        try {
+          await finishSimulationStart(db, startEventId, userId, 'failed')
+        } catch {
+          // The reserved event still counts if the database cannot record its final outcome.
+        }
       }
       if (error instanceof ApiException) throw error
       if (error instanceof InvalidQuestionSetError) {
@@ -451,7 +460,11 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
       }
       throw new ApiException(503, 'QUESTION_GENERATION_UNAVAILABLE', 'Questions could not be generated. Try again.')
     } finally {
-      generationInProgress.delete(userId)
+      try {
+        await releaseGenerationLease(db, userId, leaseToken)
+      } catch {
+        // The lease expires automatically if a database outage prevents release.
+      }
     }
   }
 

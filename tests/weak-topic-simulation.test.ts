@@ -1,15 +1,15 @@
-import { expect, test } from 'bun:test'
+import { afterAll, beforeAll, beforeEach, expect, test } from 'bun:test'
 import { eq } from 'drizzle-orm'
-import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
 import type { CertificationGuideResponse } from '../src/api/certification-contracts'
 import { certificationCatalog } from '../server/catalog/certifications'
 import { syncCertificationCatalog } from '../server/catalog/repository'
-import { createDatabase } from '../server/db/client'
+import type { DatabaseHandle } from '../server/db/client'
 import { simulationResults, simulationSessions } from '../server/db/schema'
 import { createApp } from '../server/app'
 import { createSimulationService } from '../server/use-cases/simulation-service'
 import type { QuestionGenerator } from '../server/simulations/question-generator'
 import { StoredSimulationStateSchema } from '../server/simulations/state'
+import { createTestDatabase } from './test-database'
 
 const certification = certificationCatalog[0]!
 const guide: CertificationGuideResponse = {
@@ -57,10 +57,18 @@ function makeFocusedQuestionGenerator(onInput?: (input: Parameters<QuestionGener
   }
 }
 
+let testDatabase: Awaited<ReturnType<typeof createTestDatabase>>
+let db: DatabaseHandle
+
+beforeAll(async () => {
+  testDatabase = await createTestDatabase()
+  db = testDatabase.db
+})
+
+beforeEach(async () => testDatabase.reset())
+afterAll(async () => testDatabase?.close())
+
 async function makeContext(questionGenerator: QuestionGenerator = makeFocusedQuestionGenerator()) {
-  const database = createDatabase(':memory:')
-  const { db, client } = database
-  migrate(db, { migrationsFolder: './drizzle' })
   await syncCertificationCatalog(db, certificationCatalog, new Date('2026-10-01T00:00:00.000Z'))
   const service = createSimulationService(db, { guideService: { getGuide: async () => guide }, questionGenerator })
   const app = createApp({
@@ -69,7 +77,7 @@ async function makeContext(questionGenerator: QuestionGenerator = makeFocusedQue
     simulationService: service,
   })
   await app.request('/api/v1/me')
-  return { app, db, client }
+  return { app, db }
 }
 
 async function saveResult(
@@ -100,7 +108,7 @@ async function saveResult(
 }
 
 test('weak topic preview is per user and distinguishes empty and fully passed history', async () => {
-  const { app, db, client } = await makeContext()
+  const { app, db } = await makeContext()
   const path = `/api/v1/simulations/weak-topics?certificationId=${certification.id}`
 
   expect(await (await app.request(path)).json()).toMatchObject({ status: 'history_empty', topics: [] })
@@ -136,12 +144,11 @@ test('weak topic preview is per user and distinguishes empty and fully passed hi
   })
   expect(masteredStart.status).toBe(409)
   expect(await masteredStart.json()).toMatchObject({ error: { code: 'NO_WEAK_TOPICS' } })
-  client.close()
 })
 
 test('focused start sends only weak topics and exact topic quotas to the question generator', async () => {
   let observed: Parameters<QuestionGenerator>[0] | undefined
-  const { app, db, client } = await makeContext(makeFocusedQuestionGenerator((input) => { observed = input }))
+  const { app, db } = await makeContext(makeFocusedQuestionGenerator((input) => { observed = input }))
   await saveResult(db, 'learner-1', 'weak-result', {
     'weak-topic': { correct: 6, total: 10 },
     'passed-topic': { correct: 8, total: 10 },
@@ -184,7 +191,6 @@ test('focused start sends only weak topics and exact topic quotas to the questio
   expect(completed).toMatchObject({ status: 'completed', result: { totalQuestions: 20, correctAnswers: 20 } })
   const saved = (await db.select().from(simulationResults)).find(({ id }) => id === session.sessionId)
   expect(saved?.topicBreakdown).toEqual({ 'weak-topic': { correct: 20, total: 20 } })
-  client.close()
 })
 
 test('focused start rejects generated questions from a passed topic', async () => {
@@ -201,7 +207,7 @@ test('focused start rejects generated questions from a passed topic', async () =
       explanation: `Explanation ${index + 1}.`,
     })),
   })
-  const { app, db, client } = await makeContext(invalidGenerator)
+  const { app, db } = await makeContext(invalidGenerator)
   await saveResult(db, 'learner-1', 'weak-result', {
     'weak-topic': { correct: 6, total: 10 },
     'passed-topic': { correct: 8, total: 10 },
@@ -215,11 +221,10 @@ test('focused start rejects generated questions from a passed topic', async () =
   expect(response.status).toBe(503)
   expect(await response.json()).toMatchObject({ error: { code: 'QUESTION_SET_INVALID' } })
   expect(await db.select().from(simulationSessions)).toHaveLength(0)
-  client.close()
 })
 
 test('weak topic analysis is limited to the ten most recent completed results', async () => {
-  const { app, db, client } = await makeContext()
+  const { app, db } = await makeContext()
   for (let index = 0; index < 10; index += 1) {
     await saveResult(db, 'learner-1', `recent-${index}`, {
       'weak-topic': { correct: 8, total: 10 },
@@ -233,11 +238,10 @@ test('weak topic analysis is limited to the ten most recent completed results', 
 
   const response = await app.request(`/api/v1/simulations/weak-topics?certificationId=${certification.id}`)
   expect(await response.json()).toMatchObject({ status: 'no_weak_topics', analyzedSessionCount: 10, topics: [] })
-  client.close()
 })
 
 test('a successful weak-topic start replaces the pending session and failed eligibility preserves it', async () => {
-  const { app, db, client } = await makeContext()
+  const { app, db } = await makeContext()
   await saveResult(db, 'learner-1', 'weak-result', {
     'weak-topic': { correct: 6, total: 10 },
     'passed-topic': { correct: 8, total: 10 },
@@ -263,5 +267,4 @@ test('a successful weak-topic start replaces the pending session and failed elig
   expect(noLongerEligible.status).toBe(409)
   expect(await noLongerEligible.json()).toMatchObject({ error: { code: 'SIMULATION_HISTORY_EMPTY' } })
   expect((await (await app.request('/api/v1/simulations/active')).json() as { sessionId: string }).sessionId).toBe(secondSession.sessionId)
-  client.close()
 })

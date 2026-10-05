@@ -1,26 +1,29 @@
 # Implementation Plan: Migrar Cert Prep de SQLite a PostgreSQL
 
-**Status:** Draft  
-**Last Updated:** 2026-10-01
+**Status:** Implemented and validated; [PR #14](https://github.com/ohurtado-wm/cert-prep/pull/14) is open for review
+**Last Updated:** 2026-10-05
 
 ## Source Materials
 
-- [FEATURE_IMPLEMENTATION_PLAN.md](../../FEATURE_IMPLEMENTATION_PLAN.md) - define SQLite para una instancia, PostgreSQL para varias y deja el destino de despliegue abierto.
+- [FEATURE_IMPLEMENTATION_PLAN.md](../../FEATURE_IMPLEMENTATION_PLAN.md) - registra PostgreSQL y Docker local como destino elegido para esta migración.
 - [README.md](../../README.md) - documenta la configuración y persistencia actuales.
 - [Drizzle: PostgreSQL](https://orm.drizzle.team/docs/get-started-postgresql) - referencia de integración Drizzle con PostgreSQL y `node-postgres`.
 - [Docker Official Image: PostgreSQL](https://hub.docker.com/_/postgres) - imagen, credenciales y persistencia en volumen.
 
 ## Status
 
-- Completado: API, casos de uso y persistencia Drizzle funcionan sobre SQLite; las tablas separan historial y sesiones por usuario.
-- En curso: nada para esta migración.
-- Pendiente: PostgreSQL en desarrollo y producción Docker, base nueva vacía y validación de coordinación entre procesos.
+- Completado: PR-08 está integrado en `main` (`e63502d`); define sesión pendiente sin vencimiento, sesión completada con retención de dos horas y un índice parcial de sesión activa por usuario.
+- Implementado: driver, esquema, migración, coordinación persistente, Docker Compose, pruebas y documentación en `codex/postgresql-migration`; los cambios siguen locales y sin commit/PR.
+- Validado localmente: `bun run typecheck`, `bun test` (53 pruebas; 368 aserciones), `bun run build`, configuración de Compose, migración PostgreSQL limpia y repetible, `/api/healthz` (200), nueve tablas y rol de aplicación sin superusuario.
+- Validado: backup con `pg_dump` y restauración con `pg_restore` en una base descartable; se recuperó un registro de prueba y se eliminó después.
+- Pendiente de operación antes de habilitar usuarios: definir destino y retención de backups fuera del host. No queda una validación técnica local pendiente.
 
 ## PR Status
 
 | PR | Alcance | Estado | Dependencia | Gate de validación |
 |---|---|---|---|---|
-| `PR-DB-01` | Cambiar persistencia runtime a PostgreSQL, ejecutar app + base con Docker y cerrar brechas de concurrencia entre procesos | No iniciado | Host local con Docker Compose y volumen persistente | Suite de integración contra PostgreSQL y ensayo limpio de despliegue/reinicio |
+| `PR-08` | Reanudación de simulaciones pendientes y retención | Integrado en `main` (`e63502d`) | `PR-05` | Contrato final de sesiones aplicado antes de la migración |
+| `PR-DB-01` | Cambiar persistencia runtime a PostgreSQL, ejecutar app + base con Docker y cerrar brechas de concurrencia entre procesos | Abierto para revisión: [PR #14](https://github.com/ohurtado-wm/cert-prep/pull/14) | `PR-08` integrado; host local con Docker Compose y volumen persistente | Suite PostgreSQL, despliegue, persistencia del volumen y backup/restore pasan |
 
 ## Goal
 
@@ -28,7 +31,7 @@ Usar PostgreSQL como único dialecto runtime de Cert Prep, tanto localmente como
 
 ## Scope and Constraints
 
-- Incluye: ocho tablas actuales, esquema Drizzle, conexión/pool, migraciones PostgreSQL, pruebas de persistencia, configuración y documentación de operación.
+- Incluye: las ocho tablas actuales más el lease persistente de generación, esquema Drizzle, conexión/pool, migraciones PostgreSQL, pruebas de persistencia, configuración y documentación de operación.
 - Incluye: sustituir el bloqueo de generación por usuario y el contador de inicios fallidos que hoy viven en memoria por coordinación persistente con vencimiento en PostgreSQL.
 - Incluye: `Dockerfile` y Compose para correr aplicación y PostgreSQL en local y en el host de producción.
 - Fuera de alcance: proveedor concreto de nube, cambios de UI y rediseños de historial o reglas de negocio ajenos a la concurrencia necesaria para el corte.
@@ -44,7 +47,7 @@ Usar PostgreSQL como único dialecto runtime de Cert Prep, tanto localmente como
 - **Esquema:** cambiar `sqlite-core` por `pg-core`; representar fechas como `timestamptz`/`Date`, datos estructurados como `jsonb`, y añadir índices para consultas por usuario, vencimiento y fecha de resultado.
 - **Migraciones:** generar un historial PostgreSQL nuevo en `drizzle/postgresql/`. Compose ejecuta un servicio de migración de una sola vez después del healthcheck de PostgreSQL y antes de iniciar la app; el servidor web no compite por ejecutar migraciones.
 - **Concurrencia:** adquirir atómicamente un lease por usuario antes de contar/iniciar generación; registrar éxitos y fallos de inicio en almacenamiento compartido; liberar el lease por token y recuperarlo por expiración si un proceso muere.
-- **Contenedores:** fijar una versión mayor estable de la imagen oficial `postgres` (no `latest`), usar volumen nombrado para `PGDATA`, healthcheck con `pg_isready`, reinicio automático, rol de aplicación sin privilegios de superusuario y secretos fuera del repositorio. No publicar `5432` en producción.
+- **Contenedores:** fijar la imagen oficial `postgres:18.6-trixie`, usar el volumen nombrado en `/var/lib/postgresql` y `PGDATA=/var/lib/postgresql/18/docker`, healthcheck con `pg_isready`, reinicio automático, rol de aplicación sin privilegios de superusuario y secretos fuera del repositorio. No publicar `5432` en producción.
 - **Corte:** no hay exportación ni importación. Levantar PostgreSQL vacío, aplicar migraciones, verificar el catálogo inicial, arrancar app y smoke checks. Tras el primer uso, la recuperación es desde backups de PostgreSQL, no desde SQLite.
 
 ## Hosting Options and Minimum
@@ -59,7 +62,7 @@ Usar PostgreSQL como único dialecto runtime de Cert Prep, tanto localmente como
 
 | Área / archivo | Cambio previsto | Validación |
 |---|---|---|
-| `server/db/schema.ts` | Tablas PostgreSQL, JSONB, timestamps, índices y lease de generación por usuario | Esquema/migración en PostgreSQL vacío |
+| `server/db/schema.ts` | Nueve tablas PostgreSQL, JSONB, timestamps, índices y lease de generación por usuario | Esquema/migración en PostgreSQL vacío |
 | `server/db/client.ts`, `+server.ts`, `server/db/migrate.ts` | Pool PostgreSQL, cierre de conexión y migración como comando separado del arranque | Arranque, readiness, apagado y migración repetible |
 | `drizzle.config.ts`, `drizzle/postgresql/` | Configuración e historial PostgreSQL separados del historial SQLite | Crear y aplicar migraciones en una base descartable |
 | `server/use-cases/simulation-service.ts`, `server/catalog/repository.ts` | Contar intentos fallidos de forma persistente y usar leases SQL para generación/actualización concurrente | Dos servicios/conexiones no duplican generación ni exceden límites por usuario |
@@ -70,10 +73,10 @@ Usar PostgreSQL como único dialecto runtime de Cert Prep, tanto localmente como
 
 ## PR / Review Strategy
 
-- `PR-DB-01`: un único PR para backend PostgreSQL, Docker Compose, coordinación compartida, pruebas y documentación. Gate: validación completa sobre una instalación limpia y ensayo de restauración de backup PostgreSQL. Anterior: `PR-08` (cierra primero el lifecycle y la retención de sesiones); siguiente: ninguno.
+- `PR-DB-01`: un único PR para backend PostgreSQL, Docker Compose, coordinación compartida, pruebas y documentación. Gate: validación completa sobre una instalación limpia y ensayo de restauración de backup PostgreSQL. Anterior: `PR-08`, ya integrado en `main`; siguiente: ninguno.
 - Stacking: un PR; evitar que cambios de `simulation_sessions` o su expiración se desarrollen en paralelo con la nueva migración base.
 - Orden de revisión: contrato del esquema e invariantes de concurrencia; luego contenedores, instalación limpia y configuración operativa.
-- El plan [Resume Pending Simulations](resumable-simulations-implementation-plan.md) modifica `simulation_sessions` y se ejecuta antes de `PR-DB-01`. Incorporar su esquema final de lifecycle, índice de sesión pendiente y vencimiento nullable en la migración PostgreSQL inicial; no desarrollar ambos cambios de esquema en paralelo.
+- El plan [Resume Pending Simulations](resumable-simulations-implementation-plan.md) ya está integrado en `main`. La migración PostgreSQL inicial debe reflejar su esquema final: sesión pendiente sin vencimiento, sesión completada con expiración, índice único parcial para una sesión pendiente por usuario y comparación optimista de estado.
 
 ## Parallel Execution Notes
 
@@ -85,41 +88,42 @@ Usar PostgreSQL como único dialecto runtime de Cert Prep, tanto localmente como
 ## PR 1: PostgreSQL runtime en Docker
 
 **PR ID:** `PR-DB-01`  
-**Status:** No iniciado  
-**Objective:** Cambiar la fuente de verdad a PostgreSQL, desplegar app + base en Docker sobre un host y demostrar aislamiento y comportamiento entre procesos desde una base vacía.  
-**Depends On:** Host local de producción con Docker Compose y almacenamiento persistente disponible.  
+**Status:** Implementado y validado; [PR #14](https://github.com/ohurtado-wm/cert-prep/pull/14) abierto para revisión
+**Objective:** Cambiar la fuente de verdad a PostgreSQL, desplegar app + base en Docker sobre un host y demostrar aislamiento y comportamiento entre procesos desde una base vacía.
+**Depends On:** Host local de producción con Docker Compose y almacenamiento persistente disponible.
 **Parallelism:** La matriz de pruebas de base vacía y el Dockerfile pueden prepararse en paralelo; driver, schema y migraciones deben acordarse antes de adaptar servicios y pruebas.
 
 ### Tasks
 
-- [ ] `DB1-T01` Añadir `pg` y Drizzle `node-postgres`; leer `DATABASE_URL`, limitar el pool al presupuesto de conexiones del host y cerrar el pool al apagar el servidor.
-- [ ] `DB1-T02` Convertir las ocho tablas a `pg-core`; migrar timestamps epoch-ms a `timestamptz`/`Date`, columnas JSON a `jsonb`, conservar claves externas e índices para lecturas por propietario.
-- [ ] `DB1-T03` Crear migración PostgreSQL inicial en carpeta separada; mover `db:migrate` a un paso explícito de release y retirar la migración automática por proceso al iniciar la API.
-- [ ] `DB1-T04` Cambiar el control de generación por usuario a un lease con token y vencimiento en PostgreSQL; guardar inicios fallidos junto a los exitosos para que el límite por hora sobreviva cambios de proceso. Mantener atómicos el conteo, la creación de sesión y el registro de inicio.
-- [ ] `DB1-T05` Añadir `Dockerfile` y Compose: servicio PG para desarrollo local y app + PG + migrador para producción; usar versión mayor fijada, healthcheck, volumen persistente, red privada, rol DB de mínimo privilegio y secretos; no exponer el puerto PostgreSQL en producción.
-- [ ] `DB1-T06` Mover pruebas de API, simulaciones y guías a una base PostgreSQL aislada; cubrir transacciones, dos conexiones/servicios, aislamiento entre usuarios, rate limit y leases concurrentes.
-- [ ] `DB1-T07` Actualizar `.env.example`, `README.md` y `FEATURE_IMPLEMENTATION_PLAN.md` con instalación limpia, Compose, migraciones, backups y restauración; declarar que SQLite y sus datos se descartan.
-- [ ] `DB1-T08` Ensayar arranque limpio: levantar PostgreSQL, aplicar migraciones, validar catálogo sembrado desde código, comprobar generación de guía bajo demanda, iniciar la app y recrear contenedores verificando persistencia en el volumen.
-- [ ] `DB1-T09` Documentar y probar `pg_dump`/restauración a una instancia descartable; indicar que rollback posterior al inicio de uso requiere restaurar datos PostgreSQL o corregir hacia adelante, nunca volver al SQLite vacío/obsoleto.
+- [x] `DB1-T01` Añadir `pg` y Drizzle `node-postgres`; leer `DATABASE_URL`, limitar el pool al presupuesto de conexiones del host y cerrar el pool al apagar el servidor.
+- [x] `DB1-T02` Convertir las ocho tablas existentes y agregar el lease de generación en `pg-core`; usar `timestamptz`/`Date`, `jsonb`, claves externas e índices para lecturas por propietario.
+- [x] `DB1-T03` Crear migración PostgreSQL inicial en carpeta separada; mover `db:migrate` a un paso explícito de release y retirar la migración automática por proceso al iniciar la API.
+- [x] `DB1-T04` Cambiar el control de generación por usuario a un lease con token y vencimiento en PostgreSQL; guardar inicios fallidos junto a los exitosos para que el límite por hora sobreviva cambios de proceso. Mantener atómicos el conteo, la creación de sesión y el registro de inicio.
+- [x] `DB1-T05` Añadir `Dockerfile` y Compose: servicio PG para desarrollo local y app + PG + migrador para producción; usar versión mayor fijada, healthcheck, volumen persistente, red privada, rol DB de mínimo privilegio y secretos; no exponer el puerto PostgreSQL en producción.
+- [x] `DB1-T06` Mover pruebas de API, simulaciones y guías a una base PostgreSQL aislada; cubrir transacciones, dos conexiones/servicios, aislamiento entre usuarios, rate limit y leases concurrentes.
+- [x] `DB1-T07` Actualizar `.env.example`, `README.md` y `FEATURE_IMPLEMENTATION_PLAN.md` con instalación limpia, Compose, migraciones, backups y restauración; declarar que SQLite y sus datos se descartan.
+- [x] `DB1-T08` Ensayar arranque limpio: levantar PostgreSQL, aplicar migraciones, validar catálogo sembrado desde código, comprobar generación de guía bajo demanda, iniciar la app y recrear contenedores verificando persistencia en el volumen. Compose arrancó desde una base vacía; el endpoint sincronizó el catálogo, la suite comprobó la guía bajo demanda con un generador falso, el healthcheck respondió 200 y un registro persistió tras recrear PostgreSQL.
+- [x] `DB1-T09` Documentar y probar `pg_dump`/restauración a una instancia descartable; indicar que rollback posterior al inicio de uso requiere restaurar datos PostgreSQL o corregir hacia adelante, nunca volver al SQLite vacío/obsoleto. `pg_dump`/`pg_restore` recuperaron un registro de prueba en una base PostgreSQL descartable.
 
 ### Validation Criteria
 
-- [ ] Base PostgreSQL vacía se crea desde las migraciones y una segunda ejecución no cambia el esquema ni duplica migraciones.
-- [ ] Las pruebas de rutas/casos de uso corren contra PostgreSQL y verifican identidad, historial, planes, sesiones, borrado, claves foráneas y persistencia después de reiniciar el proceso.
-- [ ] Dos instancias de `simulation-service` usando la misma base no generan preguntas dos veces para el mismo usuario; intentos fallidos y exitosos respetan juntos el límite horario.
-- [ ] Dos solicitudes sobre la misma respuesta mantienen la protección optimista existente; solicitudes concurrentes de guías comparten una lease y publican una sola actualización.
-- [ ] Base nueva no requiere `data/cert-prep.sqlite`; el catálogo de certificaciones se siembra desde código y la guía se crea bajo demanda.
-- [ ] `docker compose up` espera PostgreSQL sano y migraciones exitosas; la app responde desde el mismo host sin publicar el puerto DB.
-- [ ] Recrear el contenedor PostgreSQL conserva datos en el volumen; restaurar backup en una instancia descartable recupera el estado esperado.
-- [ ] `bun run typecheck`, `bun test`, `bun run build`, `bun run db:migrate` y chequeos de formato/documentación pasan contra la configuración final.
+- [x] Base PostgreSQL vacía se crea desde las migraciones y una segunda ejecución no cambia el esquema ni duplica migraciones.
+- [x] Las pruebas de rutas/casos de uso corren contra PostgreSQL y verifican identidad, historial, planes, sesiones, borrado, claves foráneas y persistencia dentro de las suites de integración (53 pruebas; 368 aserciones).
+- [x] Dos instancias de `simulation-service` usando la misma base no generan preguntas dos veces para el mismo usuario; intentos fallidos y exitosos respetan juntos el límite horario.
+- [x] Dos solicitudes sobre la misma respuesta mantienen la protección optimista existente; solicitudes concurrentes de guías comparten una lease y publican una sola actualización.
+- [x] Base nueva no requiere `data/cert-prep.sqlite`; el catálogo de certificaciones se siembra desde código y la guía se crea bajo demanda.
+- [x] `docker compose up` espera PostgreSQL sano y migraciones exitosas; la app responde desde el mismo host sin publicar el puerto DB (healthcheck HTTP 200; Compose sin puerto publicado para PostgreSQL).
+- [x] Recrear el contenedor PostgreSQL conserva datos en el volumen.
+- [x] Restaurar backup en una instancia PostgreSQL descartable recupera el estado esperado.
+- [x] `bun run typecheck`, `bun test`, `bun run build`, `bun run db:migrate` y `git diff --check` pasan contra la configuración PostgreSQL; la migración se repitió correctamente.
 
 ### Risks / Open Questions
 
 - Un único host Docker no ofrece failover ni sobrevive a la pérdida del host/disco; los backups externos y una prueba de restore son requisito para uso real.
-- El bloqueo de generación y los fallos hoy viven en memoria (`generationInProgress`, `failedStartAttempts`). PostgreSQL por sí solo no comparte esos valores; `DB1-T04` es requisito antes de correr varias instancias.
+- Antes de PR-DB-01, el bloqueo de generación y los fallos vivían en memoria (`generationInProgress`, `failedStartAttempts`); esta rama los reemplaza con leases y eventos persistidos para coordinar procesos.
 - Las migraciones actuales y snapshots son SQLite; marcarlos como legado y no reescribirlos como si se hubieran aplicado en PostgreSQL.
-- La imagen Docker con `latest` arriesga upgrades mayores accidentales; fijar versión mayor y planear upgrades con backup/restore.
-- `PR-08` define el lifecycle y la retención final de `simulation_sessions` antes de iniciar `PR-DB-01`; reflejar ese contrato en la migración PostgreSQL inicial.
+- Una actualización de PostgreSQL requiere planear el cambio de imagen y verificar compatibilidad/restauración antes del despliegue; la imagen actual está fijada, no usa `latest`.
+- El esquema de `simulation_sessions` en PostgreSQL refleja el lifecycle integrado por PR-08: sesión pendiente sin vencimiento, completadas con retención e índice parcial para una sesión pendiente por usuario.
 
 ## Cross-Cutting Validation
 

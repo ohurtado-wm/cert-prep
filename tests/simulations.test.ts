@@ -1,16 +1,16 @@
-import { beforeEach, describe, expect, test } from 'bun:test'
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { eq } from 'drizzle-orm'
-import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
 import type { CertificationGuideResponse, Locale } from '../src/api/certification-contracts'
 import type { SimulationSnapshot } from '../src/api/simulation-contracts'
 import { certificationCatalog } from '../server/catalog/certifications'
 import { syncCertificationCatalog } from '../server/catalog/repository'
 import { createDatabase } from '../server/db/client'
-import { simulationSessions } from '../server/db/schema'
+import { simulationSessions, simulationStartEvents } from '../server/db/schema'
 import { createSimulationService } from '../server/use-cases/simulation-service'
 import { createApp } from '../server/app'
 import type { QuestionGenerator } from '../server/simulations/question-generator'
 import { StoredSimulationStateSchema } from '../server/simulations/state'
+import { createTestDatabase } from './test-database'
 
 const certification = certificationCatalog[0]!
 const learningPathUrl = certification.sources.find(({ kind }) => kind === 'learning-path')!.url
@@ -62,28 +62,33 @@ function generatedSet(language: Locale = 'en') {
 }
 
 describe('simulation sessions', () => {
-  let client: ReturnType<typeof createDatabase>['client']
   let db: ReturnType<typeof createDatabase>['db']
+  let testDatabase: Awaited<ReturnType<typeof createTestDatabase>>
+
+  beforeAll(async () => {
+    testDatabase = await createTestDatabase()
+    db = testDatabase.db
+  })
 
   beforeEach(async () => {
-    const database = createDatabase(':memory:')
-    client = database.client
-    db = database.db
-    migrate(db, { migrationsFolder: './drizzle' })
+    await testDatabase.reset()
     await syncCertificationCatalog(db, certificationCatalog, new Date('2026-09-30T12:00:00.000Z'))
   })
+
+  afterAll(async () => testDatabase?.close())
 
   function makeApp(
     generator: QuestionGenerator = async ({ language }) => generatedSet(language),
     now?: () => Date,
+    database: ReturnType<typeof createDatabase>['db'] = db,
   ) {
-    const service = createSimulationService(db, {
+    const service = createSimulationService(database, {
       guideService: { getGuide: async () => guide },
       questionGenerator: generator,
       ...(now ? { now } : {}),
     })
     return createApp({
-      db,
+      db: database,
       userProvider: async (request) => ({
         id: request.headers.get('x-test-user') ?? 'learner-1',
         email: 'learner@example.com',
@@ -139,7 +144,6 @@ describe('simulation sessions', () => {
       expect(question.answers[correctPosition]!.text).toStartWith('Correct option ')
     }
     expect(positionCounts).toEqual([5, 5, 5, 5])
-    client.close()
   })
 
   test('real sessions keep answers and explanations server-side until completion', async () => {
@@ -182,7 +186,6 @@ describe('simulation sessions', () => {
 
     const [stored] = await db.select().from(simulationSessions)
     expect(JSON.stringify(stored?.state)).toMatch(/correctAnswerId/)
-    client.close()
   })
 
   test('real mode accepts each answer once, advances automatically, and purges keys at completion', async () => {
@@ -222,7 +225,6 @@ describe('simulation sessions', () => {
     const completedSnapshot = await completed.json() as Record<string, unknown>
     expect(completedSnapshot).not.toHaveProperty('printableQuestions')
     expect(JSON.stringify(completedSnapshot)).not.toMatch(/correctAnswerId|explanation|sourceUrl/)
-    client.close()
   })
 
   test('practice mode supports retries, feedback, reveal, and continue', async () => {
@@ -266,7 +268,6 @@ describe('simulation sessions', () => {
       question: '¿Qué decisión ayuda a resolver el escenario práctico 1-1?',
       answer: 'Opción correcta 1-1',
     })
-    client.close()
   })
 
   test('invalid generated questions get one bounded repair and otherwise do not create a session', async () => {
@@ -279,12 +280,10 @@ describe('simulation sessions', () => {
     })
     expect((await start(repaired)).sessionId).toBeTruthy()
     expect(calls).toBe(2)
-    client.close()
-
-    const secondDatabase = createDatabase(':memory:')
+    await testDatabase.reset()
+    const secondDatabase = createDatabase(testDatabase.url)
     const secondClient = secondDatabase.client
     const secondDb = secondDatabase.db
-    migrate(secondDb, { migrationsFolder: './drizzle' })
     await syncCertificationCatalog(secondDb, certificationCatalog, new Date())
     const invalidService = createSimulationService(secondDb, {
       guideService: { getGuide: async () => guide },
@@ -300,7 +299,7 @@ describe('simulation sessions', () => {
     })
     expect(invalid.status).toBe(503)
     expect(await secondDb.select().from(simulationSessions)).toHaveLength(0)
-    secondClient.close()
+    await secondClient.end()
   })
 
   test('concurrent answer submissions cannot overwrite the same question', async () => {
@@ -313,7 +312,6 @@ describe('simulation sessions', () => {
     })
     const responses = await Promise.all([submit(), submit()])
     expect(responses.map(({ status }) => status).sort()).toEqual([200, 409])
-    client.close()
   })
 
   test('the owner can resume pending practice state without generating questions or leaking unanswered keys', async () => {
@@ -380,7 +378,6 @@ describe('simulation sessions', () => {
     })).status).toBe(404)
     expect((await app.request(`/api/v1/simulations/${session.sessionId}`, { method: 'DELETE' })).status).toBe(204)
     expect(await (await app.request(activePath)).json()).toBeNull()
-    client.close()
   })
 
   test('successful starts replace pending progress, failed generation preserves it, and retries keep the hourly limit', async () => {
@@ -403,9 +400,13 @@ describe('simulation sessions', () => {
     expect(failedReplacement.status).toBe(503)
     expect((await (await app.request('/api/v1/simulations/active')).json() as SimulationSnapshot).sessionId).toBe(first.sessionId)
 
-    const replacement = await start(app)
+    const secondDatabase = createDatabase(testDatabase.url)
+    const secondApp = makeApp(async ({ language }) => generatedSet(language), undefined, secondDatabase.db)
+    const replacement = await start(secondApp)
     expect(replacement.sessionId).not.toBe(first.sessionId)
     expect((await app.request(`/api/v1/simulations/${first.sessionId}`)).status).toBe(404)
+    expect((await db.select({ status: simulationStartEvents.status }).from(simulationStartEvents))
+      .map(({ status }) => status).sort()).toEqual(['failed', 'succeeded', 'succeeded'])
     const rateLimited = await app.request('/api/v1/simulations', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -413,7 +414,7 @@ describe('simulation sessions', () => {
     })
     expect(rateLimited.status).toBe(429)
     expect((await (await app.request('/api/v1/simulations/active')).json() as SimulationSnapshot).sessionId).toBe(replacement.sessionId)
-    client.close()
+    await secondDatabase.client.end()
   })
 
   test('completed session rows keep short retention while their result remains in history', async () => {
@@ -440,34 +441,35 @@ describe('simulation sessions', () => {
     expect((await app.request(`/api/v1/simulations/${session.sessionId}`)).status).toBe(404)
     const history = await (await app.request('/api/v1/simulation-history')).json() as { sessions: unknown[] }
     expect(history.sessions).toHaveLength(1)
-    client.close()
   })
 
   test('concurrent service instances leave at most one pending session for the user', async () => {
-    let entered = 0
+    let notifyStarted!: () => void
+    const generationStarted = new Promise<void>((resolve) => { notifyStarted = resolve })
     let release!: () => void
     const generationBarrier = new Promise<void>((resolve) => { release = resolve })
     const generator: QuestionGenerator = async ({ language }) => {
-      entered += 1
-      if (entered === 2) release()
+      notifyStarted()
       await generationBarrier
       return generatedSet(language)
     }
     const firstApp = makeApp(generator)
-    const secondApp = makeApp(generator)
+    const secondDatabase = createDatabase(testDatabase.url)
+    const secondApp = makeApp(generator, undefined, secondDatabase.db)
     const startRequest = () => ({
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ certificationId: certification.id, mode: 'real', language: 'en' }),
     })
-    const responses = await Promise.all([
-      firstApp.request('/api/v1/simulations', startRequest()),
-      secondApp.request('/api/v1/simulations', startRequest()),
-    ])
-
-    expect(responses.filter(({ status }) => status === 201)).toHaveLength(1)
+    const firstStart = firstApp.request('/api/v1/simulations', startRequest())
+    await generationStarted
+    const competingStart = await secondApp.request('/api/v1/simulations', startRequest())
+    expect(competingStart.status).toBe(429)
+    expect(await competingStart.json()).toMatchObject({ error: { code: 'SIMULATION_GENERATION_IN_PROGRESS' } })
+    release()
+    expect((await firstStart).status).toBe(201)
     expect(await db.select().from(simulationSessions).where(eq(simulationSessions.status, 'active'))).toHaveLength(1)
     expect(await (await firstApp.request('/api/v1/simulations/active')).json()).toMatchObject({ status: 'active', expiresAt: null })
-    client.close()
+    await secondDatabase.client.end()
   })
 })

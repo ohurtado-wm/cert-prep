@@ -1,14 +1,14 @@
-import { beforeEach, describe, expect, test } from 'bun:test'
-import { migrate } from 'drizzle-orm/bun-sqlite/migrator'
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import type { CertificationGuideResponse } from '../src/api/certification-contracts'
 import { certificationCatalog } from '../server/catalog/certifications'
 import { syncCertificationCatalog } from '../server/catalog/repository'
-import { createDatabase } from '../server/db/client'
+import type { DatabaseHandle } from '../server/db/client'
 import { simulationResults, studyPlans, users } from '../server/db/schema'
 import { createApp } from '../server/app'
 import { createStudyPlanService } from '../server/use-cases/study-plan-service'
 import type { StudyPlanPromptInput, StudyPlanGenerator } from '../server/study-plans/plan-generator'
 import { aggregateStudyResults } from '../server/study-plans/analytics'
+import { createTestDatabase } from './test-database'
 
 const certification = certificationCatalog[0]!
 const now = new Date('2026-10-01T12:00:00.000Z')
@@ -71,12 +71,16 @@ function planGenerator(onInput?: (input: StudyPlanPromptInput) => void): StudyPl
 }
 
 describe('study plans', () => {
-  const database = createDatabase(':memory:')
-  const { db, client } = database
+  let testDatabase: Awaited<ReturnType<typeof createTestDatabase>>
+  let db: DatabaseHandle
+
+  beforeAll(async () => {
+    testDatabase = await createTestDatabase()
+    db = testDatabase.db
+  })
 
   beforeEach(async () => {
-    migrate(db, { migrationsFolder: './drizzle' })
-    client.exec('DELETE FROM study_plans; DELETE FROM simulation_results; DELETE FROM users;')
+    await testDatabase.reset()
     await syncCertificationCatalog(db, certificationCatalog, now)
     await db.insert(users).values({
       gatewayUserId: 'learner-1',
@@ -84,6 +88,8 @@ describe('study plans', () => {
       updatedAt: now,
     })
   })
+
+  afterAll(async () => testDatabase?.close())
 
   function appWith(generator: StudyPlanGenerator = planGenerator()) {
     let nextPlanId = 0

@@ -2,9 +2,9 @@ import { defineConfig } from 'drizzle-kit'
 
 export default defineConfig({
   schema: './server/db/schema.ts',
-  out: './drizzle',
-  dialect: 'sqlite',
+  out: './drizzle/postgresql',
+  dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_PATH ?? './data/cert-prep.sqlite',
+    url: process.env.DATABASE_URL ?? 'postgres://localhost/cert_prep',
   },
 })

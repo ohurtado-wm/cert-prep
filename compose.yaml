@@ -1,0 +1,76 @@
+name: cert-prep
+
+services:
+  db:
+    image: postgres:18.6-trixie
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cert_prep}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-cert_prep_app}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?Set POSTGRES_APP_PASSWORD in .env}
+      PGDATA: /var/lib/postgresql/18/docker
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./docker/init/010-create-app-role.sh:/docker-entrypoint-initdb.d/010-create-app-role.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - cert-prep
+    stop_grace_period: 1m
+
+  migrate:
+    image: cert-prep:local
+    build: .
+    command: ["bun", "run", "db:migrate"]
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_APP_USER:-cert_prep_app}:${POSTGRES_APP_PASSWORD:?Set POSTGRES_APP_PASSWORD in .env}@db:5432/${POSTGRES_DB:-cert_prep}
+      DATABASE_POOL_MAX: 2
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - cert-prep
+
+  app:
+    image: cert-prep:local
+    build: .
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_APP_USER:-cert_prep_app}:${POSTGRES_APP_PASSWORD:?Set POSTGRES_APP_PASSWORD in .env}@db:5432/${POSTGRES_DB:-cert_prep}
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
+      GATEWAY_USERS_ME_URL: ${GATEWAY_USERS_ME_URL:-https://westmonroe-cloud.com/users/me}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      AI_MODEL: ${AI_MODEL:-gpt-6-luna}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    ports:
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1:3000/api/healthz').then((response) => { if (!response.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - cert-prep
+    stop_grace_period: 30s
+
+volumes:
+  postgres_data:
+
+networks:
+  cert-prep:
+    driver: bridge
