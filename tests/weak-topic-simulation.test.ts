@@ -34,7 +34,8 @@ const guide: CertificationGuideResponse = {
     url: certification.sources.find(({ kind }) => kind === 'learning-path')!.url,
   }],
   sources: certification.sources,
-  freshness: { aiRefreshedAt: '2026-10-01T00:00:00.000Z' },
+  researchSources: [],
+  freshness: { aiRefreshedAt: '2026-10-01T00:00:00.000Z', sourceCheckedAt: null },
 }
 
 function makeFocusedQuestionGenerator(onInput?: (input: Parameters<QuestionGenerator>[0]) => void): QuestionGenerator {

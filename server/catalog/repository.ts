@@ -3,6 +3,7 @@ import type { DatabaseHandle } from '../db/client'
 import { certificationGuides, certifications, guideRefreshLeases } from '../db/schema'
 import type { CertificationCatalogItem, GuideDomain, StudyPathStep } from '../../src/api/certification-contracts'
 import type { AiTokenUsage } from '../../src/api/ai-usage-contracts'
+import type { CachedGuideSources } from './source-types'
 
 function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`
@@ -95,6 +96,8 @@ export async function publishGuide(
     domains: GuideDomain[]
     studyPath: StudyPathStep[]
     aiUsage?: AiTokenUsage | null
+    sourceHash: string
+    sourceSnapshot: CachedGuideSources
     now: Date
     leaseToken: string
   },
@@ -114,9 +117,9 @@ export async function publishGuide(
       domains: input.domains,
       studyPath: input.studyPath,
       aiUsage: input.aiUsage ?? null,
-      sourceHash: null,
-      sourceSnapshot: null,
-      lastSourceCheckedAt: null,
+      sourceHash: input.sourceHash,
+      sourceSnapshot: input.sourceSnapshot,
+      lastSourceCheckedAt: input.now,
       lastAiRefreshedAt: input.now,
       updatedAt: input.now,
     }).onConflictDoUpdate({
@@ -126,9 +129,9 @@ export async function publishGuide(
         domains: input.domains,
         studyPath: input.studyPath,
         aiUsage: input.aiUsage ?? null,
-        sourceHash: null,
-        sourceSnapshot: null,
-        lastSourceCheckedAt: null,
+        sourceHash: input.sourceHash,
+        sourceSnapshot: input.sourceSnapshot,
+        lastSourceCheckedAt: input.now,
         lastAiRefreshedAt: input.now,
         updatedAt: input.now,
       },

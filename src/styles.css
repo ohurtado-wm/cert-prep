@@ -1248,6 +1248,12 @@ select:focus-visible,
   font-size: 20px;
 }
 
+.official-sources h3 {
+  margin: 28px 0 14px;
+  font-family: 'IBM Plex Sans', Arial, Helvetica, sans-serif;
+  font-size: 16px;
+}
+
 .official-sources ul {
   display: grid;
   gap: 12px;

@@ -38,7 +38,8 @@ const guide: CertificationGuideResponse = {
     url: learningPathUrl,
   }],
   sources: certification.sources,
-  freshness: { aiRefreshedAt: '2026-09-30T12:00:00.000Z' },
+  researchSources: [],
+  freshness: { aiRefreshedAt: '2026-09-30T12:00:00.000Z', sourceCheckedAt: null },
 }
 
 function generatedSet(language: Locale = 'en') {

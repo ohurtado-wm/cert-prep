@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import { certificationCatalog } from '../server/catalog/certifications'
-import { createAiGuideGenerator, type GuideGenerator } from '../server/catalog/guide-generator'
+import {
+  type GuideGenerator,
+} from '../server/catalog/guide-generator'
 import type { DatabaseHandle } from '../server/db/client'
 import { getCertificationGuide } from '../server/catalog/repository'
 import { createCertificationGuideService } from '../server/use-cases/certification-guide-service'
@@ -8,7 +10,7 @@ import { createApp } from '../server/app'
 import { createTestDatabase } from './test-database'
 
 const certification = certificationCatalog[0]
-const sectionWeights = [33, 26, 19, 22]
+const sectionWeights = [17.5, 22.5, 30, 30]
 
 function draftFromGuide(titleSuffix = '') {
   return {
@@ -30,6 +32,11 @@ function draftFromGuide(titleSuffix = '') {
   }
 }
 
+function generatedGuide(output: ReturnType<typeof draftFromGuide>) {
+  const examGuide = certification.sources.find((source) => source.kind === 'exam-guide')!
+  return { output, researchSources: [{ title: examGuide.title, url: examGuide.url }] }
+}
+
 describe('certification guide refresh', () => {
   let db: DatabaseHandle
   let testDatabase: Awaited<ReturnType<typeof createTestDatabase>>
@@ -42,7 +49,7 @@ describe('certification guide refresh', () => {
   beforeEach(async () => testDatabase.reset())
   afterAll(async () => testDatabase?.close())
 
-  test('catalog endpoint returns the supported certification without fetching upstream', async () => {
+  test('catalog endpoint returns all supported certifications without fetching upstream', async () => {
     const app = createApp({
       db,
       guideGenerator: async () => { throw new Error('catalog listing must not call AI') },
@@ -50,8 +57,14 @@ describe('certification guide refresh', () => {
     const response = await app.request('/api/v1/certifications')
     const body = await response.json() as { certifications: Array<{ id: string; sources: unknown[] }> }
     expect(response.status).toBe(200)
-    expect(body.certifications).toHaveLength(1)
-    expect(body.certifications[0]?.id).toBe('gcp-professional-cloud-developer')
+    expect(body.certifications).toHaveLength(5)
+    expect(body.certifications.map(({ id }) => id)).toEqual([
+      'gcp-professional-cloud-developer',
+      'gcp-professional-cloud-architect',
+      'gcp-professional-cloud-database-engineer',
+      'gcp-professional-data-engineer',
+      'gcp-professional-cloud-devops-engineer',
+    ])
     expect(body.certifications[0]?.sources).toHaveLength(3)
   })
 
@@ -59,18 +72,28 @@ describe('certification guide refresh', () => {
     let aiCalls = 0
     const guideGenerator: GuideGenerator = async () => {
       aiCalls += 1
-      return draftFromGuide()
+      return generatedGuide(draftFromGuide())
     }
     const app = createApp({ db, guideGenerator })
 
     const first = await app.request(`/api/v1/certifications/${certification.id}/guide`)
-    const firstBody = await first.json() as { guide: { version: number; domains: unknown[]; studyPath: unknown[]; sources: unknown[] } }
+    const firstBody = await first.json() as { guide: {
+      version: number
+      domains: Array<{ weight: number }>
+      studyPath: unknown[]
+      sources: unknown[]
+      researchSources: unknown[]
+      freshness: { sourceCheckedAt: string | null }
+    } }
     const second = await app.request(`/api/v1/certifications/${certification.id}/guide`)
     expect(first.status).toBe(200)
     expect(firstBody.guide.version).toBe(1)
     expect(firstBody.guide.domains).toHaveLength(4)
     expect(firstBody.guide.studyPath).toHaveLength(3)
     expect(firstBody.guide.sources).toHaveLength(3)
+    expect(firstBody.guide.researchSources).toHaveLength(1)
+    expect(firstBody.guide.domains[0]?.weight).toBe(17.5)
+    expect(firstBody.guide.freshness.sourceCheckedAt).toBeTruthy()
     expect(second.status).toBe(200)
     expect(aiCalls).toBe(1)
   })
@@ -80,7 +103,7 @@ describe('certification guide refresh', () => {
     let aiCalls = 0
     const service = createCertificationGuideService(db, {
       now: () => new Date(currentTime),
-      guideGenerator: async () => { aiCalls += 1; return draftFromGuide() },
+      guideGenerator: async () => { aiCalls += 1; return generatedGuide(draftFromGuide()) },
     })
 
     const first = await service.getGuide(certification.id)
@@ -97,7 +120,7 @@ describe('certification guide refresh', () => {
     let contentSuffix = ''
     const service = createCertificationGuideService(db, {
       now: () => new Date(currentTime),
-      guideGenerator: async () => draftFromGuide(contentSuffix),
+      guideGenerator: async () => generatedGuide(draftFromGuide(contentSuffix)),
     })
 
     const first = await service.getGuide(certification.id)
@@ -117,7 +140,7 @@ describe('certification guide refresh', () => {
       guideGenerator: async () => {
         aiCalls += 1
         await new Promise((resolve) => setTimeout(resolve, 30))
-        return draftFromGuide()
+        return generatedGuide(draftFromGuide())
       },
     })
 
@@ -136,7 +159,7 @@ describe('certification guide refresh', () => {
       now: () => new Date(currentTime),
       guideGenerator: async () => {
         if (fail) throw new Error('private provider details')
-        return draftFromGuide()
+        return generatedGuide(draftFromGuide())
       },
     })
 
@@ -161,11 +184,11 @@ describe('certification guide refresh', () => {
       now: () => new Date(currentTime),
       guideGenerator: async () => {
         const draft = draftFromGuide()
-        if (!invalid) return draft
-        return {
+        if (!invalid) return generatedGuide(draft)
+        return generatedGuide({
           ...draft,
           domains: draft.domains.map((domain, index) => index === 0 ? { ...domain, weight: domain.weight + 1 } : domain),
-        }
+        })
       },
     })
 
@@ -178,11 +201,19 @@ describe('certification guide refresh', () => {
     expect(stored?.studyPath[0]?.url).toBe(certification.sources.find((source) => source.kind === 'learning-path')?.url)
   })
 
-  test('AI generation stays disabled until a model is configured', async () => {
-    const generate = createAiGuideGenerator('')
-    await expect(generate({ certification })).rejects.toMatchObject({
-      code: 'AI_NOT_CONFIGURED',
-      status: 503,
+  test('guide refresh rejects missing and non-Google citations', async () => {
+    const examGuide = certification.sources.find((source) => source.kind === 'exam-guide')!
+    const service = createCertificationGuideService(db, {
+      guideGenerator: async () => ({
+        output: draftFromGuide(),
+        researchSources: [
+          { title: 'Untrusted source', url: 'https://example.com/guide' },
+          { title: examGuide.title, url: examGuide.url },
+        ],
+      }),
     })
+
+    await expect(service.getGuide(certification.id)).rejects.toMatchObject({ code: 'GUIDE_AI_INVALID', status: 502 })
+    expect(await getCertificationGuide(db, certification.id)).toBeUndefined()
   })
 })

@@ -1,7 +1,7 @@
 export default function Head() {
   return (
     <>
-      <title>Cert Helper · Professional Cloud Developer</title>
+      <title>Certification Helper · Professional Cloud Developer</title>
       <meta
         name="description"
         content="Practica para la certificación Professional Cloud Developer con preguntas guiadas por tema y servicio."

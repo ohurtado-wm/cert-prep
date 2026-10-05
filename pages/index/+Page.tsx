@@ -41,6 +41,7 @@ import '../../src/styles.css'
 
 type Theme = 'light' | 'dark'
 type Screen = 'home' | 'quiz' | 'results'
+const GUIDE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1_000
 const topicColors = ['#F900D3', '#00E8FA', '#1DD566', '#FFC700']
 
 export default function Page() {
@@ -109,8 +110,11 @@ function CertificationApp() {
     queryKey: ['certification-guide', selectedCertification?.id],
     queryFn: () => loadCertificationGuide(selectedCertification!.id),
     enabled: Boolean(selectedCertification),
-    staleTime: 0,
-    refetchOnMount: 'always',
+    staleTime: (query) => {
+      const refreshedAt = query.state.data?.freshness.aiRefreshedAt
+      if (!refreshedAt) return 0
+      return Math.max(0, Date.parse(refreshedAt) + GUIDE_MAX_AGE_MS - Date.now())
+    },
     refetchOnWindowFocus: false,
     retry: false,
   })
@@ -374,7 +378,7 @@ function CertificationApp() {
         <HomeScreen
           locale={locale}
           certification={selectedCertification}
-          guide={guideQuery.isError || guideQuery.isFetching ? undefined : guideQuery.data}
+          guide={guideQuery.isError ? undefined : guideQuery.data}
           guideLoading={guideQuery.isPending || guideQuery.isFetching}
           guideError={guideQuery.error}
           onGuideRetry={() => void guideQuery.refetch()}
@@ -522,7 +526,7 @@ function Header({
             height="36"
           />
           <span className="brand-divider" aria-hidden="true" />
-          <span className="product-name">CERT HELPER</span>
+          <span className="product-name">Certification HELPER</span>
         </div>
         <div className="header-actions">
           <span className="local-badge"><span aria-hidden="true" /> {text('localBadge')}</span>
@@ -807,6 +811,9 @@ function HomeScreen({
             <div className="guide-freshness">
               <strong>{text('guideVersion', { version: guide.version })}</strong>
               <span>{text('aiRefreshed')}: {formatDate(guide.freshness.aiRefreshedAt, locale)}</span>
+              {guide.freshness.sourceCheckedAt && (
+                <span>{text('guideSourcesChecked')}: {formatDate(guide.freshness.sourceCheckedAt, locale)}</span>
+              )}
               <AiTokenUsage locale={locale} usage={guide.aiUsage} compact />
             </div>
           )}
@@ -1018,6 +1025,19 @@ function HomeScreen({
               </li>
             ))}
           </ul>
+          {guide.researchSources.length > 0 && <>
+            <h3>{text('guideResearchSourcesTitle')}</h3>
+            <ul>
+              {guide.researchSources.map((source) => (
+                <li key={source.url}>
+                  <span>{source.title}</span>
+                  <a className="text-link" href={source.url} target="_blank" rel="noreferrer">
+                    {text('openResource')} <span aria-hidden="true">↗</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </>}
         </section>}
       </section>
 
@@ -1128,7 +1148,7 @@ function TopicCard({
   return (
     <article className="topic-card">
       <div className="topic-card-top">
-        <span className="topic-weight">{domain.weight}%</span>
+        <span className="topic-weight">{formatWeight(domain.weight, locale)}%</span>
         <span className="topic-count">{text('coveredTopicsCount', { count: domain.topics.length })}</span>
       </div>
       <h3>{domain.name[locale]}</h3>
@@ -1160,4 +1180,8 @@ function profileErrorMessage(locale: Locale, error: unknown) {
 
 function formatDate(value: string, locale: Locale) {
   return new Intl.DateTimeFormat(locale === 'es' ? 'es' : 'en-US', { dateStyle: 'medium' }).format(new Date(value))
+}
+
+function formatWeight(value: number, locale: Locale) {
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value)
 }

@@ -11,7 +11,7 @@ import {
 import { sql } from 'drizzle-orm'
 import type { GuideDomain, StudyPathStep } from '../../src/api/certification-contracts'
 import type { AiTokenUsage } from '../../src/api/ai-usage-contracts'
-import type { CachedOfficialSources } from '../catalog/source-types'
+import type { CachedGuideSources } from '../catalog/source-types'
 import type { StoredSimulationState } from '../simulations/state'
 
 const json = <T>(name: string) => jsonb(name).$type<T>()
@@ -45,7 +45,7 @@ export const certificationGuides = pgTable('certification_guides', {
   domains: json<GuideDomain[]>('domains').notNull(),
   studyPath: json<StudyPathStep[]>('study_path').notNull(),
   sourceHash: text('source_hash'),
-  sourceSnapshot: json<CachedOfficialSources>('source_snapshot'),
+  sourceSnapshot: json<CachedGuideSources>('source_snapshot'),
   aiUsage: json<AiTokenUsage | null>('ai_usage'),
   lastSourceCheckedAt: timestamp('last_source_checked_at'),
   lastAiRefreshedAt: timestamp('last_ai_refreshed_at'),

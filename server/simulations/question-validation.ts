@@ -11,8 +11,8 @@ export class InvalidQuestionSetError extends Error {
 export function allocateQuestionsByWeight(domains: CertificationGuideResponse['domains'], total = 20) {
   if (domains.length === 0 || domains.length > total
     || new Set(domains.map((domain) => domain.id)).size !== domains.length
-    || domains.some((domain) => !Number.isInteger(domain.weight) || domain.weight <= 0)
-    || domains.reduce((sum, domain) => sum + domain.weight, 0) !== 100) {
+    || domains.some((domain) => !Number.isFinite(domain.weight) || domain.weight <= 0)
+    || Math.abs(domains.reduce((sum, domain) => sum + domain.weight, 0) - 100) > 0.000001) {
     throw new InvalidQuestionSetError('The guide has invalid domain weights.')
   }
 
