@@ -41,6 +41,7 @@ import '../../src/styles.css'
 
 type Theme = 'light' | 'dark'
 type Screen = 'home' | 'quiz' | 'results'
+const GUIDE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1_000
 const topicColors = ['#F900D3', '#00E8FA', '#1DD566', '#FFC700']
 
 export default function Page() {
@@ -109,8 +110,11 @@ function CertificationApp() {
     queryKey: ['certification-guide', selectedCertification?.id],
     queryFn: () => loadCertificationGuide(selectedCertification!.id),
     enabled: Boolean(selectedCertification),
-    staleTime: 0,
-    refetchOnMount: 'always',
+    staleTime: (query) => {
+      const refreshedAt = query.state.data?.freshness.aiRefreshedAt
+      if (!refreshedAt) return 0
+      return Math.max(0, Date.parse(refreshedAt) + GUIDE_MAX_AGE_MS - Date.now())
+    },
     refetchOnWindowFocus: false,
     retry: false,
   })
@@ -374,7 +378,7 @@ function CertificationApp() {
         <HomeScreen
           locale={locale}
           certification={selectedCertification}
-          guide={guideQuery.isError || guideQuery.isFetching ? undefined : guideQuery.data}
+          guide={guideQuery.isError ? undefined : guideQuery.data}
           guideLoading={guideQuery.isPending || guideQuery.isFetching}
           guideError={guideQuery.error}
           onGuideRetry={() => void guideQuery.refetch()}

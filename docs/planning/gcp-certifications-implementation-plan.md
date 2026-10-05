@@ -17,7 +17,7 @@ Ampliar el catálogo activo a cinco certificaciones profesionales: conservar Pro
 ## Decisión de implementación
 
 - Usar el proveedor OpenAI Responses con la herramienta alojada `web_search` y exigir una búsqueda en cada generación o renovación de guía.
-- Tratar guías guardadas antes del cambio sin citas verificables como vencidas; la próxima solicitud de Cloud Developer puede renovar la guía antes de cumplir el TTL.
+- Reutilizar guías preexistentes durante su TTL de 30 días aunque todavía no tengan citas guardadas; incorporar las citas en la siguiente renovación exitosa. Solo las guías sin fecha de generación o con 30 días o más requieren renovación.
 - Restringir la búsqueda a `cloud.google.com`, `services.google.com`, `skills.google` y `cloudskillsboost.google`. El modelo recibe los enlaces oficiales del catálogo, incluida la URL de la guía del examen aunque sea PDF.
 - La aplicación no descarga, extrae ni parsea PDFs. OpenAI lee el contenido durante la búsqueda; el servidor guarda las URLs citadas, una huella estable y la fecha de consulta.
 - Rechazar la publicación cuando no haya una cita al exam guide o a la página oficial de la certificación. Mostrar los enlaces citados en la interfaz.

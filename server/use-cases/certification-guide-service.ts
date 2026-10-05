@@ -46,8 +46,6 @@ type GuideServiceOptions = {
 
 function isFresh(guide: Awaited<ReturnType<typeof readCertificationGuide>>, now: Date) {
   return Boolean(guide?.lastAiRefreshedAt
-    && guide.lastSourceCheckedAt
-    && guide.sourceSnapshot?.sources?.length
     && now.getTime() - guide.lastAiRefreshedAt.getTime() < GUIDE_MAX_AGE_MS)
 }
 
