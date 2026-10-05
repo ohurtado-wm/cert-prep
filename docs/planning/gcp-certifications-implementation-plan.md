@@ -1,6 +1,6 @@
 # Plan de implementación: ampliar certificaciones de Google Cloud
 
-**Estado:** PR-01 y P2-T01–T04 integrados en `main` mediante PR #15; PR-02 completo en la rama local `codex/gcp-certifications-pr02`, pendiente de revisión.
+**Estado:** PR-01 y P2-T01–T04 integrados en `main` mediante PR #15; PR-02 completo y en revisión en PR #16.
 **Última actualización:** 2026-10-05
 
 ## Objetivo
@@ -40,7 +40,7 @@ Ampliar el catálogo activo a cinco certificaciones profesionales: conservar Pro
 | PR | Alcance | Estado | Gate |
 |---|---|---|---|
 | `PR-01` | Búsqueda oficial obligatoria, verificación de citas, snapshot y pesos fraccionarios | Integrado mediante PR #15 | Suite completa con generadores falsos; no se hicieron llamadas reales a OpenAI |
-| `PR-02` | Catálogo de cinco certificaciones, recorrido por ID e instrucciones operativas | Implementado; cambios finales en `codex/gcp-certifications-pr02` | Catálogo, guías por ID, recorrido, bloqueo durante IA y prompt bilingüe de simulación; falta abrir el PR |
+| `PR-02` | Catálogo de cinco certificaciones, recorrido por ID e instrucciones operativas | En revisión en PR #16 | Catálogo, guías por ID, recorrido, bloqueo durante IA y prompt bilingüe de simulación |
 
 ## PR-01: Generación basada en búsqueda oficial
 
