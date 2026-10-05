@@ -32,8 +32,8 @@ function draftFromGuide(titleSuffix = '') {
   }
 }
 
-function generatedGuide(output: ReturnType<typeof draftFromGuide>) {
-  const examGuide = certification.sources.find((source) => source.kind === 'exam-guide')!
+function generatedGuide(output: ReturnType<typeof draftFromGuide>, targetCertification = certification) {
+  const examGuide = targetCertification.sources.find((source) => source.kind === 'exam-guide')!
   return { output, researchSources: [{ title: examGuide.title, url: examGuide.url }] }
 }
 
@@ -66,6 +66,32 @@ describe('certification guide refresh', () => {
       'gcp-professional-cloud-devops-engineer',
     ])
     expect(body.certifications[0]?.sources).toHaveLength(3)
+  })
+
+  test('each certification returns an independently cited guide with weights totaling 100 percent', async () => {
+    const generatedIds: string[] = []
+    const app = createApp({
+      db,
+      guideGenerator: async ({ certification: targetCertification }) => {
+        generatedIds.push(targetCertification.id)
+        return generatedGuide(draftFromGuide(), targetCertification)
+      },
+    })
+
+    for (const targetCertification of certificationCatalog) {
+      const response = await app.request(`/api/v1/certifications/${targetCertification.id}/guide`)
+      const body = await response.json() as { guide: {
+        domains: Array<{ weight: number }>
+        researchSources: Array<{ url: string }>
+      } }
+      const examGuideUrl = targetCertification.sources.find(({ kind }) => kind === 'exam-guide')!.url
+
+      expect(response.status).toBe(200)
+      expect(body.guide.domains.reduce((total, { weight }) => total + weight, 0)).toBe(100)
+      expect(body.guide.researchSources.map(({ url }) => url)).toContain(examGuideUrl)
+    }
+
+    expect(generatedIds).toEqual(certificationCatalog.map(({ id }) => id))
   })
 
   test('first selection generates a guide and subsequent fresh reads avoid AI', async () => {

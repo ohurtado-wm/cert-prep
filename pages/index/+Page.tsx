@@ -94,6 +94,9 @@ function CertificationApp() {
   })
   const catalog = catalogQuery.data ?? []
   const selectedCertification = catalog.find((item) => item.id === selectedCertificationId) ?? catalog[0]
+  const activeSessionCertification = activeSession
+    ? catalog.find((item) => item.id === activeSession.certificationId)
+    : undefined
   const weakTopicsQuery = useQuery({
     queryKey: ['weak-topic-analysis', userQuery.data?.id, selectedCertification?.id],
     queryFn: () => loadWeakTopicAnalysis(selectedCertification!.id),
@@ -431,7 +434,7 @@ function CertificationApp() {
       {selectedCertification && activeSession && screen === 'quiz' && (
         <QuizScreen
           locale={activeSession.language}
-          certificationName={selectedCertification.name[activeSession.language]}
+          certificationName={activeSessionCertification?.name[activeSession.language] ?? activeSession.certificationId}
           domains={guideQuery.data?.domains ?? []}
           currentQuestion={activeSession.currentQuestion}
           questionIndex={questionIndex}
@@ -451,7 +454,9 @@ function CertificationApp() {
       {selectedCertification && sessionResult && screen === 'results' && (
         <ResultsScreen
           locale={activeSession?.language ?? locale}
-          certificationName={selectedCertification.name[activeSession?.language ?? locale]}
+          certificationName={activeSessionCertification?.name[activeSession?.language ?? locale]
+            ?? activeSession?.certificationId
+            ?? selectedCertification.name[activeSession?.language ?? locale]}
           guide={guideQuery.data}
           result={sessionResult}
           printableQuestions={printableQuestions}
@@ -758,6 +763,7 @@ function HomeScreen({
             id="certification-select"
             className="certification-select"
             value={selectedId}
+            disabled={guideLoading || startingSimulation}
             onChange={(event) => onSelect(event.currentTarget.value)}
           >
             {certifications.map((item) => <option key={item.id} value={item.id}>{item.name[locale]}</option>)}
