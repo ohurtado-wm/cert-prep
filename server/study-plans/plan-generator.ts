@@ -2,6 +2,7 @@ import { generateText, Output } from 'ai'
 import { z } from 'zod'
 import type { AiTokenUsage } from '../../src/api/ai-usage-contracts'
 import { LocaleSchema, type Locale } from '../../src/api/certification-contracts'
+import { AI_REQUEST_TIMEOUT_MS } from '../ai/request-timeout'
 import { ApiException } from '../errors'
 import { createAiModel } from '../ai/model-provider'
 import type { StudyPlanFocus, StudyPlanTarget } from './analytics'
@@ -54,7 +55,7 @@ export function createAiStudyPlanGenerator(): StudyPlanGenerator {
         prompt: buildPrompt(input),
         maxOutputTokens: 3_000,
         maxRetries: 0,
-        abortSignal: AbortSignal.timeout(60_000),
+        abortSignal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
         providerOptions: { openai: { store: false } },
       })
       if (!result.output) throw new Error('The model returned no structured study plan.')
