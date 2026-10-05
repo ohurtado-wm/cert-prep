@@ -4,6 +4,7 @@ import type { AiTokenUsage } from '../../src/api/ai-usage-contracts'
 import { LocaleSchema, type CertificationGuideResponse, type Locale } from '../../src/api/certification-contracts'
 import { createAiModel } from '../ai/model-provider'
 import { ApiException } from '../errors'
+import { AI_REQUEST_TIMEOUT_MS } from '../ai/request-timeout'
 
 const GeneratedQuestionSchema = z.object({
   domainId: z.string().min(1),
@@ -132,7 +133,7 @@ export function createAiQuestionGenerator(options: {
         prompt: buildPrompt(input),
         maxOutputTokens: 10_000,
         maxRetries: 0,
-        abortSignal: AbortSignal.timeout(45_000),
+        abortSignal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
         providerOptions: { openai: { store: false } },
       })
       reportSafely(reporter, {

@@ -9,6 +9,7 @@ import {
 } from '../../src/api/certification-contracts'
 import { ApiException } from '../errors'
 import { createAiProvider } from '../ai/model-provider'
+import { AI_REQUEST_TIMEOUT_MS } from '../ai/request-timeout'
 
 const LocalizedText = z.object({ en: z.string().min(1), es: z.string().min(1) })
 
@@ -132,7 +133,7 @@ export function createAiGuideGenerator(modelName = process.env.AI_MODEL): GuideG
         prompt: buildGuidePrompt(certification),
         maxOutputTokens: 6_000,
         maxRetries: 0,
-        abortSignal: AbortSignal.timeout(60_000),
+        abortSignal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
         providerOptions: {
           openai: {
             include: ['web_search_call.results'],
