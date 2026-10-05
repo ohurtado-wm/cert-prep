@@ -28,7 +28,7 @@ import { StoredSimulationStateSchema, type StoredSimulationQuestion, type Stored
 const SESSION_LIFETIME_MS = 2 * 60 * 60 * 1_000
 const RATE_WINDOW_MS = 60 * 60 * 1_000
 const GENERATION_LEASE_MS = 5 * 60 * 1_000
-const MAX_STARTS_PER_HOUR = 3
+const MAX_STARTS_PER_HOUR = 10
 const MAX_ANSWER_ATTEMPTS = 3
 const MAX_QUESTION_GENERATION_ATTEMPTS = 2
 
