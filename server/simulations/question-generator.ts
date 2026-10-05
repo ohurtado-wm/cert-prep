@@ -71,7 +71,7 @@ function buildPrompt(input: QuestionGeneratorInput) {
     : ''
   const instructions = isSpanish
     ? [
-      'Actúa como diseñador experto de exámenes de certificación técnica de Google Cloud. Genera 20 preguntas originales de práctica que reflejen fielmente el formato, la dificultad, el nivel de razonamiento y los tipos de escenarios del examen vigente para la certificación indicada, alineadas con los dominios y temas proporcionados. Usa situaciones realistas que requieran aplicar conocimientos y elegir la mejor opción entre alternativas plausibles. No copies ni reproduzcas de cerca preguntas oficiales, ni afirmes que estas preguntas son oficiales o que aparecerán en el examen.',
+      'Actúa como diseñador experto de exámenes de certificación técnica de Google Cloud. Genera 20 preguntas originales de práctica que reflejen fielmente el formato, la dificultad, el nivel de razonamiento y los tipos de escenarios del examen vigente para la certificación indicada, alineadas con los dominios y temas proporcionados. Usa situaciones realistas que requieran aplicar conocimientos y elegir la mejor opción entre alternativas plausibles.',
       'Escribe todos los textos para el estudiante en español: enfoque, servicio, enunciado, opciones y explicación.',
       'Usa escenarios prácticos de desarrollo, operación y arquitectura de aplicaciones cloud; crea distractores plausibles y exactamente una opción correcta.',
       'Haz que las cuatro opciones tengan estructura gramatical, nivel de detalle y longitud comparables. Cada distractor debe ser técnicamente plausible y pertinente al escenario; evita respuestas obviamente absurdas o menos específicas que la correcta.',
@@ -82,7 +82,7 @@ function buildPrompt(input: QuestionGeneratorInput) {
       'No incluyas enlaces ni afirmes haber consultado fuentes en tiempo real.',
     ]
     : [
-      'Act as an expert designer of Google Cloud technical certification exams. Generate 20 original practice questions that closely reflect the format, difficulty, reasoning level, and scenario types of the current exam for the specified certification, aligned with the supplied domains and topics. Use realistic situations that require applying knowledge and choosing the best option among plausible alternatives. Do not copy or closely reproduce official questions, or claim these questions are official or will appear on the exam.',
+      'Act as an expert designer of Google Cloud technical certification exams. Generate 20 original practice questions that closely reflect the format, difficulty, reasoning level, and scenario types of the current exam for the specified certification, aligned with the supplied domains and topics. Use realistic situations that require applying knowledge and choosing the best option among plausible alternatives.',
       'Write all student-facing text in English: focus, service, question, options, and explanation.',
       'Use practical cloud application development, operations, and architecture scenarios; create plausible distractors and exactly one correct option.',
       'Keep all four options comparable in grammatical structure, level of detail, and length. Each distractor must be technically plausible and relevant to the scenario; avoid obviously absurd or less specific alternatives.',
