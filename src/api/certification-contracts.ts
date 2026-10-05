@@ -21,6 +21,11 @@ export const CertificationCatalogResponseSchema = z.object({
   certifications: z.array(CertificationCatalogItemSchema),
 })
 
+export const GuideResearchSourceSchema = z.object({
+  title: z.string().min(1),
+  url: z.string().url(),
+})
+
 export const GuideTopicSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/),
   name: LocalizedTextSchema,
@@ -32,7 +37,7 @@ export const GuideDomainSchema = z.object({
   sourceSectionNumber: z.number().int().positive(),
   name: LocalizedTextSchema,
   description: LocalizedTextSchema,
-  weight: z.number().int().min(0).max(100),
+  weight: z.number().positive().max(100),
   topics: z.array(GuideTopicSchema).min(1),
 })
 
@@ -50,15 +55,18 @@ export const CertificationGuideResponseSchema = z.object({
   domains: z.array(GuideDomainSchema).min(1),
   studyPath: z.array(StudyPathStepSchema).min(1),
   sources: z.array(CertificationSourceSchema).min(1),
+  researchSources: z.array(GuideResearchSourceSchema).max(20),
   aiUsage: AiTokenUsageSchema.nullable().optional(),
   freshness: z.object({
     aiRefreshedAt: z.string().datetime(),
+    sourceCheckedAt: z.string().datetime().nullable(),
   }),
 })
 
 export type Locale = z.infer<typeof LocaleSchema>
 export type LocalizedText = z.infer<typeof LocalizedTextSchema>
 export type CertificationSource = z.infer<typeof CertificationSourceSchema>
+export type GuideResearchSource = z.infer<typeof GuideResearchSourceSchema>
 export type CertificationCatalogItem = z.infer<typeof CertificationCatalogItemSchema>
 export type GuideTopic = z.infer<typeof GuideTopicSchema>
 export type GuideDomain = z.infer<typeof GuideDomainSchema>

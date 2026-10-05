@@ -35,7 +35,8 @@ const guide: CertificationGuideResponse = {
     url: certification.sources.find(({ kind }) => kind === 'learning-path')!.url,
   }],
   sources: certification.sources,
-  freshness: { aiRefreshedAt: now.toISOString() },
+  researchSources: [],
+  freshness: { aiRefreshedAt: now.toISOString(), sourceCheckedAt: null },
 }
 
 function resultBreakdowns(

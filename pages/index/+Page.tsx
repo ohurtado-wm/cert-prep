@@ -522,7 +522,7 @@ function Header({
             height="36"
           />
           <span className="brand-divider" aria-hidden="true" />
-          <span className="product-name">CERT HELPER</span>
+          <span className="product-name">Certification HELPER</span>
         </div>
         <div className="header-actions">
           <span className="local-badge"><span aria-hidden="true" /> {text('localBadge')}</span>
@@ -807,6 +807,9 @@ function HomeScreen({
             <div className="guide-freshness">
               <strong>{text('guideVersion', { version: guide.version })}</strong>
               <span>{text('aiRefreshed')}: {formatDate(guide.freshness.aiRefreshedAt, locale)}</span>
+              {guide.freshness.sourceCheckedAt && (
+                <span>{text('guideSourcesChecked')}: {formatDate(guide.freshness.sourceCheckedAt, locale)}</span>
+              )}
               <AiTokenUsage locale={locale} usage={guide.aiUsage} compact />
             </div>
           )}
@@ -1018,6 +1021,19 @@ function HomeScreen({
               </li>
             ))}
           </ul>
+          {guide.researchSources.length > 0 && <>
+            <h3>{text('guideResearchSourcesTitle')}</h3>
+            <ul>
+              {guide.researchSources.map((source) => (
+                <li key={source.url}>
+                  <span>{source.title}</span>
+                  <a className="text-link" href={source.url} target="_blank" rel="noreferrer">
+                    {text('openResource')} <span aria-hidden="true">↗</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </>}
         </section>}
       </section>
 
@@ -1128,7 +1144,7 @@ function TopicCard({
   return (
     <article className="topic-card">
       <div className="topic-card-top">
-        <span className="topic-weight">{domain.weight}%</span>
+        <span className="topic-weight">{formatWeight(domain.weight, locale)}%</span>
         <span className="topic-count">{text('coveredTopicsCount', { count: domain.topics.length })}</span>
       </div>
       <h3>{domain.name[locale]}</h3>
@@ -1160,4 +1176,8 @@ function profileErrorMessage(locale: Locale, error: unknown) {
 
 function formatDate(value: string, locale: Locale) {
   return new Intl.DateTimeFormat(locale === 'es' ? 'es' : 'en-US', { dateStyle: 'medium' }).format(new Date(value))
+}
+
+function formatWeight(value: number, locale: Locale) {
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value)
 }

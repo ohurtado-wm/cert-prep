@@ -1,16 +1,5 @@
-export type SourceSection = {
-  number: number
-  title: string
-  weight: number
-  topics: Array<{ id: string; title: string; details: string }>
-}
+import type { GuideResearchSource } from '../../src/api/certification-contracts'
 
-export type SourcePageValidators = {
-  etag: string | null
-  lastModified: string | null
-}
-
-export type CachedOfficialSources = {
-  examGuide: { sections: SourceSection[]; validators: SourcePageValidators }
-  learningPath: { activities: string[]; validators: SourcePageValidators }
+export type CachedGuideSources = {
+  sources: GuideResearchSource[]
 }

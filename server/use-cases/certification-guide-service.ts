@@ -1,12 +1,15 @@
 import { randomUUID } from 'node:crypto'
+import { z } from 'zod'
 import { AiTokenUsageSchema, type AiTokenUsage } from '../../src/api/ai-usage-contracts'
 import {
   CertificationGuideResponseSchema,
   GuideDomainSchema,
+  GuideResearchSourceSchema,
   StudyPathStepSchema,
   type CertificationCatalogItem,
   type CertificationGuideResponse,
   type GuideDomain,
+  type GuideResearchSource,
   type StudyPathStep,
 } from '../../src/api/certification-contracts'
 import type { DatabaseHandle } from '../db/client'
@@ -20,11 +23,19 @@ import {
   refreshLeaseIsActive,
   syncCertificationCatalog,
 } from '../catalog/repository'
-import { createAiGuideGenerator, GuideDraftSchema, type GuideGenerator } from '../catalog/guide-generator'
+import {
+  createAiGuideGenerator,
+  GuideDraftSchema,
+  hashGuideResearchSources,
+  isExpectedGuideResearch,
+  type GuideGenerator,
+} from '../catalog/guide-generator'
+import type { CachedGuideSources } from '../catalog/source-types'
 import { logServerEvent } from '../logger'
 
 const GUIDE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1_000
 const LEASE_DURATION_MS = 90 * 1_000
+const WEIGHT_SUM_TOLERANCE = 0.000001
 
 type GuideServiceOptions = {
   guideGenerator?: GuideGenerator
@@ -33,8 +44,11 @@ type GuideServiceOptions = {
   peerPollMs?: number
 }
 
-function isFresh(lastAiRefreshedAt: Date | null, now: Date) {
-  return lastAiRefreshedAt !== null && now.getTime() - lastAiRefreshedAt.getTime() < GUIDE_MAX_AGE_MS
+function isFresh(guide: Awaited<ReturnType<typeof readCertificationGuide>>, now: Date) {
+  return Boolean(guide?.lastAiRefreshedAt
+    && guide.lastSourceCheckedAt
+    && guide.sourceSnapshot?.sources?.length
+    && now.getTime() - guide.lastAiRefreshedAt.getTime() < GUIDE_MAX_AGE_MS)
 }
 
 function normalizeDraft(
@@ -44,7 +58,7 @@ function normalizeDraft(
   const draft = GuideDraftSchema.parse(rawDraft)
   const sectionNumbers = draft.domains.map((domain) => domain.sectionNumber)
   if (new Set(sectionNumbers).size !== sectionNumbers.length
-    || draft.domains.reduce((sum, domain) => sum + domain.weight, 0) !== 100) {
+    || Math.abs(draft.domains.reduce((sum, domain) => sum + domain.weight, 0) - 100) > WEIGHT_SUM_TOLERANCE) {
     throw new Error('Generated guide sections or weights are invalid.')
   }
 
@@ -63,7 +77,7 @@ function normalizeDraft(
     })
   })
 
-  if (domains.reduce((sum, domain) => sum + domain.weight, 0) !== 100) {
+  if (Math.abs(domains.reduce((sum, domain) => sum + domain.weight, 0) - 100) > WEIGHT_SUM_TOLERANCE) {
     throw new Error('Guide domain weights do not total 100%.')
   }
   const domainIds = new Set(domains.map((domain) => domain.id))
@@ -91,20 +105,31 @@ function toResponse(
     domains: guide.domains,
     studyPath: guide.studyPath,
     sources: certification.sources,
+    researchSources: (guide.sourceSnapshot as CachedGuideSources | null)?.sources ?? [],
     aiUsage: guide.aiUsage ?? null,
     freshness: {
       aiRefreshedAt: guide.lastAiRefreshedAt.toISOString(),
+      sourceCheckedAt: guide.lastSourceCheckedAt?.toISOString() ?? null,
     },
   })
 }
 
-function unwrapGuideGeneration(value: unknown): { draft: unknown; aiUsage: AiTokenUsage | null } {
+function unwrapGuideGeneration(value: unknown): {
+  draft: unknown
+  aiUsage: AiTokenUsage | null
+  researchSources: GuideResearchSource[]
+} {
   if (typeof value !== 'object' || value === null || !('output' in value)) {
-    return { draft: value, aiUsage: null }
+    return { draft: value, aiUsage: null, researchSources: [] }
   }
-  const generated = value as { output: unknown; usage?: unknown }
+  const generated = value as { output: unknown; usage?: unknown; researchSources?: unknown }
   const usage = AiTokenUsageSchema.safeParse(generated.usage)
-  return { draft: generated.output, aiUsage: usage.success ? usage.data : null }
+  const sources = z.array(GuideResearchSourceSchema).max(20).safeParse(generated.researchSources)
+  return {
+    draft: generated.output,
+    aiUsage: usage.success ? usage.data : null,
+    researchSources: sources.success ? sources.data : [],
+  }
 }
 
 function sleep(durationMs: number) {
@@ -125,7 +150,7 @@ export function createCertificationGuideService(db: DatabaseHandle, options: Gui
     const deadline = Date.now() + peerWaitMs
     while (Date.now() < deadline) {
       const current = await readCertificationGuide(db, certificationId)
-      if (isFresh(current?.lastAiRefreshedAt ?? null, now())) return current
+      if (isFresh(current, now())) return current
       if (!await refreshLeaseIsActive(db, certificationId, now())) return null
       await sleep(Math.min(peerPollMs, Math.max(1, deadline - Date.now())))
     }
@@ -139,7 +164,7 @@ export function createCertificationGuideService(db: DatabaseHandle, options: Gui
 
     const current = await readCertificationGuide(db, certificationId)
     const requestTime = now()
-    if (isFresh(current?.lastAiRefreshedAt ?? null, requestTime) && current) {
+    if (isFresh(current, requestTime) && current) {
       logServerEvent('info', 'guide_cache_hit', { certificationId, version: current.version })
       return toResponse(certification, current)
     }
@@ -159,13 +184,14 @@ export function createCertificationGuideService(db: DatabaseHandle, options: Gui
     if (!leaseAcquired) {
       logServerEvent('info', 'guide_refresh_waiting', { certificationId, waitLimitMs: peerWaitMs })
       const shared = await waitForPeerRefresh(certificationId)
-      if (shared && isFresh(shared.lastAiRefreshedAt, now())) return toResponse(certification, shared)
+      if (shared && isFresh(shared, now())) return toResponse(certification, shared)
       throw new ApiException(503, 'GUIDE_REFRESH_IN_PROGRESS', 'La guía se está actualizando. Intenta de nuevo en unos segundos.')
     }
 
     const refreshStartedAt = Date.now()
     let stage = 'ai_generation'
     let aiUsage: AiTokenUsage | null = null
+    let researchSources: GuideResearchSource[] = []
     try {
       let generated: unknown
       const generationStartedAt = Date.now()
@@ -174,6 +200,7 @@ export function createCertificationGuideService(db: DatabaseHandle, options: Gui
         const generation = unwrapGuideGeneration(generated)
         generated = generation.draft
         aiUsage = generation.aiUsage
+        researchSources = generation.researchSources
         logServerEvent('info', 'guide_ai_generation_completed', {
           certificationId,
           durationMs: Date.now() - generationStartedAt,
@@ -189,6 +216,9 @@ export function createCertificationGuideService(db: DatabaseHandle, options: Gui
       let normalized: { domains: GuideDomain[]; studyPath: StudyPathStep[] }
       stage = 'guide_validation'
       try {
+        if (!isExpectedGuideResearch(certification, researchSources)) {
+          throw new Error('Generated guide is missing a citation to its official exam guide.')
+        }
         normalized = normalizeDraft(certification, generated)
       } catch {
         throw new ApiException(502, 'GUIDE_AI_INVALID', 'La guía generada no cumple el formato esperado. Intenta de nuevo.')
@@ -200,6 +230,8 @@ export function createCertificationGuideService(db: DatabaseHandle, options: Gui
         certificationId,
         ...normalized,
         aiUsage,
+        sourceHash: hashGuideResearchSources(researchSources),
+        sourceSnapshot: { sources: researchSources },
         now: publishedAt,
         leaseToken,
       })

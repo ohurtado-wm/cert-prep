@@ -2,7 +2,7 @@ import type { Locale } from '../api/certification-contracts'
 
 const messages = {
   es: {
-    pageTitle: 'Cert Helper | Simulador de certificaciones',
+    pageTitle: 'Certification Helper | Simulador de certificaciones',
     brandLabel: 'West Monroe',
     localBadge: 'PoC local',
     languageLabel: 'Idioma de la aplicación',
@@ -115,6 +115,8 @@ const messages = {
     bankMismatch: 'El banco de práctica no coincide con los dominios actuales. No se puede iniciar una simulación segura con esta guía.',
     guideVersion: 'Guía v{version}',
     aiRefreshed: 'Guía generada',
+    guideSourcesChecked: 'Fuentes consultadas',
+    guideResearchSourcesTitle: 'Fuentes consultadas para esta guía',
     examMapEyebrow: 'MAPA DEL EXAMEN',
     examMapTitle: 'Dominios y peso del examen',
     officialGuide: 'Ver guía oficial',
@@ -199,7 +201,7 @@ const messages = {
     practiceDisclaimer: 'Preguntas de práctica originales. No son preguntas oficiales del examen.',
   },
   en: {
-    pageTitle: 'Cert Helper | Certification practice',
+    pageTitle: 'Certification Helper | Certification practice',
     brandLabel: 'West Monroe',
     localBadge: 'Local PoC',
     languageLabel: 'Application language',
@@ -312,6 +314,8 @@ const messages = {
     bankMismatch: 'The practice bank does not match the current domains. A safe simulation cannot start with this guide.',
     guideVersion: 'Guide v{version}',
     aiRefreshed: 'Guide generated',
+    guideSourcesChecked: 'Sources checked',
+    guideResearchSourcesTitle: 'Sources used for this guide',
     examMapEyebrow: 'EXAM MAP',
     examMapTitle: 'Domains and exam weights',
     officialGuide: 'View official guide',
