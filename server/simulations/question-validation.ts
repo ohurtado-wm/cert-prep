@@ -29,6 +29,72 @@ export function allocateQuestionsByWeight(domains: CertificationGuideResponse['d
   return Object.fromEntries(allocations.map(({ id, count }) => [id, count]))
 }
 
+export function allocateQuestionsByTopic(
+  domains: CertificationGuideResponse['domains'],
+  requiredQuestionsByDomain: Record<string, number>,
+  recentTopicBreakdowns: Array<Record<string, { correct: number; total: number }>> = [],
+) {
+  const domainIds = new Set<string>()
+  const topicIds = new Set<string>()
+  const topicExposure = new Map<string, number>()
+  let questionCount = 0
+
+  if (domains.length === 0) throw new InvalidQuestionSetError('Question allocation requires at least one domain.')
+
+  for (const domain of domains) {
+    if (domainIds.has(domain.id)) throw new InvalidQuestionSetError('Question allocation contains a repeated domain.')
+    domainIds.add(domain.id)
+    const requiredCount = requiredQuestionsByDomain[domain.id]
+    if (!Number.isInteger(requiredCount) || requiredCount < 0) {
+      throw new InvalidQuestionSetError('Question allocation has an invalid domain count.')
+    }
+    questionCount += requiredCount
+    if (requiredCount > 0 && domain.topics.length === 0) {
+      throw new InvalidQuestionSetError('A question-bearing domain has no topics.')
+    }
+    for (const topic of domain.topics) {
+      if (topicIds.has(topic.id)) throw new InvalidQuestionSetError('Question allocation contains a repeated topic.')
+      topicIds.add(topic.id)
+      topicExposure.set(topic.id, 0)
+    }
+  }
+
+  if (Object.keys(requiredQuestionsByDomain).length !== domainIds.size
+    || questionCount !== 20
+    || [...domainIds].some((domainId) => !Object.hasOwn(requiredQuestionsByDomain, domainId))) {
+    throw new InvalidQuestionSetError('Question allocation does not cover the expected domains and total.')
+  }
+
+  for (const topicBreakdown of recentTopicBreakdowns) {
+    for (const [topicId, counts] of Object.entries(topicBreakdown)) {
+      if (!topicExposure.has(topicId)) continue
+      if (!Number.isInteger(counts.total) || counts.total < 0) {
+        throw new InvalidQuestionSetError('Recent topic history contains an invalid count.')
+      }
+      topicExposure.set(topicId, topicExposure.get(topicId)! + counts.total)
+    }
+  }
+
+  const allocation: Record<string, number> = Object.fromEntries([...topicIds].map((topicId) => [topicId, 0]))
+  for (const domain of domains) {
+    const topics = domain.topics
+    const requiredCount = requiredQuestionsByDomain[domain.id]!
+    if (topics.length === 0) continue
+    const questionsPerTopic = Math.floor(requiredCount / topics.length)
+    const remainder = requiredCount % topics.length
+    for (const topic of topics) allocation[topic.id] = questionsPerTopic
+
+    const leastCoveredTopics = [...topics].sort((left, right) => {
+      const exposureDifference = topicExposure.get(left.id)! - topicExposure.get(right.id)!
+      if (exposureDifference !== 0) return exposureDifference
+      return left.id < right.id ? -1 : left.id > right.id ? 1 : 0
+    })
+    for (const topic of leastCoveredTopics.slice(0, remainder)) allocation[topic.id]! += 1
+  }
+
+  return allocation
+}
+
 function normalizeText(value: string) {
   return value.normalize('NFKC').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
 }
@@ -57,7 +123,7 @@ export function validateGeneratedQuestions(input: {
   guide: CertificationGuideResponse
   language: Locale
   requiredQuestionsByDomain: Record<string, number>
-  requiredQuestionsByTopic?: Record<string, number>
+  requiredQuestionsByTopic: Record<string, number>
   idFactory: () => string
 }): StoredSimulationQuestion[] {
   const generated = parseGeneratedSet(input.value)
@@ -69,6 +135,7 @@ export function validateGeneratedQuestions(input: {
   }
 
   const domainsById = new Map(input.guide.domains.map((domain) => [domain.id, domain]))
+  const validTopicIds = new Set(input.guide.domains.flatMap((domain) => domain.topics.map((topic) => topic.id)))
   const questionStems = new Set<string>()
   const coverage = new Map<string, number>()
   const topicCoverage = new Map<string, number>()
@@ -126,12 +193,29 @@ export function validateGeneratedQuestions(input: {
     }
   })
 
-  if (Object.entries(input.requiredQuestionsByDomain).some(([domainId, count]) => (coverage.get(domainId) ?? 0) !== count)) {
+  if (Object.keys(input.requiredQuestionsByDomain).length !== domainsById.size
+    || input.guide.domains.some((domain) => (
+      !Object.hasOwn(input.requiredQuestionsByDomain, domain.id)
+      || !Number.isInteger(input.requiredQuestionsByDomain[domain.id])
+      || (coverage.get(domain.id) ?? 0) !== input.requiredQuestionsByDomain[domain.id]
+    ))) {
     throw new InvalidQuestionSetError('Question coverage does not match the certification domain weights.')
   }
-  if (input.requiredQuestionsByTopic
-    && Object.entries(input.requiredQuestionsByTopic).some(([topicId, count]) => (topicCoverage.get(topicId) ?? 0) !== count)) {
-    throw new InvalidQuestionSetError('Question coverage does not match the focused topic requirements.')
+  const topicQuotas = input.requiredQuestionsByTopic
+  if (Object.keys(topicQuotas).length !== validTopicIds.size
+    || [...validTopicIds].some((topicId) => (
+      !Object.hasOwn(topicQuotas, topicId)
+      || !Number.isInteger(topicQuotas[topicId])
+      || topicQuotas[topicId]! < 0
+      || (topicCoverage.get(topicId) ?? 0) !== topicQuotas[topicId]
+    ))) {
+    throw new InvalidQuestionSetError('Question coverage does not match the topic requirements.')
+  }
+  for (const domain of input.guide.domains) {
+    const domainTopicTotal = domain.topics.reduce((sum, topic) => sum + topicQuotas[topic.id]!, 0)
+    if (domainTopicTotal !== input.requiredQuestionsByDomain[domain.id]) {
+      throw new InvalidQuestionSetError('Topic requirements do not match the domain question counts.')
+    }
   }
   return questions
 }

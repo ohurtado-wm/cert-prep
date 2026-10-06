@@ -21,7 +21,12 @@ import { ApiException } from '../errors'
 import { acquireGenerationLease, finishSimulationStart, releaseGenerationLease, reserveSimulationStart } from '../simulations/repository'
 import type { createCertificationGuideService } from './certification-guide-service'
 import { createAiQuestionGenerator, type QuestionGenerator } from '../simulations/question-generator'
-import { InvalidQuestionSetError, allocateQuestionsByWeight, validateGeneratedQuestions } from '../simulations/question-validation'
+import {
+  InvalidQuestionSetError,
+  allocateQuestionsByTopic,
+  allocateQuestionsByWeight,
+  validateGeneratedQuestions,
+} from '../simulations/question-validation'
 import { allocateFocusedQuestions, analyzeWeakTopics } from '../simulations/weak-topic-analysis'
 import { StoredSimulationStateSchema, type StoredSimulationQuestion, type StoredSimulationState } from '../simulations/state'
 
@@ -291,6 +296,40 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
     return WeakTopicAnalysisResponseSchema.parse(analyzeWeakTopics({ certificationId, sessions, knownTopicIds }))
   }
 
+  async function loadRecentTopicBreakdowns(userId: string, certificationId: string, guideVersion: number) {
+    const [activeSession] = await db.select({ state: simulationSessions.state })
+      .from(simulationSessions).where(and(
+        eq(simulationSessions.gatewayUserId, userId),
+        eq(simulationSessions.certificationId, certificationId),
+        eq(simulationSessions.guideVersion, guideVersion),
+        eq(simulationSessions.status, 'active'),
+      )).orderBy(desc(simulationSessions.createdAt), desc(simulationSessions.id)).limit(1)
+
+    let activeTopicBreakdown: Record<string, { correct: number; total: number }> | undefined
+    if (activeSession) {
+      const state = parseState(activeSession.state)
+      if (state.status === 'active') {
+        activeTopicBreakdown = {}
+        for (const question of state.questions.slice(0, state.currentIndex + 1)) {
+          const topicCount = activeTopicBreakdown[question.topicId] ?? { correct: 0, total: 0 }
+          topicCount.total += 1
+          activeTopicBreakdown[question.topicId] = topicCount
+        }
+      }
+    }
+
+    const results = await db.select({ topicBreakdown: simulationResults.topicBreakdown })
+      .from(simulationResults).where(and(
+        eq(simulationResults.gatewayUserId, userId),
+        eq(simulationResults.certificationId, certificationId),
+        eq(simulationResults.guideVersion, guideVersion),
+      )).orderBy(desc(simulationResults.completedAt), desc(simulationResults.id)).limit(activeTopicBreakdown ? 1 : 2)
+    return [
+      ...(activeTopicBreakdown ? [activeTopicBreakdown] : []),
+      ...results.map(({ topicBreakdown }) => topicBreakdown),
+    ]
+  }
+
   async function getWeakTopicAnalysis(userId: string, certificationId: string) {
     const [guide] = await db.select({ domains: certificationGuides.domains })
       .from(certificationGuides).where(eq(certificationGuides.certificationId, certificationId)).limit(1)
@@ -344,6 +383,9 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
 
       const guide = await options.guideService.getGuide(request.certificationId)
       const guideTopicIds = new Set(guide.domains.flatMap((domain) => domain.topics.map((topic) => topic.id)))
+      const recentTopicBreakdowns = focusWeakTopics
+        ? []
+        : await loadRecentTopicBreakdowns(userId, request.certificationId, guide.version)
       const weakAnalysis = focusWeakTopics
         ? await loadWeakTopicAnalysis(userId, request.certificationId, guideTopicIds)
         : undefined
@@ -374,6 +416,11 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
           domain.topics.reduce((sum, topic) => sum + (focusedTopicCounts[topic.id] ?? 0), 0),
         ]))
         : allocateQuestionsByWeight(guide.domains)
+      const requiredQuestionsByTopic = focusedTopicCounts ?? allocateQuestionsByTopic(
+        guide.domains,
+        requiredQuestionsByDomain,
+        recentTopicBreakdowns,
+      )
       let questions: StoredSimulationQuestion[] | undefined
       let feedback: string | undefined
       let lastValidationError: unknown
@@ -384,7 +431,8 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
           guide: questionGuide,
           language: request.language,
           requiredQuestionsByDomain,
-          ...(focusedTopicCounts ? { requiredQuestionsByTopic: focusedTopicCounts } : {}),
+          requiredQuestionsByTopic,
+          topicScope: focusWeakTopics ? 'selected-only' : 'all-guide-topics',
           ...(feedback ? { validationFeedback: feedback } : {}),
         })
         const generation = unwrapQuestionGeneration(generated)
@@ -395,7 +443,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
             guide: questionGuide,
             language: request.language,
             requiredQuestionsByDomain,
-            ...(focusedTopicCounts ? { requiredQuestionsByTopic: focusedTopicCounts } : {}),
+            requiredQuestionsByTopic,
             idFactory: questionIdFactory,
           })
           break
