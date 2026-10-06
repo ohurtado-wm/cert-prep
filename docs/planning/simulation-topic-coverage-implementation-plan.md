@@ -21,7 +21,7 @@
 
 | PR | Scope | Status | Depends On | Validation Gate |
 |---|---|---|---|---|
-| `PR-01` | Allocate full simulations across guide topics and rotate under-covered topics across recent sessions | Ready for review; bounded output canary reviewed | - | Unit, service integration, weak-topic regression, and bounded generation-quality checks pass |
+| `PR-01` | Allocate full simulations across guide topics and rotate under-covered topics across recent sessions | [PR #19 open](https://github.com/ohurtado-wm/cert-prep/pull/19); bounded output canary reviewed | - | Unit, service integration, weak-topic regression, and bounded generation-quality checks pass |
 
 ## Goal
 
@@ -72,7 +72,7 @@ Keep the certification's domain-weight distribution while spreading each user's 
 ## PR 1: Topic Coverage and Rotation for Standard Simulations
 
 **PR ID:** `PR-01`
-**Status:** Ready for review
+**Status:** PR #19 open
 **Objective:** Use each standard simulation's existing domain-weight budget to cover less-recently-tested guide topics for that user, then enforce the selected topic counts throughout generation.
 **Depends On:** None
 **Parallelism:** Allocation tests and prompt edits can proceed after agreeing on the quota contract; service wiring and end-to-end validation follow that contract.
