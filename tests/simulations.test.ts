@@ -408,13 +408,17 @@ describe('simulation sessions', () => {
     expect((await app.request(`/api/v1/simulations/${first.sessionId}`)).status).toBe(404)
     expect((await db.select({ status: simulationStartEvents.status }).from(simulationStartEvents))
       .map(({ status }) => status).sort()).toEqual(['failed', 'succeeded', 'succeeded'])
+    let latestSessionId = replacement.sessionId
+    for (let index = 3; index < 10; index += 1) {
+      latestSessionId = (await start(app)).sessionId
+    }
     const rateLimited = await app.request('/api/v1/simulations', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ certificationId: certification.id, mode: 'real', language: 'en' }),
     })
     expect(rateLimited.status).toBe(429)
-    expect((await (await app.request('/api/v1/simulations/active')).json() as SimulationSnapshot).sessionId).toBe(replacement.sessionId)
+    expect((await (await app.request('/api/v1/simulations/active')).json() as SimulationSnapshot).sessionId).toBe(latestSessionId)
     await secondDatabase.client.end()
   })
 

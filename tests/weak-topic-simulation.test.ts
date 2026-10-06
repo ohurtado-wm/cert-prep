@@ -164,6 +164,7 @@ test('focused start sends only weak topics and exact topic quotas to the questio
   expect(observed?.guide.domains.flatMap(({ topics }) => topics.map(({ id }) => id))).toEqual(['weak-topic'])
   expect(observed?.requiredQuestionsByTopic).toEqual({ 'weak-topic': 20 })
   expect(observed?.requiredQuestionsByDomain).toEqual({ development: 20 })
+  expect(observed?.topicScope).toBe('selected-only')
   const session = await response.json() as {
     sessionId: string
     currentQuestion: { id: string; topicId: string; answers: Array<{ id: string }> }

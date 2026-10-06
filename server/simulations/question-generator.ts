@@ -29,7 +29,8 @@ export type QuestionGeneratorInput = {
   guide: CertificationGuideResponse
   language: Locale
   requiredQuestionsByDomain: Record<string, number>
-  requiredQuestionsByTopic?: Record<string, number>
+  requiredQuestionsByTopic: Record<string, number>
+  topicScope: 'all-guide-topics' | 'selected-only'
   validationFeedback?: string
 }
 
@@ -49,7 +50,7 @@ export type GenerationMetric = {
 
 export type GenerationMetricsReporter = (metric: GenerationMetric) => void
 
-function buildPrompt(input: QuestionGeneratorInput) {
+export function buildQuestionGenerationPrompt(input: QuestionGeneratorInput) {
   const isSpanish = input.language === 'es'
   const domainRequirements = input.guide.domains.map((domain) => ({
     id: domain.id,
@@ -61,14 +62,16 @@ function buildPrompt(input: QuestionGeneratorInput) {
       id: topic.id,
       name: topic.name[input.language],
       description: topic.description[input.language],
-      ...(input.requiredQuestionsByTopic ? { requiredQuestions: input.requiredQuestionsByTopic[topic.id] ?? 0 } : {}),
+      requiredQuestions: input.requiredQuestionsByTopic[topic.id] ?? 0,
     })),
   }))
-  const focusedInstructions = input.requiredQuestionsByTopic
+  const topicScopeInstructions = input.topicScope === 'selected-only'
     ? isSpanish
       ? 'Esta es una simulación enfocada. Genera preguntas solo de los temas proporcionados y respeta exactamente la cantidad indicada para cada tema.'
       : 'This is a focused simulation. Generate questions only from the supplied topics and follow the exact requested count for each topic.'
-    : ''
+    : isSpanish
+      ? 'Esta es una simulación completa. Cubre los temas de la guía con cuota mayor que cero; respeta exactamente cada cuota indicada y no uses temas con cuota cero.'
+      : 'This is a full-guide simulation. Cover guide topics with a quota above zero; follow each exact quota and do not use topics with a zero quota.'
   const instructions = isSpanish
     ? [
       'Actúa como diseñador experto de exámenes de certificación técnica de Google Cloud. Genera 20 preguntas originales de práctica que reflejen fielmente el formato, la dificultad, el nivel de razonamiento y los tipos de escenarios del examen vigente para la certificación indicada, alineadas con los dominios y temas proporcionados. Usa situaciones realistas que requieran aplicar conocimientos y elegir la mejor opción entre alternativas plausibles.',
@@ -78,7 +81,7 @@ function buildPrompt(input: QuestionGeneratorInput) {
       'Varía la posición de la opción correcta y no la pongas siempre primero. correctAnswerIndex debe señalar exactamente la opción correcta.',
       'Usa los dominios, temas y descripciones proporcionados como referencia de alcance; están basados en la guía oficial de examen de Google Cloud para esta certificación.',
       'Respeta exactamente la cantidad solicitada por dominio. Cada tema y dominio debe usar sus IDs estables proporcionados.',
-      'Cada pregunta debe evaluar un solo objetivo, tener cuatro opciones distintas y una explicación breve de la opción correcta.',
+      'Cada pregunta debe evaluar una decisión distinta, tener cuatro opciones distintas y una explicación breve de la opción correcta. Varía el contexto y el servicio cuando el tema lo permita; no repitas el mismo objetivo con otra redacción.',
       'No incluyas enlaces ni afirmes haber consultado fuentes en tiempo real.',
     ]
     : [
@@ -89,13 +92,13 @@ function buildPrompt(input: QuestionGeneratorInput) {
       'Vary the correct option position instead of always placing it first. correctAnswerIndex must identify the exact correct option.',
       'Use the supplied domains, topics, and descriptions as the scope reference; they are based on the official Google Cloud exam guide for this certification.',
       'Follow the exact requested count per domain. Use the supplied stable domain and topic IDs.',
-      'Each question should assess one objective, contain four distinct options, and provide a short explanation for the correct option.',
+      'Each question should assess a distinct decision, contain four distinct options, and provide a short explanation for the correct option. Vary scenario context and service where the topic allows; do not repeat an objective with different wording.',
       'Do not include links or claim to have consulted live sources.',
     ]
 
   return [
     ...instructions,
-    focusedInstructions,
+    topicScopeInstructions,
     `Language code: ${input.language}`,
     `Certification: ${input.guide.certification.name[input.language]} (${input.guide.certification.id})`,
     `Domains and required coverage: ${JSON.stringify(domainRequirements)}`,
@@ -130,7 +133,7 @@ export function createAiQuestionGenerator(options: {
       const result = await generateText({
         model: createAiModel({ ...process.env, AI_MODEL: modelName }),
         output: Output.object({ schema: GeneratedQuestionSetSchema }),
-        prompt: buildPrompt(input),
+        prompt: buildQuestionGenerationPrompt(input),
         maxOutputTokens: 10_000,
         maxRetries: 0,
         abortSignal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
