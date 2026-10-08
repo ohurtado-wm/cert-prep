@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray } from 'drizzle-orm'
-import { MAX_SIMULATION_HISTORY_ITEMS, SimulationHistoryResponseSchema } from '../../src/api/simulation-contracts'
+import { MAX_SIMULATION_HISTORY_ITEMS } from '../config/runtime-limits'
+import { SimulationHistoryResponseSchema } from '../../src/api/simulation-contracts'
 import type { DatabaseHandle } from '../db/client'
 import { simulationResults, simulationSessions, studyPlans } from '../db/schema'
 import { StoredSimulationStateSchema } from '../simulations/state'

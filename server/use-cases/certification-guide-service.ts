@@ -32,8 +32,8 @@ import {
 } from '../catalog/guide-generator'
 import type { CachedGuideSources } from '../catalog/source-types'
 import { logServerEvent } from '../logger'
+import { GUIDE_MAX_AGE_MS } from '../config/runtime-limits'
 
-const GUIDE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1_000
 const LEASE_DURATION_MS = 90 * 1_000
 const WEIGHT_SUM_TOLERANCE = 0.000001
 

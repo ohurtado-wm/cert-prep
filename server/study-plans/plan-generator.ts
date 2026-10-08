@@ -2,9 +2,10 @@ import { generateText, Output } from 'ai'
 import { z } from 'zod'
 import type { AiTokenUsage } from '../../src/api/ai-usage-contracts'
 import { LocaleSchema, type Locale } from '../../src/api/certification-contracts'
+import { createAiModel } from '../ai/model-provider'
+import { readAiMaxOutputTokens } from '../ai/output-token-limits'
 import { AI_REQUEST_TIMEOUT_MS } from '../ai/request-timeout'
 import { ApiException } from '../errors'
-import { createAiModel } from '../ai/model-provider'
 import type { StudyPlanFocus, StudyPlanTarget } from './analytics'
 
 export const StudyPlanDraftSchema = z.object({
@@ -46,14 +47,20 @@ function buildPrompt(input: StudyPlanPromptInput) {
   ].join('\n\n')
 }
 
-export function createAiStudyPlanGenerator(): StudyPlanGenerator {
+export function createAiStudyPlanGenerator(options: {
+  environment?: Record<string, string | undefined>
+  generateText?: typeof generateText
+} = {}): StudyPlanGenerator {
+  const environment = options.environment ?? process.env
+  const runGenerateText = options.generateText ?? generateText
+
   return async (input) => {
     try {
-      const result = await generateText({
-        model: createAiModel(),
+      const result = await runGenerateText({
+        model: createAiModel(environment),
         output: Output.object({ schema: StudyPlanDraftSchema }),
         prompt: buildPrompt(input),
-        maxOutputTokens: 3_000,
+        maxOutputTokens: readAiMaxOutputTokens('studyPlan', environment),
         maxRetries: 0,
         abortSignal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
         providerOptions: { openai: { store: false } },
