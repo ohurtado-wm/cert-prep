@@ -1,19 +1,19 @@
 # Implementation Plan: Per-Certification Simulation History
 
-**Status:** In Progress  
+**Status:** In Review  
 **Last Updated:** 2026-10-08
 
 ## Status
 
 - Completed: `PR-01` implementation, focused tests, typecheck, and build.
-- In Progress: PR publication and review.
-- Remaining: Review of the open PR.
+- Completed: PR publication.
+- In Review: Review of PR #22.
 
 ## PR Status
 
 | PR | Scope | Status | Depends On | Validation Gate |
 |---|---|---|---|---|
-| `PR-01` | Retain up to five results per certification and show history for the selected certification | Ready to publish | - | Retention/API/client coverage, typecheck, and build; full-suite finding documented below |
+| `PR-01` | Retain up to five results per certification and show history for the selected certification | [Open: #22](https://github.com/ohurtado-wm/cert-prep/pull/22) | - | Retention/API/client coverage, typecheck, and build; full-suite finding documented below |
 
 ## Goal
 
@@ -61,7 +61,7 @@ For each user, retain the five most recent completed simulations **per certifica
 ## PR 1: Certification-Scoped Simulation History
 
 **PR ID:** `PR-01`  
-**Status:** Ready to publish  
+**Status:** Open: [PR #22](https://github.com/ohurtado-wm/cert-prep/pull/22)  
 **Objective:** Keep five recent results per certification and show only the selected certification's results.  
 **Depends On:** None  
 **Parallelism:** Documentation and translations can proceed alongside backend work; API and UI wiring must agree on the certification filter.
