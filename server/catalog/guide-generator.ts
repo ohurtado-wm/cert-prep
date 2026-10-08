@@ -9,6 +9,7 @@ import {
 } from '../../src/api/certification-contracts'
 import { ApiException } from '../errors'
 import { createAiProvider } from '../ai/model-provider'
+import { readAiMaxOutputTokens } from '../ai/output-token-limits'
 import { AI_REQUEST_TIMEOUT_MS } from '../ai/request-timeout'
 
 const LocalizedText = z.object({ en: z.string().min(1), es: z.string().min(1) })
@@ -110,19 +111,25 @@ export function buildGuidePrompt(certification: CertificationCatalogItem) {
   ].join('\n\n')
 }
 
-export function createAiGuideGenerator(modelName = process.env.AI_MODEL): GuideGenerator {
+export function createAiGuideGenerator(
+  modelName?: string,
+  options: { environment?: Record<string, string | undefined>; generateText?: typeof generateText } = {},
+): GuideGenerator {
+  const environment = options.environment ?? process.env
+  const runGenerateText = options.generateText ?? generateText
+
   return async ({ certification }) => {
     try {
-      const configuredModel = modelName?.trim()
+      const configuredModel = (modelName ?? environment.AI_MODEL)?.trim()
       if (!configuredModel) {
         throw new ApiException(503, 'AI_NOT_CONFIGURED', 'Configure AI_MODEL and OPENAI_API_KEY to enable AI generation.')
       }
-      const provider = createAiProvider({ ...process.env, AI_MODEL: configuredModel })
+      const provider = createAiProvider({ ...environment, AI_MODEL: configuredModel })
       const webSearch = provider.tools.webSearch({
         filters: { allowedDomains: ALLOWED_GOOGLE_DOMAINS },
         searchContextSize: 'medium',
       })
-      const result = await generateText({
+      const result = await runGenerateText({
         model: provider.responses(configuredModel),
         tools: {
           // The installed AI SDK types omit this provider-executed tool from its Tools union.
@@ -131,7 +138,7 @@ export function createAiGuideGenerator(modelName = process.env.AI_MODEL): GuideG
         toolChoice: 'required',
         output: Output.object({ schema: GuideDraftSchema }),
         prompt: buildGuidePrompt(certification),
-        maxOutputTokens: 6_000,
+        maxOutputTokens: readAiMaxOutputTokens('guide', environment),
         maxRetries: 0,
         abortSignal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
         providerOptions: {

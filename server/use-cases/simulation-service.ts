@@ -3,7 +3,6 @@ import { AiTokenUsageSchema, type AiTokenUsage } from '../../src/api/ai-usage-co
 import { and, desc, eq, gt, inArray, isNull, lte, or } from 'drizzle-orm'
 import {
   SimulationAnswerResponseSchema,
-  MAX_SIMULATION_HISTORY_ITEMS,
   PrintableSimulationQuestionsSchema,
   SimulationRevealResponseSchema,
   SimulationSnapshotSchema,
@@ -16,6 +15,7 @@ import {
 } from '../../src/api/simulation-contracts'
 import { WeakTopicAnalysisResponseSchema, type WeakTopic } from '../../src/api/weak-topic-contracts'
 import type { DatabaseHandle } from '../db/client'
+import { MAX_SIMULATION_HISTORY_ITEMS, MAX_STARTS_PER_HOUR } from '../config/runtime-limits'
 import { certificationGuides, simulationResults, simulationSessions, simulationStartEvents } from '../db/schema'
 import { ApiException } from '../errors'
 import { acquireGenerationLease, finishSimulationStart, releaseGenerationLease, reserveSimulationStart } from '../simulations/repository'
@@ -33,7 +33,6 @@ import { StoredSimulationStateSchema, type StoredSimulationQuestion, type Stored
 const SESSION_LIFETIME_MS = 2 * 60 * 60 * 1_000
 const RATE_WINDOW_MS = 60 * 60 * 1_000
 const GENERATION_LEASE_MS = 5 * 60 * 1_000
-const MAX_STARTS_PER_HOUR = 10
 const MAX_ANSWER_ATTEMPTS = 3
 const MAX_QUESTION_GENERATION_ATTEMPTS = 2
 

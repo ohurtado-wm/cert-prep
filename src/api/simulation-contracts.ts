@@ -3,7 +3,6 @@ import { LocaleSchema } from './certification-contracts'
 import { AiTokenUsageSchema } from './ai-usage-contracts'
 
 export const SimulationModeSchema = z.enum(['practice', 'real'])
-export const MAX_SIMULATION_HISTORY_ITEMS = 20
 
 export const StartSimulationRequestSchema = z.object({
   certificationId: z.string().regex(/^[a-z0-9-]+$/),
@@ -62,7 +61,7 @@ export const SimulationHistoryItemSchema = z.object({
 })
 
 export const SimulationHistoryResponseSchema = z.object({
-  sessions: z.array(SimulationHistoryItemSchema).max(MAX_SIMULATION_HISTORY_ITEMS),
+  sessions: z.array(SimulationHistoryItemSchema),
 })
 export const ClearSimulationHistoryResponseSchema = z.object({
   deletedSessions: z.number().int().min(0),

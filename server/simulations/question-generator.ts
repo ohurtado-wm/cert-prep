@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { AiTokenUsage } from '../../src/api/ai-usage-contracts'
 import { LocaleSchema, type CertificationGuideResponse, type Locale } from '../../src/api/certification-contracts'
 import { createAiModel } from '../ai/model-provider'
+import { readAiMaxOutputTokens } from '../ai/output-token-limits'
 import { ApiException } from '../errors'
 import { AI_REQUEST_TIMEOUT_MS } from '../ai/request-timeout'
 
@@ -123,18 +124,22 @@ function reportSafely(reporter: GenerationMetricsReporter, metric: GenerationMet
 export function createAiQuestionGenerator(options: {
   modelName?: string
   reporter?: GenerationMetricsReporter
+  environment?: Record<string, string | undefined>
+  generateText?: typeof generateText
 } = {}): QuestionGenerator {
-  const modelName = options.modelName ?? process.env.AI_MODEL ?? ''
+  const environment = options.environment ?? process.env
+  const modelName = options.modelName ?? environment.AI_MODEL ?? ''
   const reporter = options.reporter ?? defaultReporter
+  const runGenerateText = options.generateText ?? generateText
 
   return async (input) => {
     const startedAt = performance.now()
     try {
-      const result = await generateText({
-        model: createAiModel({ ...process.env, AI_MODEL: modelName }),
+      const result = await runGenerateText({
+        model: createAiModel({ ...environment, AI_MODEL: modelName }),
         output: Output.object({ schema: GeneratedQuestionSetSchema }),
         prompt: buildQuestionGenerationPrompt(input),
-        maxOutputTokens: 10_000,
+        maxOutputTokens: readAiMaxOutputTokens('questions', environment),
         maxRetries: 0,
         abortSignal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
         providerOptions: { openai: { store: false } },
