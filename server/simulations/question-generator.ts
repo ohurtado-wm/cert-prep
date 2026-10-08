@@ -53,6 +53,7 @@ export type GenerationMetricsReporter = (metric: GenerationMetric) => void
 
 export function buildQuestionGenerationPrompt(input: QuestionGeneratorInput) {
   const isSpanish = input.language === 'es'
+  const provider = input.guide.certification.provider === 'google-cloud' ? 'Google Cloud' : 'Microsoft Azure'
   const domainRequirements = input.guide.domains.map((domain) => ({
     id: domain.id,
     name: domain.name[input.language],
@@ -75,23 +76,23 @@ export function buildQuestionGenerationPrompt(input: QuestionGeneratorInput) {
       : 'This is a full-guide simulation. Cover guide topics with a quota above zero; follow each exact quota and do not use topics with a zero quota.'
   const instructions = isSpanish
     ? [
-      'Actúa como diseñador experto de exámenes de certificación técnica de Google Cloud. Genera 20 preguntas originales de práctica que reflejen fielmente el formato, la dificultad, el nivel de razonamiento y los tipos de escenarios del examen vigente para la certificación indicada, alineadas con los dominios y temas proporcionados. Usa situaciones realistas que requieran aplicar conocimientos y elegir la mejor opción entre alternativas plausibles.',
+      `Actúa como diseñador experto de exámenes de certificación técnica de ${provider}. Genera 20 preguntas originales de práctica que reflejen fielmente el formato, la dificultad, el nivel de razonamiento y los tipos de escenarios del examen vigente para la certificación indicada, alineadas con los dominios y temas proporcionados. Usa situaciones realistas que requieran aplicar conocimientos y elegir la mejor opción entre alternativas plausibles.`,
       'Escribe todos los textos para el estudiante en español: enfoque, servicio, enunciado, opciones y explicación.',
-      'Usa escenarios prácticos de desarrollo, operación y arquitectura de aplicaciones cloud; crea distractores plausibles y exactamente una opción correcta.',
+      'Usa escenarios prácticos y realistas adecuados al nivel y los dominios de esta certificación; crea distractores plausibles y exactamente una opción correcta.',
       'Haz que las cuatro opciones tengan estructura gramatical, nivel de detalle y longitud comparables. Cada distractor debe ser técnicamente plausible y pertinente al escenario; evita respuestas obviamente absurdas o menos específicas que la correcta.',
       'Varía la posición de la opción correcta y no la pongas siempre primero. correctAnswerIndex debe señalar exactamente la opción correcta.',
-      'Usa los dominios, temas y descripciones proporcionados como referencia de alcance; están basados en la guía oficial de examen de Google Cloud para esta certificación.',
+      `Usa los dominios, temas y descripciones proporcionados como referencia de alcance; están basados en la guía oficial de examen de ${provider} para esta certificación.`,
       'Respeta exactamente la cantidad solicitada por dominio. Cada tema y dominio debe usar sus IDs estables proporcionados.',
       'Cada pregunta debe evaluar una decisión distinta, tener cuatro opciones distintas y una explicación breve de la opción correcta. Varía el contexto y el servicio cuando el tema lo permita; no repitas el mismo objetivo con otra redacción.',
       'No incluyas enlaces ni afirmes haber consultado fuentes en tiempo real.',
     ]
     : [
-      'Act as an expert designer of Google Cloud technical certification exams. Generate 20 original practice questions that closely reflect the format, difficulty, reasoning level, and scenario types of the current exam for the specified certification, aligned with the supplied domains and topics. Use realistic situations that require applying knowledge and choosing the best option among plausible alternatives.',
+      `Act as an expert designer of ${provider} technical certification exams. Generate 20 original practice questions that closely reflect the format, difficulty, reasoning level, and scenario types of the current exam for the specified certification, aligned with the supplied domains and topics. Use realistic situations that require applying knowledge and choosing the best option among plausible alternatives.`,
       'Write all student-facing text in English: focus, service, question, options, and explanation.',
-      'Use practical cloud application development, operations, and architecture scenarios; create plausible distractors and exactly one correct option.',
+      'Use practical, realistic scenarios appropriate to this certification level and its domains; create plausible distractors and exactly one correct option.',
       'Keep all four options comparable in grammatical structure, level of detail, and length. Each distractor must be technically plausible and relevant to the scenario; avoid obviously absurd or less specific alternatives.',
       'Vary the correct option position instead of always placing it first. correctAnswerIndex must identify the exact correct option.',
-      'Use the supplied domains, topics, and descriptions as the scope reference; they are based on the official Google Cloud exam guide for this certification.',
+      `Use the supplied domains, topics, and descriptions as the scope reference; they are based on the official ${provider} exam guide for this certification.`,
       'Follow the exact requested count per domain. Use the supplied stable domain and topic IDs.',
       'Each question should assess a distinct decision, contain four distinct options, and provide a short explanation for the correct option. Vary scenario context and service where the topic allows; do not repeat an objective with different wording.',
       'Do not include links or claim to have consulted live sources.',

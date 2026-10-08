@@ -3,6 +3,7 @@ import type { CertificationCatalogItem } from '../../src/api/certification-contr
 export const certificationCatalog: CertificationCatalogItem[] = [
   {
     id: 'gcp-professional-cloud-developer',
+    provider: 'google-cloud',
     name: {
       en: 'Professional Cloud Developer',
       es: 'Desarrollador profesional de Google Cloud',
@@ -28,6 +29,7 @@ export const certificationCatalog: CertificationCatalogItem[] = [
   },
   {
     id: 'gcp-professional-cloud-architect',
+    provider: 'google-cloud',
     name: {
       en: 'Professional Cloud Architect',
       es: 'Arquitecto profesional de Google Cloud',
@@ -53,6 +55,7 @@ export const certificationCatalog: CertificationCatalogItem[] = [
   },
   {
     id: 'gcp-professional-cloud-database-engineer',
+    provider: 'google-cloud',
     name: {
       en: 'Professional Cloud Database Engineer',
       es: 'Ingeniero profesional de bases de datos en la nube',
@@ -78,6 +81,7 @@ export const certificationCatalog: CertificationCatalogItem[] = [
   },
   {
     id: 'gcp-professional-data-engineer',
+    provider: 'google-cloud',
     name: {
       en: 'Professional Data Engineer',
       es: 'Ingeniero profesional de datos',
@@ -103,6 +107,7 @@ export const certificationCatalog: CertificationCatalogItem[] = [
   },
   {
     id: 'gcp-professional-cloud-devops-engineer',
+    provider: 'google-cloud',
     name: {
       en: 'Professional Cloud DevOps Engineer',
       es: 'Ingeniero profesional de DevOps en la nube',
@@ -123,6 +128,42 @@ export const certificationCatalog: CertificationCatalogItem[] = [
         kind: 'learning-path',
         title: 'Professional Cloud DevOps Engineer learning path',
         url: 'https://www.skills.google/paths/20',
+      },
+    ],
+  },
+  {
+    id: 'azure-ai-fundamentals',
+    provider: 'microsoft-azure',
+    name: {
+      en: 'Azure AI Fundamentals',
+      es: 'Fundamentos de IA de Azure',
+    },
+    examCode: 'AI-901',
+    sources: [
+      {
+        kind: 'exam-guide',
+        title: 'AI-901 study guide',
+        url: 'https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/ai-901',
+      },
+      {
+        kind: 'exam-details',
+        title: 'AI-901 exam details',
+        url: 'https://learn.microsoft.com/en-us/credentials/certifications/exams/ai-901/',
+      },
+      {
+        kind: 'certification',
+        title: 'Azure AI Fundamentals certification',
+        url: 'https://learn.microsoft.com/en-us/credentials/certifications/azure-ai-fundamentals/',
+      },
+      {
+        kind: 'learning-path',
+        title: 'Get started with AI applications and agents on Azure',
+        url: 'https://learn.microsoft.com/en-us/training/paths/get-started-ai-apps-agents/',
+      },
+      {
+        kind: 'learning-path',
+        title: 'AI concepts for developers and technology professionals',
+        url: 'https://learn.microsoft.com/en-us/training/paths/ai-concepts/',
       },
     ],
   },
