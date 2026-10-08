@@ -1,7 +1,7 @@
 # Plan de implementación: límites de IA y controles operativos configurables
 
-**Estado:** Límites de salida y ajustes operativos implementados localmente en `codex/configurable-ai-token-limits`; typecheck, build y Compose pasan; pruebas de los nuevos ajustes pendientes; sin commit ni PR
-**Última actualización:** 2026-10-07
+**Estado:** Commit `8c5c46d` publicado en `codex/configurable-ai-token-limits`; typecheck, build y Compose pasan; pruebas de los nuevos ajustes pendientes; PR pendiente de autenticación GitHub
+**Última actualización:** 2026-10-08
 
 ## Materiales fuente
 
@@ -21,7 +21,7 @@
 
 | PR | Alcance | Estado | Dependencia | Validación de salida |
 |---|---|---|---|---|
-| `PR-09` | Límites de salida de IA y controles operativos configurables | Implementado localmente; sin commit ni PR | Rama actual | Typecheck, build y Compose pasan; pruebas de los nuevos ajustes pendientes; suite PostgreSQL completa requiere `TEST_DATABASE_URL` |
+| `PR-09` | Límites de salida de IA y controles operativos configurables | Commit `8c5c46d` publicado; PR pendiente de autenticación GitHub | Rama actual | Typecheck, build y Compose pasan; pruebas de los nuevos ajustes pendientes; suite PostgreSQL completa requiere `TEST_DATABASE_URL` |
 
 ## Objetivo
 
@@ -69,7 +69,7 @@ Permitir ajustar desde `.env` los máximos de salida de IA, el historial conserv
 ## PR-09: límites de salida y controles operativos
 
 **ID:** `PR-09`
-**Estado:** Implementado localmente; sin commit ni PR
+**Estado:** Commit `8c5c46d` publicado; PR pendiente de autenticación GitHub
 **Objetivo:** mover los límites de salida y los controles operativos acordados a configuración explícita del entorno, conservando los valores actuales por defecto.
 **Depende de:** código actual de la rama base.
 **Paralelismo:** después de acordar nombres y valores, consumidores, Compose y documentación pueden trabajarse en paralelo.

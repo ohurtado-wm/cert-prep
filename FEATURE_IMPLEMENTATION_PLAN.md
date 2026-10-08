@@ -1,7 +1,7 @@
 # Implementation Plan: Certification Helper — producto final
 
 **Estado:** PR-01…PR-08 integrados en el `main` local; PR-DB-01 está implementado y validado, con [PR #14](https://github.com/ohurtado-wm/cert-prep/pull/14) abierto para revisión. El canary real de IA sigue pendiente.
-**Última actualización:** 2026-10-07
+**Última actualización:** 2026-10-08
 
 ## Materiales fuente
 
@@ -19,7 +19,7 @@
 - **Completado en PR-02:** catálogo y guías de estudio generadas con IA, compartidas desde SQLite y renovadas bajo demanda cada 30 días.
 - **Integrado en `main`:** PR-08 define el ciclo de vida de sesiones reanudables; su merge local es `e63502d`.
 - **En revisión en [PR #14](https://github.com/ohurtado-wm/cert-prep/pull/14):** PR-DB-01 migra la persistencia a PostgreSQL y Docker local; no importa ni conserva los datos de SQLite. Typecheck, build, configuración de Compose, migración limpia/repetible, suite PostgreSQL (53 pruebas; 368 aserciones), healthcheck, persistencia tras recrear PostgreSQL y ensayo de backup/restore pasan.
-- **Implementado localmente en `codex/configurable-ai-token-limits` (sin commit ni PR):** PR-09 externaliza los límites de salida de IA, el historial máximo, la cuota horaria y la vigencia de guías. Typecheck, build y Compose pasan tras la extensión; faltan pruebas focalizadas de los nuevos ajustes. La suite PostgreSQL completa requiere `TEST_DATABASE_URL`; el detalle está en [docs/planning/ai-output-token-limits-implementation-plan.md](docs/planning/ai-output-token-limits-implementation-plan.md).
+- **Implementado y publicado en `codex/configurable-ai-token-limits` (`8c5c46d`); PR pendiente de autenticación GitHub:** PR-09 externaliza los límites de salida de IA, el historial máximo, la cuota horaria y la vigencia de guías. Typecheck, build y Compose pasan; faltan pruebas focalizadas de los nuevos ajustes. La suite PostgreSQL completa requiere `TEST_DATABASE_URL`; el detalle está en [docs/planning/ai-output-token-limits-implementation-plan.md](docs/planning/ai-output-token-limits-implementation-plan.md).
 - **Pendiente:** canary real con OpenAI, sujeto a autorización.
 
 ## Estado de PR
@@ -35,7 +35,7 @@
 | `PR-07` | Simulación enfocada en temas débiles | Merged en `main` | `PR-05` | Solo incluye temas aún no superados |
 | `PR-08` | Reanudación de simulaciones pendientes y retención | Integrado en `main` (`e63502d`) | `PR-05` | Una sesión pendiente por usuario; las completadas vencen en dos horas |
 | `PR-DB-01` | PostgreSQL y Docker Compose local para desarrollo y producción | Abierto para revisión: [PR #14](https://github.com/ohurtado-wm/cert-prep/pull/14) | `PR-08` | Suite PostgreSQL, despliegue, persistencia del volumen y backup/restore pasan |
-| `PR-09` | Límites de IA y controles operativos configurables | Implementado localmente en `codex/configurable-ai-token-limits`; sin commit ni PR | Rama actual | Typecheck, build y Compose pasan; pruebas de los nuevos ajustes pendientes; suite PostgreSQL requiere `TEST_DATABASE_URL` |
+| `PR-09` | Límites de IA y controles operativos configurables | Commit `8c5c46d` publicado; PR pendiente de autenticación GitHub | Rama actual | Typecheck, build y Compose pasan; pruebas de los nuevos ajustes pendientes; suite PostgreSQL requiere `TEST_DATABASE_URL` |
 
 ## Objetivo
 
