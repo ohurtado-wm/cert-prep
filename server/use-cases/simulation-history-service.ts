@@ -6,9 +6,12 @@ import { simulationResults, simulationSessions, studyPlans } from '../db/schema'
 import { StoredSimulationStateSchema } from '../simulations/state'
 
 export function createSimulationHistoryService(db: DatabaseHandle) {
-  async function list(userId: string) {
+  async function list(userId: string, certificationId?: string) {
+    const ownerFilter = eq(simulationResults.gatewayUserId, userId)
     const rows = await db.select().from(simulationResults)
-      .where(eq(simulationResults.gatewayUserId, userId))
+      .where(certificationId
+        ? and(ownerFilter, eq(simulationResults.certificationId, certificationId))
+        : ownerFilter)
       .orderBy(desc(simulationResults.completedAt), desc(simulationResults.id))
       .limit(MAX_SIMULATION_HISTORY_ITEMS)
 

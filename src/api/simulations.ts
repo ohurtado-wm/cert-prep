@@ -141,8 +141,12 @@ export async function advancePracticeSimulation(sessionId: string, fetcher: Fetc
   )
 }
 
-export async function loadSimulationHistory(fetcher: Fetcher = fetch): Promise<SimulationHistoryItem[]> {
-  const response = await requestJson('/api/v1/simulation-history', SimulationHistoryResponseSchema, {}, fetcher)
+export async function loadSimulationHistory(
+  certificationId?: string,
+  fetcher: Fetcher = fetch,
+): Promise<SimulationHistoryItem[]> {
+  const query = certificationId ? `?${new URLSearchParams({ certificationId })}` : ''
+  const response = await requestJson(`/api/v1/simulation-history${query}`, SimulationHistoryResponseSchema, {}, fetcher)
   return response.sessions
 }
 

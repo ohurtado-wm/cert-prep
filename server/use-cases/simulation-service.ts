@@ -267,7 +267,10 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
       })
 
       const expiredHistory = await tx.select({ id: simulationResults.id }).from(simulationResults)
-        .where(eq(simulationResults.gatewayUserId, userId))
+        .where(and(
+          eq(simulationResults.gatewayUserId, userId),
+          eq(simulationResults.certificationId, row.certificationId),
+        ))
         .orderBy(desc(simulationResults.completedAt), desc(simulationResults.id))
         .limit(MAX_SIMULATION_HISTORY_ITEMS)
         .offset(MAX_SIMULATION_HISTORY_ITEMS)

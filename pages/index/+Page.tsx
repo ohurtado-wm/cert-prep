@@ -73,12 +73,6 @@ function CertificationApp() {
     staleTime: 60_000,
     retry: false,
   })
-  const historyQuery = useQuery({
-    queryKey: ['simulation-history', userQuery.data?.id],
-    queryFn: () => loadSimulationHistory(),
-    enabled: Boolean(userQuery.data?.id && !userQuery.isError),
-    retry: false,
-  })
   const activeSimulationQuery = useQuery({
     queryKey: ['active-simulation', userQuery.data?.id],
     queryFn: () => loadActiveSimulation(),
@@ -94,6 +88,12 @@ function CertificationApp() {
   })
   const catalog = catalogQuery.data ?? []
   const selectedCertification = catalog.find((item) => item.id === selectedCertificationId) ?? catalog[0]
+  const historyQuery = useQuery({
+    queryKey: ['simulation-history', userQuery.data?.id, selectedCertification?.id],
+    queryFn: () => loadSimulationHistory(selectedCertification!.id),
+    enabled: Boolean(userQuery.data?.id && selectedCertification && !userQuery.isError),
+    retry: false,
+  })
   const activeSessionCertification = activeSession
     ? catalog.find((item) => item.id === activeSession.certificationId)
     : undefined

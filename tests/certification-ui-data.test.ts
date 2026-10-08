@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { describe, expect, test } from 'bun:test'
 import { certificationCatalog } from '../server/catalog/certifications'
 import { loadCertificationCatalog, loadCertificationGuide, CertificationApiError } from '../src/api/certifications'
+import { loadSimulationHistory } from '../src/api/simulations'
 import { loadCertifications, QuestionBankLoadError } from '../src/data/load-certification'
 import { getTranslationKeys, translate } from '../src/i18n/messages'
 import { readLocalePreference, writeLocalePreference } from '../src/i18n/preferences'
@@ -74,6 +75,22 @@ describe('certification API client', () => {
 
     expect(requestedPath).toBe('/api/v1/certifications')
     expect(catalog[0]?.name.es).toBeTruthy()
+  })
+
+  test('loads simulation history for the selected certification and keeps global reads available', async () => {
+    const requestedPaths: string[] = []
+    const fetcher = async (input: RequestInfo | URL) => {
+      requestedPaths.push(String(input))
+      return Response.json({ sessions: [] })
+    }
+
+    await loadSimulationHistory(certificationCatalog[0]!.id, fetcher)
+    await loadSimulationHistory(undefined, fetcher)
+
+    expect(requestedPaths).toEqual([
+      `/api/v1/simulation-history?certificationId=${certificationCatalog[0]!.id}`,
+      '/api/v1/simulation-history',
+    ])
   })
 
   test('returns a validated guide and reports stable API error codes', async () => {

@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import type { z } from 'zod'
 import {
+  SimulationHistoryQuerySchema,
   StartSimulationRequestSchema,
   SubmitAnswerRequestSchema,
 } from '../../src/api/simulation-contracts'
@@ -37,7 +38,11 @@ export function createSimulationRoutes(dependencies: {
 
   routes.get('/simulation-history', async (context) => {
     const user = await resolveCurrentUser(context.req.raw, dependencies.db, dependencies.userProvider)
-    return context.json(await dependencies.historyService.list(user.id))
+    const query = SimulationHistoryQuerySchema.safeParse({
+      certificationId: context.req.query('certificationId'),
+    })
+    if (!query.success) throw new ApiException(400, 'INVALID_REQUEST', 'The certification is invalid.')
+    return context.json(await dependencies.historyService.list(user.id, query.data.certificationId))
   })
 
   routes.delete('/simulation-history', async (context) => {
