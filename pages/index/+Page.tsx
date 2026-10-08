@@ -720,6 +720,7 @@ function HomeScreen({
 
   const sourceLabels = {
     'exam-guide': text('sourceExamGuide'),
+    'exam-details': text('sourceExamDetails'),
     certification: text('sourceCertification'),
     'learning-path': text('sourceLearningPath'),
   }
@@ -1023,7 +1024,7 @@ function HomeScreen({
           <h2 id="official-sources-title">{text('officialSourcesTitle')}</h2>
           <ul>
             {guide.sources.filter((source) => source.kind !== 'exam-guide').map((source) => (
-              <li key={source.kind}>
+              <li key={source.url}>
                 <span>{sourceLabels[source.kind]}</span>
                 <a className="text-link" href={source.url} target="_blank" rel="noreferrer">
                   {text('openResource')} <span aria-hidden="true">↗</span>
@@ -1154,7 +1155,11 @@ function TopicCard({
   return (
     <article className="topic-card">
       <div className="topic-card-top">
-        <span className="topic-weight">{formatWeight(domain.weight, locale)}%</span>
+        <span className="topic-weight">
+          {domain.weightRange
+            ? `${formatWeight(domain.weightRange.min, locale)}–${formatWeight(domain.weightRange.max, locale)}%`
+            : `${formatWeight(domain.weight, locale)}%`}
+        </span>
         <span className="topic-count">{text('coveredTopicsCount', { count: domain.topics.length })}</span>
       </div>
       <h3>{domain.name[locale]}</h3>

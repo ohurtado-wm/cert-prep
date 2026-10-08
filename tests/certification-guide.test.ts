@@ -17,6 +17,7 @@ function draftFromGuide(titleSuffix = '') {
     domains: sectionWeights.map((weight, index) => ({
       sectionNumber: index + 1,
       weight,
+      weightRange: { min: weight, max: weight },
       name: { en: `Domain ${index + 1}${titleSuffix}`, es: `Dominio ${index + 1}${titleSuffix}` },
       description: { en: `Study domain ${index + 1}.`, es: `Estudia el dominio ${index + 1}.` },
       topics: [{
@@ -57,13 +58,14 @@ describe('certification guide refresh', () => {
     const response = await app.request('/api/v1/certifications')
     const body = await response.json() as { certifications: Array<{ id: string; sources: unknown[] }> }
     expect(response.status).toBe(200)
-    expect(body.certifications).toHaveLength(5)
+    expect(body.certifications).toHaveLength(6)
     expect(body.certifications.map(({ id }) => id)).toEqual([
       'gcp-professional-cloud-developer',
       'gcp-professional-cloud-architect',
       'gcp-professional-cloud-database-engineer',
       'gcp-professional-data-engineer',
       'gcp-professional-cloud-devops-engineer',
+      'azure-ai-fundamentals',
     ])
     expect(body.certifications[0]?.sources).toHaveLength(3)
   })
@@ -227,7 +229,7 @@ describe('certification guide refresh', () => {
     expect(stored?.studyPath[0]?.url).toBe(certification.sources.find((source) => source.kind === 'learning-path')?.url)
   })
 
-  test('guide refresh rejects missing and non-Google citations', async () => {
+  test('guide refresh rejects missing and non-approved citations', async () => {
     const examGuide = certification.sources.find((source) => source.kind === 'exam-guide')!
     const service = createCertificationGuideService(db, {
       guideGenerator: async () => ({

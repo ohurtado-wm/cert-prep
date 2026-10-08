@@ -31,7 +31,7 @@ import {
   type GuideGenerator,
 } from '../catalog/guide-generator'
 import type { CachedGuideSources } from '../catalog/source-types'
-import { logServerEvent } from '../logger'
+import { errorLogDetails, logServerEvent } from '../logger'
 import { GUIDE_MAX_AGE_MS } from '../config/runtime-limits'
 
 const LEASE_DURATION_MS = 90 * 1_000
@@ -55,18 +55,34 @@ function normalizeDraft(
 ): { domains: GuideDomain[]; studyPath: StudyPathStep[] } {
   const draft = GuideDraftSchema.parse(rawDraft)
   const sectionNumbers = draft.domains.map((domain) => domain.sectionNumber)
-  if (new Set(sectionNumbers).size !== sectionNumbers.length
-    || Math.abs(draft.domains.reduce((sum, domain) => sum + domain.weight, 0) - 100) > WEIGHT_SUM_TOLERANCE) {
-    throw new Error('Generated guide sections or weights are invalid.')
+  if (new Set(sectionNumbers).size !== sectionNumbers.length) {
+    throw new Error('Generated guide contains duplicate section numbers.')
+  }
+  const allocatedWeights = draft.domains.map((domain) => {
+    if (domain.weightRange.min > domain.weightRange.max) {
+      throw new Error(`Generated guide section ${domain.sectionNumber} has an invalid official weight range.`)
+    }
+    const midpoint = (domain.weightRange.min + domain.weightRange.max) / 2
+    if (Math.abs(domain.weight - midpoint) > WEIGHT_SUM_TOLERANCE) {
+      throw new Error(`Generated guide section ${domain.sectionNumber} weight does not match its official value or range midpoint.`)
+    }
+    return midpoint
+  })
+  const totalWeight = allocatedWeights.reduce((sum, weight) => sum + weight, 0)
+  if (Math.abs(totalWeight - 100) > WEIGHT_SUM_TOLERANCE) {
+    throw new Error(`Generated guide domain weights total ${totalWeight}%, not 100%.`)
   }
 
-  const domains = draft.domains.map((generated): GuideDomain => {
+  const domains = draft.domains.map((generated, index): GuideDomain => {
+    const weight = allocatedWeights[index]
+    if (weight === undefined) throw new Error(`Generated guide section ${generated.sectionNumber} has no allocation weight.`)
     return GuideDomainSchema.parse({
       id: `section-${generated.sectionNumber}`,
       sourceSectionNumber: generated.sectionNumber,
       name: generated.name,
       description: generated.description,
-      weight: generated.weight,
+      weight,
+      weightRange: generated.weightRange,
       topics: generated.topics.map((topic, index) => ({
         id: `topic-${generated.sectionNumber}-${index + 1}`,
         name: topic.name,
@@ -218,7 +234,31 @@ export function createCertificationGuideService(db: DatabaseHandle, options: Gui
           throw new Error('Generated guide is missing a citation to its official exam guide.')
         }
         normalized = normalizeDraft(certification, generated)
-      } catch {
+      } catch (error) {
+        const rawDraft = typeof generated === 'object' && generated !== null
+          ? generated as Record<string, unknown>
+          : {}
+        const draftDomains = Array.isArray(rawDraft.domains) ? rawDraft.domains : []
+        const draftStudyPath = Array.isArray(rawDraft.studyPath) ? rawDraft.studyPath : []
+        const totalWeight = draftDomains.reduce((sum: number, domain: unknown) => {
+          if (typeof domain !== 'object' || domain === null) return sum
+          const record = domain as Record<string, unknown>
+          const range = record.weightRange
+          if (typeof range === 'object' && range !== null) {
+            const { min, max } = range as Record<string, unknown>
+            if (typeof min === 'number' && typeof max === 'number') return sum + (min + max) / 2
+          }
+          const weight = record.weight
+          return typeof weight === 'number' && Number.isFinite(weight) ? sum + weight : sum
+        }, 0)
+        logServerEvent('error', 'guide_ai_validation_failed', {
+          certificationId,
+          domainCount: draftDomains.length,
+          totalDomainWeight: Number(totalWeight.toFixed(6)),
+          studyPathStepCount: draftStudyPath.length,
+          researchSourceCount: researchSources.length,
+          ...errorLogDetails(error),
+        })
         throw new ApiException(502, 'GUIDE_AI_INVALID', 'La guía generada no cumple el formato esperado. Intenta de nuevo.')
       }
 

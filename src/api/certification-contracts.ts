@@ -3,15 +3,17 @@ import { AiTokenUsageSchema } from './ai-usage-contracts'
 
 export const LocaleSchema = z.enum(['en', 'es'])
 export const LocalizedTextSchema = z.object({ en: z.string().min(1), es: z.string().min(1) })
+export const CertificationProviderSchema = z.enum(['google-cloud', 'microsoft-azure'])
 
 export const CertificationSourceSchema = z.object({
-  kind: z.enum(['exam-guide', 'certification', 'learning-path']),
+  kind: z.enum(['exam-guide', 'exam-details', 'certification', 'learning-path']),
   title: z.string().min(1),
   url: z.string().url(),
 })
 
 export const CertificationCatalogItemSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/),
+  provider: CertificationProviderSchema,
   name: LocalizedTextSchema,
   examCode: z.string().min(1).nullable(),
   sources: z.array(CertificationSourceSchema).min(1),
@@ -32,12 +34,18 @@ export const GuideTopicSchema = z.object({
   description: LocalizedTextSchema,
 })
 
+export const GuideWeightRangeSchema = z.object({
+  min: z.number().positive().max(100),
+  max: z.number().positive().max(100),
+})
+
 export const GuideDomainSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/),
   sourceSectionNumber: z.number().int().positive(),
   name: LocalizedTextSchema,
   description: LocalizedTextSchema,
   weight: z.number().positive().max(100),
+  weightRange: GuideWeightRangeSchema.optional(),
   topics: z.array(GuideTopicSchema).min(1),
 })
 
@@ -64,6 +72,7 @@ export const CertificationGuideResponseSchema = z.object({
 })
 
 export type Locale = z.infer<typeof LocaleSchema>
+export type CertificationProvider = z.infer<typeof CertificationProviderSchema>
 export type LocalizedText = z.infer<typeof LocalizedTextSchema>
 export type CertificationSource = z.infer<typeof CertificationSourceSchema>
 export type GuideResearchSource = z.infer<typeof GuideResearchSourceSchema>
