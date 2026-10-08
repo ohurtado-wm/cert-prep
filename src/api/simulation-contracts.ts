@@ -63,6 +63,9 @@ export const SimulationHistoryItemSchema = z.object({
 export const SimulationHistoryResponseSchema = z.object({
   sessions: z.array(SimulationHistoryItemSchema),
 })
+export const SimulationHistoryQuerySchema = z.object({
+  certificationId: z.string().regex(/^[a-z0-9-]+$/).optional(),
+})
 export const ClearSimulationHistoryResponseSchema = z.object({
   deletedSessions: z.number().int().min(0),
   deletedPlans: z.number().int().min(0),

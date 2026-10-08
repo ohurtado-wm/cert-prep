@@ -87,11 +87,12 @@ async function saveResult(
   id: string,
   topicBreakdown: Record<string, { correct: number; total: number }>,
   completedAt = new Date('2026-10-01T00:00:00.000Z'),
+  certificationId = certification.id,
 ) {
   await db.insert(simulationResults).values({
     id,
     gatewayUserId: userId,
-    certificationId: certification.id,
+    certificationId,
     mode: 'real',
     guideVersion: 1,
     language: 'en',
@@ -145,6 +146,25 @@ test('weak topic preview is per user and distinguishes empty and fully passed hi
   })
   expect(masteredStart.status).toBe(409)
   expect(await masteredStart.json()).toMatchObject({ error: { code: 'NO_WEAK_TOPICS' } })
+})
+
+test('weak topic preview excludes results from another certification with matching topic IDs', async () => {
+  const { app, db } = await makeContext()
+  const otherCertification = certificationCatalog[1]!
+  const path = `/api/v1/simulations/weak-topics?certificationId=${certification.id}`
+  await saveResult(db, 'learner-1', 'cert-a-weak-result', {
+    'weak-topic': { correct: 6, total: 10 },
+  })
+  await saveResult(db, 'learner-1', 'cert-b-passed-result', {
+    'weak-topic': { correct: 10, total: 10 },
+  }, new Date('2026-10-02T00:00:00.000Z'), otherCertification.id)
+
+  expect(await (await app.request(path)).json()).toMatchObject({
+    certificationId: certification.id,
+    status: 'ready',
+    analyzedSessionCount: 1,
+    topics: [{ topicId: 'weak-topic', correct: 6, total: 10, accuracyPercent: 60 }],
+  })
 })
 
 test('focused start sends only weak topics and exact topic quotas to the question generator', async () => {

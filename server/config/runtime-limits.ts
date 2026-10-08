@@ -9,7 +9,7 @@ function readPositiveInteger(name: string, defaultValue: number) {
   return parsedValue
 }
 
-export const MAX_SIMULATION_HISTORY_ITEMS = readPositiveInteger('MAX_SIMULATION_HISTORY_ITEMS', 20)
+export const MAX_SIMULATION_HISTORY_ITEMS = readPositiveInteger('MAX_SIMULATION_HISTORY_ITEMS', 5)
 export const MAX_STARTS_PER_HOUR = readPositiveInteger('MAX_STARTS_PER_HOUR', 10)
 
 const GUIDE_MAX_AGE_DAYS = readPositiveInteger('AI_GUIDE_MAX_AGE_DAYS', 30)

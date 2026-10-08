@@ -5,7 +5,8 @@ import type { SimulationSnapshot } from '../src/api/simulation-contracts'
 import { certificationCatalog } from '../server/catalog/certifications'
 import { syncCertificationCatalog } from '../server/catalog/repository'
 import { createDatabase } from '../server/db/client'
-import { simulationSessions, simulationStartEvents } from '../server/db/schema'
+import { simulationResults, simulationSessions, simulationStartEvents } from '../server/db/schema'
+import { MAX_SIMULATION_HISTORY_ITEMS } from '../server/config/runtime-limits'
 import { createSimulationService } from '../server/use-cases/simulation-service'
 import { createApp } from '../server/app'
 import type { QuestionGenerator } from '../server/simulations/question-generator'
@@ -96,6 +97,20 @@ describe('simulation sessions', () => {
         permissions: [],
       }),
       simulationService: service,
+    })
+  }
+
+  async function saveHistoryResult(id: string, certificationId: string, completedAt: Date, userId = 'learner-1') {
+    await db.insert(simulationResults).values({
+      id,
+      gatewayUserId: userId,
+      certificationId,
+      mode: 'real',
+      score: 100,
+      totalQuestions: 20,
+      correctAnswers: 20,
+      topicBreakdown: { sharedTopic: { correct: 20, total: 20 } },
+      completedAt,
     })
   }
 
@@ -446,6 +461,62 @@ describe('simulation sessions', () => {
     expect((await app.request(`/api/v1/simulations/${session.sessionId}`)).status).toBe(404)
     const history = await (await app.request('/api/v1/simulation-history')).json() as { sessions: unknown[] }
     expect(history.sessions).toHaveLength(1)
+  })
+
+  test('history retention and reads are scoped to the user and certification', async () => {
+    const otherCertification = certificationCatalog[1]!
+    const time = new Date('2026-10-01T00:00:00.000Z')
+    const app = makeApp(undefined, () => time)
+    await app.request('/api/v1/me')
+    await app.request('/api/v1/me', { headers: { 'x-test-user': 'learner-2' } })
+
+    for (let index = 0; index < MAX_SIMULATION_HISTORY_ITEMS; index += 1) {
+      await saveHistoryResult(`cert-a-${index}`, certification.id, new Date(Date.UTC(2026, 8, index + 1)))
+    }
+    await saveHistoryResult('cert-b-0', otherCertification.id, new Date('2026-09-30T00:00:00.000Z'))
+    await saveHistoryResult('other-user-cert-a-0', certification.id, new Date('2026-09-30T00:00:00.000Z'), 'learner-2')
+
+    const session = await start(app)
+    let question = session.currentQuestion
+    for (let index = 0; index < 20; index += 1) {
+      const response = await app.request(`/api/v1/simulations/${session.sessionId}/answers`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ questionId: question.id, answerId: await answerChoice(session.sessionId, question) }),
+      })
+      expect(response.status).toBe(200)
+      const body = await response.json() as { nextQuestion?: typeof question }
+      if (index < 19) question = body.nextQuestion!
+    }
+
+    const certAHistory = await (await app.request(`/api/v1/simulation-history?certificationId=${certification.id}`)).json() as {
+      sessions: Array<{ id: string; certificationId: string }>
+    }
+    const certBHistory = await (await app.request(`/api/v1/simulation-history?certificationId=${otherCertification.id}`)).json() as {
+      sessions: Array<{ id: string; certificationId: string }>
+    }
+    const otherUserHistory = await (await app.request(`/api/v1/simulation-history?certificationId=${certification.id}`, {
+      headers: { 'x-test-user': 'learner-2' },
+    })).json() as { sessions: Array<{ id: string; certificationId: string }> }
+    const globalHistory = await (await app.request('/api/v1/simulation-history')).json() as { sessions: unknown[] }
+    const invalidHistory = await app.request('/api/v1/simulation-history?certificationId=invalid!')
+
+    expect(certAHistory.sessions).toHaveLength(MAX_SIMULATION_HISTORY_ITEMS)
+    expect(certAHistory.sessions.map(({ id }) => id)).toContain(session.sessionId)
+    expect(certAHistory.sessions.map(({ id }) => id)).not.toContain('cert-a-0')
+    for (let index = 1; index < MAX_SIMULATION_HISTORY_ITEMS; index += 1) {
+      expect(certAHistory.sessions.map(({ id }) => id)).toContain(`cert-a-${index}`)
+    }
+    expect(certAHistory.sessions.map(({ id }) => id)).not.toContain('other-user-cert-a-0')
+    expect(certAHistory.sessions.every(({ certificationId }) => certificationId === certification.id)).toBe(true)
+    expect(certBHistory.sessions.map(({ id, certificationId }) => ({ id, certificationId }))).toEqual([
+      { id: 'cert-b-0', certificationId: otherCertification.id },
+    ])
+    expect(otherUserHistory.sessions.map(({ id, certificationId }) => ({ id, certificationId }))).toEqual([
+      { id: 'other-user-cert-a-0', certificationId: certification.id },
+    ])
+    expect(globalHistory.sessions).toHaveLength(MAX_SIMULATION_HISTORY_ITEMS)
+    expect(invalidHistory.status).toBe(400)
   })
 
   test('concurrent service instances leave at most one pending session for the user', async () => {
