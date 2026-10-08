@@ -771,7 +771,6 @@ function HomeScreen({
           </select>
           <h2 id="certification-title">{certification.name[locale]}</h2>
           {user && <div className="user-identity">
-            {user.avatar && <img src={user.avatar} alt="" width="32" height="32" />}
             <span>{user.email ?? user.id}</span>
           </div>}
           <div className="panel-stats">
