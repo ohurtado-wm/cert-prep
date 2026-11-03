@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
-import { allocateQuestionsByTopic, allocateQuestionsByWeight, InvalidQuestionSetError } from '../server/simulations/question-validation'
-import type { GuideDomain } from '../src/api/certification-contracts'
+import { allocateQuestionsByTopic, allocateQuestionsByWeight, InvalidQuestionSetError } from '../apps/api/src/simulations/question-validation'
+import type { GuideDomain } from '@cert-prep/contracts/certification-contracts'
 
 const domains: GuideDomain[] = [17.5, 22.5, 30, 30].map((weight, index) => ({
   id: `section-${index + 1}`,

@@ -1,11 +1,11 @@
 import { readFile } from 'node:fs/promises'
 import { describe, expect, test } from 'bun:test'
-import { certificationCatalog } from '../server/catalog/certifications'
-import { loadCertificationCatalog, loadCertificationGuide, CertificationApiError } from '../src/api/certifications'
-import { loadSimulationHistory } from '../src/api/simulations'
-import { loadCertifications, QuestionBankLoadError } from '../src/data/load-certification'
-import { getTranslationKeys, translate } from '../src/i18n/messages'
-import { readLocalePreference, writeLocalePreference } from '../src/i18n/preferences'
+import { certificationCatalog } from '../apps/api/src/catalog/certifications'
+import { loadCertificationCatalog, loadCertificationGuide, CertificationApiError } from '../apps/web/src/api/certifications'
+import { loadSimulationHistory } from '../apps/web/src/api/simulations'
+import { loadCertifications, QuestionBankLoadError } from '../apps/web/src/data/load-certification'
+import { getTranslationKeys, translate } from '../apps/web/src/i18n/messages'
+import { readLocalePreference, writeLocalePreference } from '../apps/web/src/i18n/preferences'
 
 const spanishBank = await readFile(new URL('./fixtures/certifications-es.json', import.meta.url), 'utf8')
 const englishBank = await readFile(new URL('./fixtures/certifications-en.json', import.meta.url), 'utf8')

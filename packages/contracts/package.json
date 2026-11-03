@@ -1,0 +1,18 @@
+{
+  "name": "@cert-prep/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ai-usage-contracts": "./src/ai-usage-contracts.ts",
+    "./certification-contracts": "./src/certification-contracts.ts",
+    "./contracts": "./src/contracts.ts",
+    "./simulation-contracts": "./src/simulation-contracts.ts",
+    "./study-plan-contracts": "./src/study-plan-contracts.ts",
+    "./weak-topic-contracts": "./src/weak-topic-contracts.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  }
+}

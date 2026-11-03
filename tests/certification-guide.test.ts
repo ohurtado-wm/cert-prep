@@ -1,12 +1,12 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
-import { certificationCatalog } from '../server/catalog/certifications'
+import { certificationCatalog } from '../apps/api/src/catalog/certifications'
 import {
   type GuideGenerator,
-} from '../server/catalog/guide-generator'
-import type { DatabaseHandle } from '../server/db/client'
-import { getCertificationGuide } from '../server/catalog/repository'
-import { createCertificationGuideService } from '../server/use-cases/certification-guide-service'
-import { createApp } from '../server/app'
+} from '../apps/api/src/catalog/guide-generator'
+import type { DatabaseHandle } from '../apps/api/src/db/client'
+import { getCertificationGuide } from '../apps/api/src/catalog/repository'
+import { createCertificationGuideService } from '../apps/api/src/use-cases/certification-guide-service'
+import { createApp } from '../apps/api/src/app'
 import { createTestDatabase } from './test-database'
 
 const certification = certificationCatalog[0]

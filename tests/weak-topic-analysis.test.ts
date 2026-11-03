@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { allocateFocusedQuestions, analyzeWeakTopics } from '../server/simulations/weak-topic-analysis'
+import { allocateFocusedQuestions, analyzeWeakTopics } from '../apps/api/src/simulations/weak-topic-analysis'
 
 test('weak topic analysis ranks errors, accuracy, and recency while excluding the 80% boundary', () => {
   const analysis = analyzeWeakTopics({

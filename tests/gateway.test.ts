@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { createGatewayUserProvider } from '../server/gateway/user-provider'
+import { createGatewayUserProvider } from '../apps/api/src/gateway/user-provider'
 
 describe('gateway user provider', () => {
   test('forwards the caller session and validates the resolved user', async () => {

@@ -15,7 +15,12 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@cert-prep/api": ["./apps/api/src/index.ts"],
+      "@cert-prep/contracts": ["./packages/contracts/src/index.ts"],
+      "@cert-prep/contracts/*": ["./packages/contracts/src/*"]
+    }
   },
-  "include": ["pages", "src", "server", "tests", "+server.ts", "drizzle.config.ts", "env.d.ts", "vite.config.ts"]
+  "include": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "tests/**/*.ts"]
 }

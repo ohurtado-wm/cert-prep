@@ -1,10 +1,10 @@
 import { expect, test } from 'bun:test'
 import { generateText } from 'ai'
-import type { CertificationGuideResponse } from '../src/api/certification-contracts'
-import { certificationCatalog } from '../server/catalog/certifications'
-import { createAiGuideGenerator } from '../server/catalog/guide-generator'
-import { createAiQuestionGenerator } from '../server/simulations/question-generator'
-import { createAiStudyPlanGenerator } from '../server/study-plans/plan-generator'
+import type { CertificationGuideResponse } from '@cert-prep/contracts/certification-contracts'
+import { certificationCatalog } from '../apps/api/src/catalog/certifications'
+import { createAiGuideGenerator } from '../apps/api/src/catalog/guide-generator'
+import { createAiQuestionGenerator } from '../apps/api/src/simulations/question-generator'
+import { createAiStudyPlanGenerator } from '../apps/api/src/study-plans/plan-generator'
 
 const environment = {
   AI_MODEL: 'test-model',

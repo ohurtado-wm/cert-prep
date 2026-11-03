@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test'
-import type { CertificationGuideResponse } from '../src/api/certification-contracts'
-import { certificationCatalog } from '../server/catalog/certifications'
-import { buildQuestionGenerationPrompt } from '../server/simulations/question-generator'
+import type { CertificationGuideResponse } from '@cert-prep/contracts/certification-contracts'
+import { certificationCatalog } from '../apps/api/src/catalog/certifications'
+import { buildQuestionGenerationPrompt } from '../apps/api/src/simulations/question-generator'
 
 const certification = certificationCatalog[0]!
 const guide: CertificationGuideResponse = {

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test'
-import { readAiMaxOutputTokens } from '../server/ai/output-token-limits'
+import { readAiMaxOutputTokens } from '../apps/api/src/ai/output-token-limits'
 
 const environment = {
   AI_GUIDE_MAX_OUTPUT_TOKENS: '6000',

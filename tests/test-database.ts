@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
+import { fileURLToPath } from 'node:url'
 import { Pool } from 'pg'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
-import { createDatabase } from '../server/db/client'
+import { createDatabase } from '../apps/api/src/db/client'
 
 const RESET_TABLES = [
   'users',
@@ -33,7 +34,7 @@ export async function createTestDatabase() {
 
   try {
     await migrate(database.db, {
-      migrationsFolder: './drizzle/postgresql',
+      migrationsFolder: fileURLToPath(new URL('../apps/api/drizzle/postgresql/', import.meta.url)),
       migrationsSchema: 'drizzle',
     })
   } catch (error) {
