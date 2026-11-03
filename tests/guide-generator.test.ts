@@ -1,12 +1,12 @@
 import { expect, test } from 'bun:test'
-import { certificationCatalog } from '../server/catalog/certifications'
+import { certificationCatalog } from '../apps/api/src/catalog/certifications'
 import {
   buildGuidePrompt,
   collectGuideResearchSources,
   createAiGuideGenerator,
   hashGuideResearchSources,
   isExpectedGuideResearch,
-} from '../server/catalog/guide-generator'
+} from '../apps/api/src/catalog/guide-generator'
 
 const certification = certificationCatalog[0]!
 

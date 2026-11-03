@@ -127,7 +127,7 @@ La explicación no es estrictamente necesaria para validar, pero se recomienda p
 
 ## Siguiente paso
 
-El PoC fue aprobado. La evolución de producto final —IA, sesiones bilingües e historial de resultados— está planificada en [FEATURE_IMPLEMENTATION_PLAN.md](FEATURE_IMPLEMENTATION_PLAN.md). La implementación queda pendiente de revisar ese plan y resolver las preguntas abiertas allí.
+El PoC fue aprobado. La evolución de producto final —IA, sesiones bilingües e historial de resultados— está planificada en [FEATURE_IMPLEMENTATION_PLAN.md](docs/plans/FEATURE_IMPLEMENTATION_PLAN.md). La implementación queda pendiente de revisar ese plan y resolver las preguntas abiertas allí.
 
 ## Referencia
 

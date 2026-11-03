@@ -6,6 +6,17 @@ Simulador bilingüe para certificaciones cloud. La aplicación usa una API priva
 
 - Bun 1.3 o posterior
 
+## Estructura
+
+- `apps/web/`: interfaz React/Vike, páginas, estilos y clientes HTTP.
+- `apps/api/`: API Bun/Hono, casos de uso, PostgreSQL, Drizzle y generación con IA. Vike monta la API en el mismo proceso para conservar el mismo origen.
+- `packages/contracts/`: esquemas Zod y tipos compartidos entre web, API y pruebas.
+- `tests/`: pruebas unitarias y de integración que cubren varios workspaces.
+- `docs/`: contexto vigente, alcance, arquitectura, decisiones y planes.
+- `.agents/skills/`: skills compartidos del equipo para Codex.
+
+Lee [`AGENTS.md`](AGENTS.md) para el mapa del repo, convenciones y comandos. Los documentos actuales del producto están bajo `docs/`; `PROJECT_PROPOSAL.md` conserva el alcance histórico del PoC.
+
 ## Ejecutar localmente
 
 ```bash
@@ -40,9 +51,9 @@ Abre `http://localhost:3000`. En desarrollo local se usa el usuario simulado `oh
 
 ## Alcance local
 
-La API Hono comparte origen con la aplicación Vike. `GET /api/healthz` informa disponibilidad. `GET /api/v1/me` usa el usuario simulado cuando `NODE_ENV=development`; en otros entornos consulta al gateway `/users/me` y reenvía las cabeceras de sesión `cookie` y `authorization`. La aplicación no crea ni almacena credenciales.
+La API Hono de `apps/api` comparte proceso y origen con la aplicación Vike de `apps/web`. `GET /api/healthz` informa disponibilidad. `GET /api/v1/me` usa el usuario simulado cuando `NODE_ENV=development`; en otros entornos consulta al gateway `/users/me` y reenvía las cabeceras de sesión `cookie` y `authorization`. La aplicación no crea ni almacena credenciales.
 
-Drizzle administra PostgreSQL usando `DATABASE_URL` y un pool limitado por `DATABASE_POOL_MAX` (10 por defecto). El esquema incluye guías, sesiones, resultados, planes y registros compartidos para coordinar leases y límites de inicio entre procesos. La instalación PostgreSQL empieza vacía: no se importan ni se conservan los datos del archivo SQLite anterior. Las migraciones PostgreSQL viven en `drizzle/postgresql/`; el historial SQLite de `drizzle/` se conserva solo como referencia y no forma parte del runtime.
+Drizzle administra PostgreSQL usando `DATABASE_URL` y un pool limitado por `DATABASE_POOL_MAX` (10 por defecto). El esquema incluye guías, sesiones, resultados, planes y registros compartidos para coordinar leases y límites de inicio entre procesos. La instalación PostgreSQL empieza vacía: no se importan ni se conservan los datos del archivo SQLite anterior. Las migraciones PostgreSQL viven en `apps/api/drizzle/postgresql/`; el historial SQLite de `apps/api/drizzle/` se conserva solo como referencia y no forma parte del runtime.
 
 La API expone `GET /api/v1/certifications` y `GET /api/v1/certifications/:certificationId/guide`. El catálogo activo incluye Professional Cloud Developer, Cloud Architect, Cloud Database Engineer, Data Engineer, Cloud DevOps Engineer y Azure AI Fundamentals (AI-901). La guía se genera con IA la primera vez y se renueva cuando alcanza `AI_GUIDE_MAX_AGE_DAYS` (30 días por defecto). La primera solicitud vencida adquiere una lease por certificación; las solicitudes concurrentes esperan y reutilizan el resultado. Las guías existentes se reutilizan durante ese periodo aunque provengan de una versión anterior sin citas guardadas; sus fuentes citadas se incorporan en la siguiente renovación exitosa. La generación usa OpenAI Responses con búsqueda web obligatoria y limitada a dominios oficiales según el proveedor de la certificación: Google Cloud o Microsoft Learn. El modelo recibe las URLs oficiales de la guía del examen, detalles del examen, certificación y recursos de aprendizaje; consulta su contenido mediante la búsqueda alojada, sin que la aplicación descargue o procese los PDF. Las fuentes citadas por la búsqueda y la fecha de consulta se guardan con la guía y se muestran como enlaces. La salida estructurada valida números de sección únicos, pesos de asignación que suman 100 y pasos de estudio asociados a los dominios. Si el examen publica un rango porcentual, la guía conserva y muestra ese rango oficial; la aplicación usa su punto medio solo para distribuir preguntas en simulaciones. No hay extracción local que confirme independientemente cada porcentaje contra el documento, así que la guía generada puede contener errores de lectura del modelo. Cada renovación requiere una generación con búsqueda web y puede tardar más o tener mayor costo que una generación sin búsqueda. Configura `AI_PROVIDER=openai`, `AI_MODEL`, `AI_REQUEST_TIMEOUT_SECONDS`, `AI_GUIDE_MAX_AGE_DAYS` y `OPENAI_API_KEY` en `.env`. `AI_REQUEST_TIMEOUT_SECONDS` define el límite por solicitud de IA para guías, preguntas de simulación y planes de estudio; el valor predeterminado y el de ejemplo es 60 segundos. La interfaz cambia el mensaje de carga de la guía a “está tardando más” después de 25 segundos, pero no cancela la solicitud. Sin la configuración de IA, la API devuelve un error recuperable y conserva la última guía válida. El modelo predeterminado es `gpt-6-luna` y se puede cambiar mediante `AI_MODEL`.
 
@@ -106,5 +117,5 @@ docker compose exec -T db sh -c 'dropdb -U "$POSTGRES_USER" cert_prep_restore'
 - `bun run preview`: sirve la compilación desde el servidor Bun de producción (ejecuta `bun run build` primero)
 - `bun run typecheck`: verificación de tipos TypeScript
 - `bun test`: pruebas unitarias, de rutas e integración PostgreSQL; requiere `TEST_DATABASE_URL` con permisos para crear y borrar bases de datos desechables
-- `bun run db:generate`: genera una migración Drizzle PostgreSQL en `drizzle/postgresql/`
+- `bun run db:generate`: genera una migración Drizzle PostgreSQL en `apps/api/drizzle/postgresql/`
 - `bun run db:migrate`: aplica migraciones PostgreSQL pendientes; debe ejecutarse antes de iniciar la app

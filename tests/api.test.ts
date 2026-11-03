@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
-import { ApiErrorSchema, CurrentUserResponseSchema, HealthResponseSchema } from '../src/api/contracts'
-import { createApp } from '../server/app'
-import { createDatabase } from '../server/db/client'
-import { recordGatewayUser } from '../server/db/repository'
-import { users } from '../server/db/schema'
-import { ApiException } from '../server/errors'
+import { ApiErrorSchema, CurrentUserResponseSchema, HealthResponseSchema } from '@cert-prep/contracts/contracts'
+import { createApp } from '../apps/api/src/app'
+import { createDatabase } from '../apps/api/src/db/client'
+import { recordGatewayUser } from '../apps/api/src/db/repository'
+import { users } from '../apps/api/src/db/schema'
+import { ApiException } from '../apps/api/src/errors'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { createTestDatabase } from './test-database'
 
@@ -40,7 +40,7 @@ describe('API foundation', () => {
     )
     expect(guideColumns.rows.map((column) => column.column_name)).toContain('study_path')
     expect(resultColumns.rows.map((column) => column.column_name)).toContain('topic_breakdown')
-    await migrate(db, { migrationsFolder: './drizzle/postgresql', migrationsSchema: 'drizzle' })
+    await migrate(db, { migrationsFolder: './apps/api/drizzle/postgresql', migrationsSchema: 'drizzle' })
     const migrationCount = await client.query<{ count: number }>(
       'SELECT COUNT(*)::int AS count FROM "drizzle"."__drizzle_migrations"',
     )

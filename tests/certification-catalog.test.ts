@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
-import { CertificationCatalogResponseSchema } from '../src/api/certification-contracts'
-import { certificationCatalog } from '../server/catalog/certifications'
+import { CertificationCatalogResponseSchema } from '@cert-prep/contracts/certification-contracts'
+import { certificationCatalog } from '../apps/api/src/catalog/certifications'
 
 test('catalog registers six unique certifications with official exam, certification and learning URLs', () => {
   const catalog = CertificationCatalogResponseSchema.parse({ certifications: certificationCatalog }).certifications
