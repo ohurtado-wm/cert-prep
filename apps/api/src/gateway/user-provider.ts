@@ -7,6 +7,7 @@ type GatewayFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Re
 const developmentUser: GatewayUser = {
   id: 'ohurtado',
   email: 'ohurtado@westmonroe.com',
+  avatar: 'https://img.magnific.com/free-photo/portrait-smiling-handsome-man-eyeglasses_171337-4853.jpg?semt=ais_hybrid&w=740&q=80',
   permissions: [],
 }
 

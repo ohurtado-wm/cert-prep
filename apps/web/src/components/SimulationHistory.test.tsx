@@ -57,7 +57,7 @@ describe('recent simulations', () => {
     expect(html).toContain('No results for this certification yet')
     expect(html).not.toContain('In progress')
     expect(html).not.toContain('Discard')
-    expect(html).toContain('Go to home')
+    expect(html).toContain('Go to the home page')
   })
   test('shows data from one query when the other query fails or is loading', () => {
     const pendingFailure = render({ history: [completed], pendingError: new Error('offline') })

@@ -34,6 +34,7 @@ import { translate } from '../../src/i18n/messages'
 import { observeThemePreference, readInitialPreferences, saveInitialPreferences, writeLocalePreference, writeThemePreference, type Theme, type ThemePreference } from '../../src/i18n/preferences'
 import { StudyPlanPanel } from '../../src/components/StudyPlanPanel'
 import { SimulationHistory } from '../../src/components/SimulationHistory'
+import { AccountAvatar } from '../../src/components/AccountAvatar'
 import { GuideDescription } from '../../src/components/GuideDescription'
 import { isCurrentRealAnswer, requireMatchingActiveSession } from '../../src/data/active-session'
 import { getOwnedCompletedSession, type CompletedSessionView } from '../../src/data/completed-session'
@@ -667,7 +668,7 @@ function Header({ theme, locale, user, loading, view, onNavigate }: {
         </a>
         <div className="account-menu" ref={container}>
           <button ref={trigger} className="account-trigger" type="button" aria-expanded={open} aria-controls="account-navigation" onClick={() => setOpen(!open)}>
-            <span className="account-avatar" aria-hidden="true">{(accountLabel || '?').charAt(0).toUpperCase()}</span>
+            <AccountAvatar key={user?.avatar ?? ''} avatar={user?.avatar} />
             <span className="account-name">{loading ? text('profileLoading') : accountLabel || text('accountMenu')}</span>
             <svg className="account-caret" aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="m3 6 5 5 5-5" /></svg>
           </button>
@@ -989,7 +990,7 @@ function HomeScreen({
           <h2 id="certification-title">{certification.name[locale]}</h2>
           <div className="panel-stats">
             <div><strong>20</strong><span>{text('questionsLabel')}</span></div>
-            <div><strong>{guideLoading || guideError ? '—' : domains.length}</strong><span>{text('domainsLabel')}</span></div>
+            <div><strong>{guideLoading || guideError ? '—' : domains.length}</strong><span>{text('domainsLabel', { count: guideLoading || guideError ? 0 : domains.length })}</span></div>
             <div><strong>{locale.toUpperCase()}</strong><span>{text('languageLabel')}</span></div>
           </div>
           <label className="simulation-mode-control">

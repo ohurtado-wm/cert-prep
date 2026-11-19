@@ -414,7 +414,7 @@ export function ResultsScreen({
             <article className="results-topic" key={item.id}>
               <div className="results-topic-heading">
                 <div className="results-topic-index" style={{ borderColor: topicColors[index % topicColors.length] }}>{String(index + 1).padStart(2, '0')}</div>
-                <div className="results-topic-name"><h3>{item.name}</h3><span>{item.total} {text('questionsLabel')}</span></div>
+                <div className="results-topic-name"><h3>{item.name}</h3><span>{item.total} {text('questionsLabel', { count: item.total })}</span></div>
                 <strong className="results-topic-score">{item.correct} / {item.total}</strong>
               </div>
               <div className="topic-meter result-meter" aria-hidden="true">
@@ -437,7 +437,7 @@ export function ResultsScreen({
             <article className="results-topic" key={item.id}>
               <div className="results-topic-heading">
                 <div className="results-topic-index" style={{ borderColor: topicColors[index % topicColors.length] }}>{String(index + 1).padStart(2, '0')}</div>
-                <div className="results-topic-name"><h3>{item.name}</h3><span>{item.total} {text('questionsLabel')}</span></div>
+                <div className="results-topic-name"><h3>{item.name}</h3><span>{item.total} {text('questionsLabel', { count: item.total })}</span></div>
                 <strong className="results-topic-score">{item.correct} / {item.total}</strong>
               </div>
               <div className="topic-meter result-meter" aria-hidden="true">

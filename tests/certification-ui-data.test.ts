@@ -63,6 +63,19 @@ describe('localized certification UI data', () => {
     expect(translate('en', 'questionCounter', { current: 3, total: 20 })).toBe('Question 3 of 20')
     expect(translate('es', 'questionCounter', { current: 3, total: 20 })).toBe('Pregunta 3 de 20')
   })
+
+  test('uses singular and plural forms for counts in both languages', () => {
+    expect(translate('es', 'coveredTopicsCount', { count: 1 })).toBe('1 tema cubierto')
+    expect(translate('es', 'coveredTopicsCount', { count: 2 })).toBe('2 temas cubiertos')
+    expect(translate('en', 'coveredTopicsCount', { count: 1 })).toBe('1 covered topic')
+    expect(translate('en', 'coveredTopicsCount', { count: 0 })).toBe('0 covered topics')
+    expect(translate('es', 'studyPlanBasedOn', { count: 1 })).toBe('Basado en 1 simulación reciente')
+    expect(translate('en', 'studyPlanBasedOn', { count: 2 })).toBe('Based on 2 recent simulations')
+    expect(translate('es', 'weakTopicMoreAreas', { count: 1 })).toBe('Se omitió 1 tema débil de menor prioridad para esta simulación.')
+    expect(translate('en', 'weakTopicMoreAreas', { count: 1 })).toBe('1 lower-priority weak topic was left out of this simulation.')
+    expect(translate('es', 'questionsLabel', { count: 1 })).toBe('pregunta')
+    expect(translate('en', 'domainsLabel', { count: 1 })).toBe('domain')
+  })
 })
 
 describe('certification API client', () => {
