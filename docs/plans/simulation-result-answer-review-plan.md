@@ -21,7 +21,7 @@ En la pantalla de resultados, mostrar qué opción eligió la persona para cada 
 4. Adaptar la revisión actual de resultados para ambas modalidades: mostrar pregunta, selección o selecciones con etiquetas accesibles de correcta/incorrecta, respuesta correcta cuando corresponda y explicación. Usar textos en español e inglés y conservar el idioma inglés de las preguntas avanzadas. No depender solo del color para indicar el resultado; mantener contraste y navegación con teclado en modo claro y oscuro.
 5. Conservar la generación de explicaciones avanzadas en segundo plano, sus reintentos y su aviso de retención temporal. Mantener la hoja imprimible actual sin añadir selecciones por defecto, y no agregar respuestas individuales al historial ni al estado completado. El estado activo ya se almacena en JSON: no se prevé migración SQL.
 
-La decisión de representación y retención se documenta como propuesta en [ADR 0004](../decisions/0004-simulation-answer-review.md).
+La decisión de representación y retención se documenta en el [ADR 0004](../decisions/0004-simulation-answer-review.md), aceptado explícitamente por el usuario.
 
 ## Aceptación y validación
 
@@ -40,4 +40,4 @@ Tras la aprobación: actualizar estado y contratos; construir el resultado final
 - `bun run typecheck` y `bun run build` pasaron.
 - Pasaron 18 pruebas específicas de simulaciones normales y avanzadas y de la revisión renderizada; incluyen PostgreSQL temporal, reanudación, intentos antiguos incompletos, respuestas correctas e incorrectas, respuestas reveladas y ausencia de correcciones antes del final.
 - Pasaron otras 12 pruebas de práctica de temas débiles, cobertura de temas y acceso al resultado temporal.
-- No se ejecutó una revisión visual o de navegación en un navegador. El ADR 0004 permanece propuesto.
+- No se ejecutó una revisión visual o de navegación en un navegador. El usuario aceptó explícitamente el ADR 0004.

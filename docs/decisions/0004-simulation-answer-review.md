@@ -1,12 +1,13 @@
 # ADR 0004: Selecciones de respuestas en la revisión final
 
-**Estado:** Propuesto
+**Estado:** Aceptado
+**Fecha de aceptación:** 2026-11-19
 
 ## Contexto
 
 El resultado conserva agregados, pero el estado activo no registra las opciones seleccionadas, por lo que no se pueden mostrar en la revisión final. En práctica guiada puede haber varios intentos o una respuesta revelada. El resultado y la retención actuales deben seguir funcionando para sesiones anteriores.
 
-## Propuesta
+## Decisión
 
 - Guardar temporalmente, en el JSON de la sesión activa y por pregunta, los IDs ordenados de las opciones enviadas. Validar sus límites y pertenencia a la pregunta.
 - Al finalizar, resolver en el servidor las selecciones y su corrección y devolverlas como campos compatibles de la revisión final. No incluir correcciones en las respuestas de una simulación real activa.

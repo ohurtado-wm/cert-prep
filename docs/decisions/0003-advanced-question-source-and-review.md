@@ -1,12 +1,13 @@
 # ADR 0003: Fuente de preguntas y revisión temporal de simulaciones reales
 
-**Estado:** Propuesto
+**Estado:** Aceptado
+**Fecha de aceptación:** 2026-11-19
 
 ## Contexto
 
 Práctica avanzada usa un banco estático autorizado y comparte las reglas de simulación real con las preguntas generadas por IA. Ambas muestran las respuestas y explicaciones únicamente después de finalizar. El historial actual conserva agregados, pero no preguntas ni respuestas, y las sesiones anteriores deben seguir siendo legibles.
 
-## Propuesta
+## Decisión
 
 - Mantener `practice` y `real` como modos y registrar por separado la fuente de preguntas. La fuente ausente se interpreta como IA para conservar compatibilidad.
 - Persistir únicamente la fuente junto a los resultados agregados, sin agregar preguntas ni respuestas al historial.

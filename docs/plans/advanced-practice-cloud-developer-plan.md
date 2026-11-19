@@ -65,7 +65,7 @@ La primera etiqueta está truncada; estas correspondencias son propuestas, no un
 - La revisión avanzada y sus explicaciones viven solo en memoria durante la visita; al salir se descartan y se solicita limpiar el contexto temporal. Ante cierre inesperado se usa expiración acotada. Un reinicio del proceso o una expiración puede impedir regenerar explicaciones: mostrar un error recuperable durante la visita sin perder las respuestas ya mostradas. No recuperar la revisión avanzada desde historial o después de recargar. El acceso temporal existente de la simulación normal queda sujeto a la aclaración indicada abajo.
 - No registrar preguntas, opciones, respuestas, prompts ni respuestas del modelo. Utilizar el proveedor y las opciones de privacidad existentes, sin agregar un backend independiente. Mantener `/api/*` en el mismo origen y validar entradas y salidas con Zod.
 
-La fuente en contratos y datos, el contexto temporal y la nueva llamada de IA requieren documentar una decisión técnica con el skill `record-adr`. El ADR deberá presentarse como **propuesto**; su aceptación requiere aprobación explícita.
+La fuente en contratos y datos, el contexto temporal y la nueva llamada de IA se documentan en el [ADR 0003](../decisions/0003-advanced-question-source-and-review.md), aceptado explícitamente por el usuario.
 
 ## 6. Validación de datos y errores
 
@@ -101,7 +101,7 @@ Incluir [el enlace al curso](https://www.udemy.com/course/google-cloud-platform-
 
 **Fases:**
 
-1. Clasificar y verificar las 1.020 preguntas y auditar capacidad por tema para la guía vigente. Preparar el ADR como propuesta y no marcarlo aceptado sin aprobación explícita.
+1. Clasificar y verificar las 1.020 preguntas y auditar capacidad por tema para la guía vigente. Preparar el ADR y obtener aprobación explícita antes de marcarlo aceptado.
 2. Implementar parser, manifiesto y selección con las cuotas existentes; comprobar compatibilidad de guías y comportamiento ante errores.
 3. Implementar contratos, estado, migración y datos de historial con compatibilidad hacia atrás y aislamiento de propietario.
 4. Implementar revisión temporal, explicaciones en segundo plano y reintentos individuales con límites, limpieza y manejo de expiración.
@@ -113,11 +113,11 @@ Las pruebas deben usar datos ficticios y un generador de explicaciones simulado,
 
 ## Aprobación
 
-El usuario aprobó la implementación. La aceptación del ADR requiere aprobación explícita por separado. La decisión sobre conservar el acceso temporal existente de la simulación normal permanece pendiente.
+El usuario aprobó la implementación y aceptó explícitamente el ADR 0003. La decisión sobre conservar el acceso temporal existente de la simulación normal permanece pendiente.
 
 ## Avance y validación
 
-- Se implementaron los contratos de fuente, migración, historial, selección avanzada por cuotas, controles y advertencia, revisión para ambos modos reales y explicaciones avanzadas temporales con reintentos. El ADR 0003 está propuesto.
+- Se implementaron los contratos de fuente, migración, historial, selección avanzada por cuotas, controles y advertencia, revisión para ambos modos reales y explicaciones avanzadas temporales con reintentos. El ADR 0003 fue aceptado explícitamente por el usuario.
 - Los seis archivos se copiaron sin cambiar sus contenidos. Inicialmente se generó un mapeo propuesto para la guía local con `reviewed: false`.
 - La propuesta revisable está en [advanced-practice-question-mapping-review.csv](advanced-practice-question-mapping-review.csv). `bank-<archivo>-<pregunta>` identifica el Markdown y su número de pregunta; `suggested_topic_id` y `alternative_topic_id` son sugerencias automáticas, no una garantía. La persona revisora debe indicar el tema comprobado en `confirmed_topic_id` y marcar `reviewed` solo después de revisar cada pregunta. Una vez completado, el manifiesto del servidor deberá actualizarse y validarse contra la guía vigente y sus cuotas antes de habilitarse.
 - Se verificó un ejemplo concreto de incompatibilidad: `bank-1-23` viene etiquetada por el curso en el dominio de construcción y pruebas, pero pregunta sobre un despliegue canario en Cloud Run; la guía vigente trata ese contenido en despliegue y resiliencia. Por ello, copiar las propuestas automáticas sin revisión no acredita las cuotas solicitadas. El manifiesto incluye además una huella de las preguntas, opciones y respuestas: si el banco cambia después de su revisión, el inicio queda bloqueado hasta volver a comprobarlo.
