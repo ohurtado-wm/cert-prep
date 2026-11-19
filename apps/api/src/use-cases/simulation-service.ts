@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { AiTokenUsageSchema, type AiTokenUsage } from '@cert-prep/contracts/ai-usage-contracts'
 import { and, desc, eq, gt, inArray, isNull, lte, or } from 'drizzle-orm'
 import {
@@ -29,6 +29,9 @@ import {
 } from '../simulations/question-validation'
 import { allocateFocusedQuestions, analyzeWeakTopics } from '../simulations/weak-topic-analysis'
 import { StoredSimulationStateSchema, type StoredSimulationQuestion, type StoredSimulationState } from '../simulations/state'
+import { AdvancedBankError, guideFingerprint, loadAdvancedBank, selectBankQuestions } from '../simulations/advanced-bank/bank'
+import { adaptMappingToGuide, type GuideCompatibilityChecker } from '../simulations/advanced-bank/guide-compatibility'
+import { generateBankExplanation, type ExplanationGenerator } from '../simulations/advanced-bank/explanations'
 
 const SESSION_LIFETIME_MS = 2 * 60 * 60 * 1_000
 const RATE_WINDOW_MS = 60 * 60 * 1_000
@@ -44,6 +47,9 @@ type SimulationServiceOptions = {
   now?: () => Date
   sessionIdFactory?: () => string
   questionIdFactory?: () => string
+  advancedBank?: typeof loadAdvancedBank
+  guideCompatibilityChecker?: GuideCompatibilityChecker
+  explanationGenerator?: ExplanationGenerator
 }
 
 type SessionRow = typeof simulationSessions.$inferSelect
@@ -88,6 +94,7 @@ function toSnapshot(row: SessionRow, state: StoredSimulationState): SimulationSn
     createdAt: row.createdAt.toISOString(),
     mode: row.mode,
     language: state.language,
+    questionSource: state.questionSource ?? 'ai',
     status: state.status,
     questionCount: 20,
     currentIndex: state.currentIndex,
@@ -134,10 +141,12 @@ function calculateResult(questions: StoredSimulationQuestion[]): SimulationResul
   const tally = (key: 'domainId' | 'topicId' | 'focus') => {
     const groups = new Map<string, { correct: number; total: number }>()
     for (const question of questions) {
-      const group = groups.get(question[key]) ?? { correct: 0, total: 0 }
+      const identifier = question[key]
+      if (!identifier) continue
+      const group = groups.get(identifier) ?? { correct: 0, total: 0 }
       group.total += 1
       if (question.outcome === 'first_try') group.correct += 1
-      groups.set(question[key], group)
+      groups.set(identifier, group)
     }
     return [...groups.entries()].map(([id, value]) => ({ id, ...value }))
   }
@@ -160,10 +169,12 @@ function completeState(
   language: StoredSimulationState['language'],
   result: SimulationResult,
   aiUsage: AiTokenUsage | null | undefined,
+  questionSource: 'ai' | 'advanced' = 'ai',
 ): StoredSimulationState {
   return StoredSimulationStateSchema.parse({
     version: 1,
     language,
+    questionSource,
     status: 'completed',
     currentIndex: 20,
     questions: [],
@@ -178,7 +189,13 @@ function toPrintableQuestions(questions: StoredSimulationQuestion[]) {
     if (!correctAnswer) {
       throw new ApiException(500, 'SIMULATION_STATE_INVALID', 'The saved correct answer could not be found.')
     }
-    return { question: question.question, answer: correctAnswer.text }
+    if (question.outcome === 'pending') throw new ApiException(500, 'SIMULATION_STATE_INVALID', 'The saved question is not resolved.')
+    const attempts = (question.answerAttempts ?? []).map(({ number, answerId }) => {
+      const answer = question.answers.find(({ id }) => id === answerId)
+      if (!answer) throw new ApiException(500, 'SIMULATION_STATE_INVALID', 'The saved selected answer could not be found.')
+      return { number, answer: answer.text, correct: answerId === question.correctAnswerId }
+    })
+    return { question: question.question, answer: correctAnswer.text, id: question.id, ...(question.explanation ? { explanation: question.explanation } : {}), review: { outcome: question.outcome, attempts, missingAttempts: question.attempts - attempts.length } }
   }))
 }
 
@@ -198,6 +215,45 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
   const now = options.now ?? (() => new Date())
   const sessionIdFactory = options.sessionIdFactory ?? randomUUID
   const questionIdFactory = options.questionIdFactory ?? randomUUID
+  const reviewContexts = new Map<string, { ownerId: string; expiresAt: number; ids: Map<string, string>; pending: Map<string, Promise<string>>; attempts: Map<string, number> }>()
+  const guideMappings = new Map<string, ReturnType<typeof adaptMappingToGuide>>()
+
+  function registerReview(sessionId: string, ownerId: string, questions: StoredSimulationQuestion[]) {
+    const ids = new Map(questions.flatMap((question) => question.bankQuestionId ? [[question.id, question.bankQuestionId] as const] : []))
+    if (ids.size === 20) {
+      const context = { ownerId, expiresAt: Date.now() + SESSION_LIFETIME_MS, ids, pending: new Map<string, Promise<string>>(), attempts: new Map<string, number>() }
+      reviewContexts.set(sessionId, context)
+      setTimeout(() => { if (reviewContexts.get(sessionId) === context) reviewContexts.delete(sessionId) }, SESSION_LIFETIME_MS).unref()
+    }
+  }
+
+  async function explainQuestion(userId: string, sessionId: string, questionId: string) {
+    const context = reviewContexts.get(sessionId)
+    if (!context || context.ownerId !== userId || context.expiresAt <= Date.now()) {
+      if (context?.expiresAt && context.expiresAt <= Date.now()) reviewContexts.delete(sessionId)
+      throw new ApiException(404, 'REVIEW_UNAVAILABLE', 'The review is no longer available.')
+    }
+    const bankId = context.ids.get(questionId)
+    if (!bankId) throw new ApiException(404, 'REVIEW_QUESTION_NOT_FOUND', 'The review question was not found.')
+    const row = await ownedSession(userId, sessionId)
+    if (row.status !== 'completed') throw new ApiException(404, 'REVIEW_UNAVAILABLE', 'The review is no longer available.')
+    const pending = context.pending.get(questionId)
+    if (pending) return { explanation: await pending }
+    if (context.pending.size >= 3 || (context.attempts.get(questionId) ?? 0) >= 3) throw new ApiException(429, 'EXPLANATION_LIMIT', 'Try again later.')
+    context.attempts.set(questionId, (context.attempts.get(questionId) ?? 0) + 1)
+    const task = (async () => {
+      const { bank } = await (options.advancedBank ?? loadAdvancedBank)()
+      const question = bank.find((item) => item.id === bankId)
+      if (!question) throw new Error('Question unavailable')
+      return (options.explanationGenerator ?? generateBankExplanation)(question)
+    })()
+    context.pending.set(questionId, task)
+    try { return { explanation: await task } } catch { throw new ApiException(503, 'EXPLANATION_UNAVAILABLE', 'The explanation could not be generated.') } finally { context.pending.delete(questionId) }
+  }
+
+  function closeReview(userId: string, sessionId: string) {
+    if (reviewContexts.get(sessionId)?.ownerId === userId) reviewContexts.delete(sessionId)
+  }
   async function ownedSession(userId: string, sessionId: string) {
     const row = await db.query.simulationSessions.findFirst({
       where: and(eq(simulationSessions.id, sessionId), eq(simulationSessions.gatewayUserId, userId)),
@@ -254,6 +310,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
         guideVersion: row.guideVersion,
         mode: row.mode,
         language: oldState.language,
+        questionSource: oldState.questionSource ?? 'ai',
         score: result.score,
         totalQuestions: result.totalQuestions,
         correctAnswers: result.correctAnswers,
@@ -348,6 +405,10 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
   }
 
   async function startInternal(userId: string, request: StartSimulationRequest, focusWeakTopics: boolean): Promise<SimulationSnapshot> {
+    const questionSource = request.questionSource ?? 'ai'
+    if (questionSource === 'advanced' && (request.mode !== 'real' || request.certificationId !== 'gcp-professional-cloud-developer' || focusWeakTopics)) {
+      throw new ApiException(400, 'ADVANCED_MODE_INVALID', 'Advanced practice requires a real Professional Cloud Developer simulation.')
+    }
     const requestTime = now()
     const cutoff = new Date(requestTime.getTime() - RATE_WINDOW_MS)
     const leaseToken = randomUUID()
@@ -428,7 +489,26 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
       let lastValidationError: unknown
       const generationUsages: AiTokenUsage[] = []
 
-      for (let attempt = 0; attempt < MAX_QUESTION_GENERATION_ATTEMPTS; attempt += 1) {
+      if (questionSource === 'advanced') {
+        try {
+          const { bank, mapping } = await (options.advancedBank ?? loadAdvancedBank)()
+          const key = `${createHash('sha256').update(JSON.stringify(mapping)).digest('hex')}:${guideFingerprint(guide)}`
+          let compatible = guideMappings.get(key)
+          if (!compatible) {
+            compatible = adaptMappingToGuide(bank, mapping, guide, options.guideCompatibilityChecker)
+            guideMappings.set(key, compatible)
+            if (guideMappings.size > 10) guideMappings.delete(guideMappings.keys().next().value!)
+          }
+          let currentMapping
+          try { currentMapping = await compatible } catch (error) { if (guideMappings.get(key) === compatible) guideMappings.delete(key); throw error }
+          questions = selectBankQuestions({ bank, mapping: currentMapping, guide, domainCounts: requiredQuestionsByDomain, topicCounts: requiredQuestionsByTopic, idFactory: questionIdFactory })
+        } catch (error) {
+          if (error instanceof AdvancedBankError) throw new ApiException(503, 'ADVANCED_BANK_UNAVAILABLE', 'Advanced practice is not available for the current guide.')
+          throw error
+        }
+      }
+
+      for (let attempt = 0; questionSource === 'ai' && attempt < MAX_QUESTION_GENERATION_ATTEMPTS; attempt += 1) {
         const generated = await questionGenerator({
           guide: questionGuide,
           language: request.language,
@@ -466,7 +546,8 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
       const sessionId = sessionIdFactory()
       const state = StoredSimulationStateSchema.parse({
         version: 1,
-        language: request.language,
+        language: questionSource === 'advanced' ? 'en' : request.language,
+        questionSource,
         status: 'active',
         currentIndex: 0,
         questions,
@@ -558,6 +639,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
       const updatedQuestion = {
         ...question,
         attempts: 1,
+        answerAttempts: [...(question.answerAttempts ?? []), { number: 1, answerId: input.answerId }],
         outcome: input.answerId === question.correctAnswerId ? 'first_try' as const : 'incorrect' as const,
       }
       const updatedQuestions = [...state.questions]
@@ -566,8 +648,9 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
       if (index === 19) {
         const result = calculateResult(updatedQuestions)
         const printableQuestions = toPrintableQuestions(updatedQuestions)
-        const completed = completeState(state.language, result, state.aiUsage)
+        const completed = completeState(state.language, result, state.aiUsage, state.questionSource)
         await saveCompletedState(row, userId, state, completed, result)
+        if (state.questionSource === 'advanced') registerReview(row.id, userId, updatedQuestions)
         return SimulationAnswerResponseSchema.parse({ mode: 'real', status: 'completed', result, printableQuestions })
       }
 
@@ -589,7 +672,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
     const outcome = isCorrect
       ? attempts === 1 ? 'first_try' as const : 'retry' as const
       : attempts === MAX_ANSWER_ATTEMPTS ? 'incorrect' as const : 'pending' as const
-    const nextState = replaceQuestion(state, index, { ...question, attempts, outcome })
+    const nextState = replaceQuestion(state, index, { ...question, attempts, outcome, answerAttempts: [...(question.answerAttempts ?? []), { number: attempts, answerId: input.answerId }] })
     await saveState(row, userId, state, nextState)
     return SimulationAnswerResponseSchema.parse({
       mode: 'practice',
@@ -637,7 +720,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
     if (state.currentIndex === 19) {
       const result = calculateResult(state.questions)
       const printableQuestions = toPrintableQuestions(state.questions)
-      const completed = completeState(state.language, result, state.aiUsage)
+      const completed = completeState(state.language, result, state.aiUsage, state.questionSource)
       const expiresAt = await saveCompletedState(row, userId, state, completed, result)
       return SimulationSnapshotSchema.parse({
         ...toSnapshot({ ...row, state: completed, status: 'completed', expiresAt }, completed),
@@ -650,5 +733,5 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
     return toSnapshot({ ...row, state: updated }, updated)
   }
 
-  return { start, startWeakTopics, getWeakTopicAnalysis, get, getActive, cancel, answer, reveal, next }
+  return { start, startWeakTopics, getWeakTopicAnalysis, get, getActive, cancel, answer, reveal, next, explainQuestion, closeReview }
 }

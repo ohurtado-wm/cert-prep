@@ -6,9 +6,11 @@ import {
   SimulationHistoryResponseSchema,
   SimulationRevealResponseSchema,
   SimulationSnapshotSchema,
+  QuestionExplanationResponseSchema,
   type SimulationAnswerResponse,
   type SimulationHistoryItem,
   type SimulationMode,
+  type QuestionSource,
   type SimulationRevealResponse,
   type SimulationSnapshot,
 } from '@cert-prep/contracts/simulation-contracts'
@@ -66,8 +68,17 @@ export async function startSimulation(
   mode: SimulationMode,
   language: Locale,
   fetcher: Fetcher = fetch,
+  questionSource: QuestionSource = 'ai',
 ): Promise<SimulationSnapshot> {
-  return requestJson('/api/v1/simulations', SimulationSnapshotSchema, postJson({ certificationId, mode, language }), fetcher)
+  return requestJson('/api/v1/simulations', SimulationSnapshotSchema, postJson({ certificationId, mode, language, ...(questionSource === 'advanced' ? { questionSource } : {}) }), fetcher)
+}
+
+export async function generateQuestionExplanation(sessionId: string, questionId: string, signal?: AbortSignal) {
+  return requestJson(`/api/v1/simulations/${encodeURIComponent(sessionId)}/review/${encodeURIComponent(questionId)}/explanation`, QuestionExplanationResponseSchema, { ...postJson({}), signal })
+}
+
+export async function closeSimulationReview(sessionId: string): Promise<void> {
+  await fetch(`/api/v1/simulations/${encodeURIComponent(sessionId)}/review`, { method: 'DELETE', keepalive: true }).catch(() => undefined)
 }
 
 export async function loadWeakTopicAnalysis(

@@ -22,6 +22,7 @@ export function createSimulationHistoryService(db: DatabaseHandle) {
         guideVersion: row.guideVersion,
         mode: row.mode,
         language: row.language,
+        questionSource: row.questionSource,
         completedAt: row.completedAt.toISOString(),
         score: row.score,
         totalQuestions: row.totalQuestions,

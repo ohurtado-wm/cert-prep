@@ -86,7 +86,7 @@ export function SimulationHistory({
       {active && <li className="history-card history-card-active">
         <div className="history-card-topline"><strong className="history-active-status">{text('historyInProgress')}</strong><time dateTime={active.createdAt}>{formatDate(active.createdAt, locale)}</time></div>
         <div className="history-card-heading">
-          <div><h3>{certification.name[locale]}</h3><p>{text(active.mode === 'real' ? 'historyRealMode' : 'historyPracticeMode')}</p></div>
+          <div><h3>{certification.name[locale]}</h3><p>{text(active.mode === 'real' ? 'historyRealMode' : 'historyPracticeMode')} · {text(active.questionSource === 'advanced' ? 'advancedMode' : 'historyAiSource')}</p></div>
         </div>
         <div className="history-progress">
           <p className="history-score-detail">{text('pendingSessionProgress', { current: active.currentIndex + 1, total: active.questionCount })}</p>
@@ -106,7 +106,7 @@ export function SimulationHistory({
         return <li className="history-card" key={session.id}>
           <div className="history-card-topline"><strong className="history-completed-status">{text('historyCompleted')}</strong><time dateTime={session.completedAt}>{formatDate(session.completedAt, locale)}</time></div>
           <div className="history-card-heading">
-            <div><h3>{title}</h3><p>{text(session.mode === 'real' ? 'historyRealMode' : 'historyPracticeMode')}</p></div>
+            <div><h3>{title}</h3><p>{text(session.mode === 'real' ? 'historyRealMode' : 'historyPracticeMode')} · {text(session.questionSource === 'advanced' ? 'advancedMode' : 'historyAiSource')}</p></div>
             <div className="history-result-score"><span>{text('historyScore')}</span><strong className="history-score">{session.score}%</strong></div>
           </div>
           <div className="history-progress">

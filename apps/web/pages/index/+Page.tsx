@@ -72,6 +72,7 @@ function CertificationApp() {
   const [view, setView] = useState<View>('dashboard')
   const [reminderClosed, setReminderClosed] = useState(false)
   const [simulationMode, setSimulationMode] = useState<SimulationMode>('practice')
+  const [advancedPractice, setAdvancedPractice] = useState(false)
   const [selectedCertificationId, setSelectedCertificationId] = useState('')
   const [questionIndex, setQuestionIndex] = useState(0)
   const [activeSession, setActiveSession] = useState<SimulationSnapshot | null>(null)
@@ -176,7 +177,7 @@ function CertificationApp() {
   const startMutation = useMutation({
     mutationFn: (focusWeakTopics: boolean) => focusWeakTopics
       ? startWeakTopicSimulation(selectedCertification!.id, simulationMode, locale)
-      : startSimulation(selectedCertification!.id, simulationMode, locale),
+      : startSimulation(selectedCertification!.id, simulationMode, locale, fetch, advancedPractice ? 'advanced' : 'ai'),
     onSuccess: (snapshot) => {
       if (userQuery.data?.id) queryClient.setQueryData(['active-simulation', userQuery.data.id], null)
       setActiveSession(snapshot)
@@ -274,6 +275,7 @@ function CertificationApp() {
 
   function selectCertification(id: string) {
     setSelectedCertificationId(id)
+    if (id !== 'gcp-professional-cloud-developer') setAdvancedPractice(false)
     try { window.sessionStorage.setItem('cert-helper-certification', id) } catch { /* Keep current selection in memory. */ }
   }
 
@@ -359,6 +361,7 @@ function CertificationApp() {
     if (!certification) return
     selectCertification(snapshot.certificationId)
     setSimulationMode(snapshot.mode)
+    setAdvancedPractice(snapshot.questionSource === 'advanced')
     setActiveSession(snapshot)
     setQuestionIndex(snapshot.currentIndex)
     setSessionResult(null)
@@ -402,7 +405,8 @@ function CertificationApp() {
       } else {
         const current = progressContext.current
         if (completedFrom && ownerId && current.authenticated && current.userId === ownerId) {
-          setCompletedSession({ ownerId, sessionId: completedFrom.sessionId, certificationId: completedFrom.certificationId, mode: completedFrom.mode, language: completedFrom.language, aiUsage: completedFrom.aiUsage, result: response.result, printableQuestions: response.printableQuestions })
+          if (completedFrom.questionSource === 'advanced') setCompletedSession(null)
+          else setCompletedSession({ ownerId, sessionId: completedFrom.sessionId, certificationId: completedFrom.certificationId, mode: completedFrom.mode, language: completedFrom.language, aiUsage: completedFrom.aiUsage, result: response.result, printableQuestions: response.printableQuestions })
           if (current.screen === 'quiz' && current.activeSessionId === completedFrom.sessionId) {
             setPrintableQuestions(response.printableQuestions)
             setSessionResult(response.result)
@@ -453,6 +457,7 @@ function CertificationApp() {
     if (!ownedCompletedSession) return
     selectCertification(ownedCompletedSession.certificationId)
     setSimulationMode(ownedCompletedSession.mode)
+    setAdvancedPractice(false)
     setActiveSession(null)
     setSessionResult(ownedCompletedSession.result)
     setPrintableQuestions(ownedCompletedSession.printableQuestions)
@@ -502,7 +507,9 @@ function CertificationApp() {
           selectedId={selectedCertification.id}
           onSelect={selectCertification}
           simulationMode={simulationMode}
-          onSimulationModeChange={setSimulationMode}
+          onSimulationModeChange={(mode) => { setSimulationMode(mode); if (mode !== 'real') setAdvancedPractice(false) }}
+          advancedPractice={advancedPractice}
+          onAdvancedPracticeChange={setAdvancedPractice}
           onStart={() => startSession(false)}
           user={userQuery.isError ? null : userQuery.data ?? null}
           userLoading={userQuery.isPending}
@@ -550,8 +557,9 @@ function CertificationApp() {
       )}
       {selectedCertification && activeSession && screen === 'quiz' && (
         <QuizScreen
-          locale={activeSession.language}
-          certificationName={activeSessionCertification?.name[activeSession.language] ?? activeSession.certificationId}
+          locale={activeSession.questionSource === 'advanced' ? locale : activeSession.language}
+          questionLanguage={activeSession.language}
+          certificationName={activeSessionCertification?.name[activeSession.questionSource === 'advanced' ? locale : activeSession.language] ?? activeSession.certificationId}
           domains={guideQuery.data?.domains ?? []}
           currentQuestion={activeSession.currentQuestion}
           questionIndex={questionIndex}
@@ -570,15 +578,17 @@ function CertificationApp() {
       )}
       {selectedCertification && sessionResult && screen === 'results' && (
         <ResultsScreen
-          locale={ownedCompletedSession?.language ?? activeSession?.language ?? locale}
-          certificationName={activeSessionCertification?.name[ownedCompletedSession?.language ?? activeSession?.language ?? locale]
+          locale={activeSession?.questionSource === 'advanced' ? locale : activeSession?.language ?? ownedCompletedSession?.language ?? locale}
+          certificationName={activeSessionCertification?.name[activeSession?.questionSource === 'advanced' ? locale : activeSession?.language ?? ownedCompletedSession?.language ?? locale]
             ?? activeSession?.certificationId
             ?? selectedCertification.name[ownedCompletedSession?.language ?? activeSession?.language ?? locale]}
           guide={guideQuery.data}
           result={sessionResult}
           printableQuestions={printableQuestions}
-          simulationMode={ownedCompletedSession?.mode ?? activeSession?.mode ?? simulationMode}
-          aiUsage={ownedCompletedSession?.aiUsage ?? activeSession?.aiUsage ?? null}
+          simulationMode={activeSession?.mode ?? ownedCompletedSession?.mode ?? simulationMode}
+          questionSource={activeSession?.questionSource ?? 'ai'}
+          sessionId={activeSession?.sessionId}
+          aiUsage={activeSession?.aiUsage ?? ownedCompletedSession?.aiUsage ?? null}
           restarting={startMutation.isPending}
           startError={startMutation.error ?? null}
           onHome={() => {
@@ -713,7 +723,7 @@ function SettingsScreen({ locale, themePreference, onThemeChange, onLocaleChange
         </div>
       </div>
     </section>
-    <section className="settings-card" aria-labelledby="settings-about"><h2 id="settings-about">{text('settingsAbout')}</h2><p>{text('settingsAboutDescription')}</p><p><strong>{text('settingsVersion')}</strong> v1</p></section>
+    <section className="settings-card" aria-labelledby="settings-about"><h2 id="settings-about">{text('settingsAbout')}</h2><p>{text('settingsAboutDescription')}</p><p><strong>{text('settingsVersion')}</strong> v1.1</p></section>
   </main>
 }
 
@@ -758,6 +768,8 @@ function HomeScreen({
   onSelect,
   simulationMode,
   onSimulationModeChange,
+  advancedPractice,
+  onAdvancedPracticeChange,
   onStart,
   user,
   userLoading,
@@ -812,6 +824,8 @@ function HomeScreen({
   onSelect: (id: string) => void
   simulationMode: SimulationMode
   onSimulationModeChange: (mode: SimulationMode) => void
+  advancedPractice: boolean
+  onAdvancedPracticeChange: (enabled: boolean) => void
   onStart: () => void
   user: CurrentUserResponse['user'] | null
   userLoading: boolean
@@ -1004,6 +1018,34 @@ function HomeScreen({
               <small>{text('realModeHelp')}</small>
             </span>
           </label>
+          {certification.id === 'gcp-professional-cloud-developer' && (
+            <div className={`advanced-mode-reveal${simulationMode === 'real' ? ' is-open' : ''}`} inert={simulationMode !== 'real'} aria-hidden={simulationMode !== 'real'}>
+              <div className="advanced-mode-reveal-content">
+                <div className="advanced-mode-control">
+                  <label className="simulation-mode-control">
+                    <input type="checkbox" checked={advancedPractice} disabled={startingSimulation} onChange={(event) => onAdvancedPracticeChange(event.currentTarget.checked)} />
+                    <span><strong>{text('advancedMode')}</strong><small>{text('advancedModeHelp')}</small></span>
+                  </label>
+                  {simulationMode === 'real' && <details className="advanced-source-info" onMouseEnter={(event) => {
+                    if (window.matchMedia('(hover: hover)').matches) event.currentTarget.open = true
+                  }} onMouseLeave={(event) => {
+                    if (window.matchMedia('(hover: hover)').matches && !event.currentTarget.contains(document.activeElement)) event.currentTarget.open = false
+                  }} onKeyDown={(event) => {
+                    if (event.key === 'Escape' && event.currentTarget.open) {
+                      event.currentTarget.open = false
+                      event.currentTarget.querySelector('summary')?.focus()
+                    }
+                  }}>
+                    <summary aria-label={text('advancedSourceInfo')}><span aria-hidden="true">i</span></summary>
+                    <div className="advanced-source-notice">
+                      <p>{text('advancedSourceNotice')}</p><p>{text('advancedLanguageNotice')}</p>
+                      <p>{text('advancedSourceCredit')} · <a href="https://www.udemy.com/course/google-cloud-platform-professional-cloud-developer-practice-exams/" target="_blank" rel="noreferrer">{text('advancedCourseLink')}</a></p>
+                    </div>
+                  </details>}
+                </div>
+              </div>
+            </div>
+          )}
           <button className="button button-inverse" type="button" onClick={onStart} disabled={!canStart}>
             {startingSimulation ? text('startingSimulation') : text('startSession')} <span aria-hidden="true">→</span>
           </button>
@@ -1024,7 +1066,7 @@ function HomeScreen({
               <div className="guide-loading-track" aria-hidden="true"><span /></div>
             </div>
           ) : (
-            <p className={`panel-note ${guideError || userError || startError ? 'has-error' : ''}`} role={guideError || userError || startError ? 'alert' : 'status'} aria-live="polite">{startStatus}</p>
+            <p className={`panel-note ${guideError || userError || startError ? 'has-error' : ''}`} role={guideError || userError || startError ? 'alert' : 'status'} aria-live="polite"><span key={startStatus} className="panel-note-text">{startStatus}</span></p>
           )}
           {(userError || (!userLoading && !user)) && <button className="button button-text guide-retry" type="button" onClick={onUserRetry}>{text('retry')}</button>}
           {Boolean(guideError) && <button className="button button-text guide-retry" type="button" onClick={onGuideRetry}>{text('guideRetry')}</button>}

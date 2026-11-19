@@ -100,6 +100,7 @@ export const simulationResults = pgTable('simulation_results', {
   mode: simulationMode('mode').notNull(),
   guideVersion: integer('guide_version').notNull().default(1),
   language: simulationLanguage('language').notNull().default('es'),
+  questionSource: text('question_source').notNull().default('ai'),
   score: integer('score').notNull(),
   totalQuestions: integer('total_questions').notNull(),
   correctAnswers: integer('correct_answers').notNull(),
