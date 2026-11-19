@@ -39,7 +39,8 @@ export type StudyPlanGenerator = (input: StudyPlanPromptInput) => Promise<StudyP
 function buildPrompt(input: StudyPlanPromptInput) {
   return [
     'Create an actionable certification study plan from the supplied, already aggregated performance data.',
-    'Use the requested language for every sentence. Return exactly one recommendation for every target, in the same order, and copy each targetId exactly.',
+    `Write all generated narrative fields (summary, recommendation titles, rationales, and every action) in ${input.language === 'es' ? 'Spanish (es)' : 'English (en)'}. Keep official product names, acronyms, and established technical terms when appropriate. Set language to ${input.language}.`,
+    'Return exactly one recommendation for every target, in the same order, and copy each targetId exactly.',
     'The application calculates priorities and displays the exact metrics. Do not include numbers, percentages, performance measurements, pass/fail labels, or claims about exam readiness in generated prose.',
     'Write concise, specific study actions. Each resourceStepId must be copied from the supplied official study-path steps. Never create a URL or name an outside resource.',
     'Failed focus labels are limited context for the recommendations. Do not reconstruct questions or infer personal information.',

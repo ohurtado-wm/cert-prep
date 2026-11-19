@@ -14,6 +14,7 @@ import { simulationResults, studyPlans } from '../db/schema'
 import { ApiException } from '../errors'
 import type { createCertificationGuideService } from './certification-guide-service'
 import { aggregateStudyResults } from '../study-plans/analytics'
+import { hasClearlyDifferentLanguage } from '../study-plans/language-validation'
 import { createAiStudyPlanGenerator, StudyPlanDraftSchema, type StudyPlanGenerator } from '../study-plans/plan-generator'
 
 const MAX_ANALYSIS_SESSIONS = 10
@@ -65,6 +66,10 @@ function normalizePlan(
 ): StudyPlan {
   const draft = StudyPlanDraftSchema.safeParse(rawOutput)
   if (!draft.success || draft.data.language !== request.language) {
+    throw new ApiException(503, 'STUDY_PLAN_INVALID_OUTPUT', 'La IA devolvió un plan que no cumple el formato esperado.')
+  }
+
+  if (hasClearlyDifferentLanguage(draft.data, request.language)) {
     throw new ApiException(503, 'STUDY_PLAN_INVALID_OUTPUT', 'La IA devolvió un plan que no cumple el formato esperado.')
   }
 

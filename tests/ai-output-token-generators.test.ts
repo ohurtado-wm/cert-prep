@@ -80,6 +80,23 @@ test('study plan generator passes its configured output limit to the AI SDK', as
   expect(maxOutputTokens).toBe(3100)
 })
 
+test('study plan prompts identify the requested language and narrative fields', async () => {
+  for (const language of ['es', 'en'] as const) {
+    let prompt = ''
+    const generator = createAiStudyPlanGenerator({
+      environment,
+      generateText: (async (options: unknown) => {
+        prompt = (options as { prompt: string }).prompt
+        throw new Error('Stop after capturing prompt.')
+      }) as typeof generateText,
+    })
+    await expect(generator({ language, certificationName: 'Certification', sessionCount: 1, domains: [], targets: [], failedFocuses: [], studyPath: [] })).rejects.toMatchObject({ status: 503 })
+    expect(prompt).toContain(language === 'es' ? 'Spanish (es)' : 'English (en)')
+    expect(prompt).toContain('summary, recommendation titles, rationales, and every action')
+    expect(prompt).toContain('official product names, acronyms, and established technical terms')
+  }
+})
+
 test('invalid output limits stop all generators before the AI SDK call', async () => {
   const flows: Array<{
     key: string

@@ -231,6 +231,36 @@ describe('study plans', () => {
     expect(await db.select().from(studyPlans)).toHaveLength(2)
   })
 
+  test('rejects clearly wrong-language prose without replacing an existing plan', async () => {
+    await seedResult('localized-result', now)
+    const validApp = appWith()
+    const valid = await validApp.request('/api/v1/study-plans', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ certificationId: certification.id, language: 'es' }),
+    })
+    expect(valid.status).toBe(201)
+    for (const language of ['es', 'en'] as const) {
+      const app = appWith(async (input) => ({
+        language: input.language,
+        summary: language === 'es' ? 'Review the topics from your recent simulations.' : 'Repasa los temas prioritarios de tus simulaciones.',
+        recommendations: input.targets.map((target) => ({
+          targetId: target.id,
+          title: language === 'es' ? 'Review your access policies' : 'Revisa las políticas de acceso',
+          rationale: language === 'es' ? 'Practice with the official guide and understand how the policies work.' : 'Practica con la guía oficial para entender cómo funcionan los permisos.',
+          actions: [language === 'es' ? 'Complete the module and review each example.' : 'Completa los módulos y repasa cada ejemplo.'],
+          resourceStepId: 'step-1',
+        })),
+      }))
+      const response = await app.request('/api/v1/study-plans', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ certificationId: certification.id, language }),
+      })
+      expect(response.status).toBe(503)
+      expect(await response.json()).toMatchObject({ error: { code: 'STUDY_PLAN_INVALID_OUTPUT' } })
+    }
+    expect(await db.select().from(studyPlans)).toHaveLength(1)
+  })
+
   test('returns clear states for missing history and no failed areas without calling the generator', async () => {
     let calls = 0
     const app = appWith(async (input) => {
