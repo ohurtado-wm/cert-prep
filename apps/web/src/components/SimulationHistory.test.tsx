@@ -45,6 +45,10 @@ describe('recent simulations', () => {
     expect(html).toContain('Calificación')
     expect(html).toContain('80%')
   })
+  test('identifies question sources in history', () => {
+    expect(render({ history: [{ ...completed, questionSource: 'advanced' }] })).toContain('Advanced practice')
+    expect(render({ history: [completed] })).toContain('AI-generated questions')
+  })
   test('shows an active session with an explanation when no results exist', () => {
     const html = render({ pendingSession: active, locale: 'es' })
     expect(html).toContain('En progreso')
@@ -57,7 +61,7 @@ describe('recent simulations', () => {
     expect(html).toContain('No results for this certification yet')
     expect(html).not.toContain('In progress')
     expect(html).not.toContain('Discard')
-    expect(html).toContain('Go to home')
+    expect(html).toContain('Go to the home page')
   })
   test('shows data from one query when the other query fails or is loading', () => {
     const pendingFailure = render({ history: [completed], pendingError: new Error('offline') })

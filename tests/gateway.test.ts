@@ -30,4 +30,21 @@ describe('gateway user provider', () => {
       status: 502,
     })
   })
+
+  test('keeps the user available when the optional avatar is absent or invalid', async () => {
+    for (const avatar of [undefined, null, '', 'not-a-url', 'javascript:alert(1)', 42]) {
+      const provider = createGatewayUserProvider('https://gateway.example/users/me', async () =>
+        Response.json({ id: 'resolved-id', email: 'learner@example.com', avatar }))
+      const user = await provider(new Request('https://app.example/api/v1/me'))
+      expect(user.id).toBe('resolved-id')
+      expect(user.avatar).toBeUndefined()
+    }
+  })
+
+  test('preserves a valid profile image URL', async () => {
+    const avatar = 'https://example.com/photo.png'
+    const provider = createGatewayUserProvider('https://gateway.example/users/me', async () =>
+      Response.json({ id: 'resolved-id', avatar }))
+    expect((await provider(new Request('https://app.example/api/v1/me'))).avatar).toBe(avatar)
+  })
 })

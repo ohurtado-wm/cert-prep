@@ -92,6 +92,17 @@ export function createSimulationRoutes(dependencies: {
     return context.body(null, 204)
   })
 
+  routes.post('/simulations/:sessionId/review/:questionId/explanation', async (context) => {
+    const user = await resolveCurrentUser(context.req.raw, dependencies.db, dependencies.userProvider)
+    return context.json(await dependencies.simulationService.explainQuestion(user.id, context.req.param('sessionId'), context.req.param('questionId')))
+  })
+
+  routes.delete('/simulations/:sessionId/review', async (context) => {
+    const user = await resolveCurrentUser(context.req.raw, dependencies.db, dependencies.userProvider)
+    dependencies.simulationService.closeReview(user.id, context.req.param('sessionId'))
+    return context.body(null, 204)
+  })
+
   routes.post('/simulations/:sessionId/answers', async (context) => {
     const user = await resolveCurrentUser(context.req.raw, dependencies.db, dependencies.userProvider)
     const input = await parseBody(context.req.raw, SubmitAnswerRequestSchema)

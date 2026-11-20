@@ -3,11 +3,13 @@ import { LocaleSchema } from './certification-contracts'
 import { AiTokenUsageSchema } from './ai-usage-contracts'
 
 export const SimulationModeSchema = z.enum(['practice', 'real'])
+export const QuestionSourceSchema = z.enum(['ai', 'advanced'])
 
 export const StartSimulationRequestSchema = z.object({
   certificationId: z.string().regex(/^[a-z0-9-]+$/),
   mode: SimulationModeSchema,
   language: LocaleSchema,
+  questionSource: QuestionSourceSchema.optional(),
 })
 
 export const SubmitAnswerRequestSchema = z.object({
@@ -20,8 +22,8 @@ export const SimulationQuestionSchema = z.object({
   id: z.string().min(1),
   domainId: z.string().min(1),
   topicId: z.string().min(1),
-  focus: z.string().min(1),
-  service: z.string().min(1),
+  focus: z.string().min(1).optional(),
+  service: z.string().min(1).optional(),
   question: z.string().min(1),
   answers: z.array(SimulationAnswerOptionSchema).length(4),
 })
@@ -47,8 +49,16 @@ export const SimulationResultSchema = z.object({
 export const PrintableSimulationQuestionSchema = z.object({
   question: z.string().min(1),
   answer: z.string().min(1),
+  id: z.string().min(1).optional(),
+  explanation: z.string().min(1).optional(),
+  review: z.object({
+    outcome: z.enum(['first_try', 'retry', 'revealed', 'incorrect']),
+    attempts: z.array(z.object({ number: z.number().int().min(1).max(3), answer: z.string().min(1), correct: z.boolean() })).max(3),
+    missingAttempts: z.number().int().min(0).max(3),
+  }).optional(),
 })
 export const PrintableSimulationQuestionsSchema = z.array(PrintableSimulationQuestionSchema).length(20)
+export const QuestionExplanationResponseSchema = z.object({ explanation: z.string().min(1).max(3000) })
 
 export const SimulationHistoryItemSchema = z.object({
   id: z.string().min(1),
@@ -56,6 +66,7 @@ export const SimulationHistoryItemSchema = z.object({
   guideVersion: z.number().int().positive(),
   mode: SimulationModeSchema,
   language: LocaleSchema,
+  questionSource: QuestionSourceSchema.optional(),
   completedAt: z.string().datetime(),
   ...SimulationResultSchema.shape,
 })
@@ -77,6 +88,7 @@ export const SimulationSnapshotSchema = z.object({
   createdAt: z.string().datetime(),
   mode: SimulationModeSchema,
   language: LocaleSchema,
+  questionSource: QuestionSourceSchema.optional(),
   status: z.enum(['active', 'completed']),
   questionCount: z.literal(20),
   currentIndex: z.number().int().min(0).max(20),
@@ -128,6 +140,7 @@ export const SimulationRevealResponseSchema = z.object({
 })
 
 export type SimulationMode = z.infer<typeof SimulationModeSchema>
+export type QuestionSource = z.infer<typeof QuestionSourceSchema>
 export type StartSimulationRequest = z.infer<typeof StartSimulationRequestSchema>
 export type SubmitAnswerRequest = z.infer<typeof SubmitAnswerRequestSchema>
 export type SimulationAnswerOption = z.infer<typeof SimulationAnswerOptionSchema>

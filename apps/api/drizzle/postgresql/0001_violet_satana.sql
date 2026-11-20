@@ -1,0 +1,1 @@
+ALTER TABLE "simulation_results" ADD COLUMN "question_source" text DEFAULT 'ai' NOT NULL;

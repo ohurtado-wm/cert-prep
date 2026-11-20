@@ -18,7 +18,8 @@ test('guide prompt sends official guide and certification URLs and requires sour
   expect(prompt).toContain(examGuide.url)
   expect(prompt).toContain(certificationPage.url)
   expect(prompt).toContain('required web search')
-  expect(prompt).toContain('including fractional percentages')
+  expect(prompt).toContain('Preserve the official section number and percentage')
+  expect(prompt).toContain('set weight to the midpoint')
 })
 
 test('collects only unique HTTPS Google web-search citations', () => {

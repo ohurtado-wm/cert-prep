@@ -29,7 +29,7 @@ describe('suggested study plan', () => {
   test('shows the certification and next step when no plan has been generated', () => {
     const html = render({})
     expect(html).toContain('Cloud One')
-    expect(html).toContain('Your study plan is ready to create')
+    expect(html).toContain('You can now create your study plan')
     expect(html).toContain('Suggest a study plan')
   })
   test('shows the plan, evidence, actions and the original official resource', () => {
@@ -71,7 +71,7 @@ describe('suggested study plan', () => {
     expect(html).toContain('We could not prepare the study guide')
     expect(html).toContain('Prepare the guide again')
     expect(html).toContain('disabled=""')
-    expect(html).not.toContain('Your study plan is ready to create')
+    expect(html).not.toContain('You can now create your study plan')
   })
   test('shows history loading and errors without suggesting a plan is ready', () => {
     expect(render({ historyLoading: true })).toContain('Loading your history')

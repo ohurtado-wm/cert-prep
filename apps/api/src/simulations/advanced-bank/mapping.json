@@ -1,0 +1,4463 @@
+{
+  "guideFingerprint": "f759edd84e9c73accb29417ad6d14cbbae098f25b74bcc7819df7a82a5906417",
+  "bankFingerprint": "4f30bb3caf0faf0fc07c852929ad5e02daf73ce0f2ccbb623a1c0c506d6430d4",
+  "reviewed": true,
+  "referenceDomains": [
+    {
+      "id": "section-1",
+      "name": {
+        "en": "Designing highly scalable, secure, and reliable cloud-native applications",
+        "es": "Diseño de aplicaciones nativas de la nube altamente escalables, seguras y confiables"
+      },
+      "description": {
+        "en": "Design application architectures that meet performance, scalability, security, reliability, and data-access needs. The official guide assigns this section approximately 32% of the exam. ([services.google.com](https://services.google.com/fh/files/misc/professional_cloud_developer_exam_guide_english.pdf))",
+        "es": "Diseña arquitecturas de aplicaciones que satisfagan necesidades de rendimiento, escalabilidad, seguridad, confiabilidad y acceso a datos. La guía oficial asigna a esta sección aproximadamente el 32 % del examen. ([services.google.com](https://services.google.com/fh/files/misc/professional_cloud_developer_exam_guide_english.pdf))"
+      },
+      "topics": [
+        {
+          "id": "topic-1-1",
+          "name": {
+            "en": "Choose platforms and design for performance",
+            "es": "Elegir plataformas y diseñar para el rendimiento"
+          },
+          "description": {
+            "en": "Select Compute Engine, Google Kubernetes Engine, or Cloud Run for a workload; account for regional and zonal placement, latency, load balancing, session affinity, caching, resource needs, and cost.",
+            "es": "Elige Compute Engine, Google Kubernetes Engine o Cloud Run según la carga de trabajo; considera la ubicación regional o zonal, la latencia, el balanceo de cargas, la afinidad de sesión, el almacenamiento en caché, los recursos necesarios y el costo."
+          }
+        },
+        {
+          "id": "topic-1-2",
+          "name": {
+            "en": "Design APIs and asynchronous integrations",
+            "es": "Diseñar API e integraciones asíncronas"
+          },
+          "description": {
+            "en": "Plan REST or gRPC APIs with rate limiting, authentication, and observability; use event-driven services such as Pub/Sub and Eventarc, and orchestrate work with Workflows, Cloud Tasks, or Cloud Scheduler.",
+            "es": "Planifica API REST o gRPC con limitación de frecuencia, autenticación y observabilidad; usa servicios controlados por eventos como Pub/Sub y Eventarc, y orquesta tareas con Workflows, Cloud Tasks o Cloud Scheduler."
+          }
+        },
+        {
+          "id": "topic-1-3",
+          "name": {
+            "en": "Plan releases, resilience, and failover",
+            "es": "Planificar versiones, resiliencia y conmutación por error"
+          },
+          "description": {
+            "en": "Design gradual rollouts, rollbacks, and A/B tests on Cloud Run or GKE; select data-replication and zonal or regional failover strategies that support availability requirements.",
+            "es": "Diseña implementaciones graduales, reversiones y pruebas A/B en Cloud Run o GKE; elige estrategias de replicación de datos y conmutación por error zonal o regional que satisfagan los requisitos de disponibilidad."
+          }
+        },
+        {
+          "id": "topic-1-4",
+          "name": {
+            "en": "Secure application identities, secrets, and services",
+            "es": "Proteger identidades, secretos y servicios de aplicaciones"
+          },
+          "description": {
+            "en": "Apply least privilege with IAM and service accounts; authenticate with appropriate credentials and identity mechanisms; store and rotate secrets and keys; secure service-to-service traffic and application artifacts.",
+            "es": "Aplica el principio de privilegio mínimo con IAM y cuentas de servicio; autentica con las credenciales y mecanismos de identidad adecuados; almacena y rota secretos y claves; protege el tráfico entre servicios y los artefactos de la aplicación."
+          }
+        },
+        {
+          "id": "topic-1-5",
+          "name": {
+            "en": "Select data stores and plan data access",
+            "es": "Elegir almacenes de datos y planificar el acceso a los datos"
+          },
+          "description": {
+            "en": "Choose a storage system and schema based on data volume and performance; account for consistency and replication; grant object access with signed URLs and write analytical data to BigQuery.",
+            "es": "Elige un sistema de almacenamiento y un esquema según el volumen y el rendimiento; considera la coherencia y la replicación; concede acceso a objetos mediante URL firmadas y escribe datos analíticos en BigQuery."
+          }
+        }
+      ]
+    },
+    {
+      "id": "section-2",
+      "name": {
+        "en": "Building and testing applications",
+        "es": "Desarrollo y pruebas de aplicaciones"
+      },
+      "description": {
+        "en": "Prepare a cloud development environment, build application artifacts, and test code and integrations. The official guide assigns this section approximately 23% of the exam. ([services.google.com](https://services.google.com/fh/files/misc/professional_cloud_developer_exam_guide_english.pdf))",
+        "es": "Prepara un entorno de desarrollo en la nube, crea artefactos de aplicaciones y prueba el código y las integraciones. La guía oficial asigna a esta sección aproximadamente el 23 % del examen. ([services.google.com](https://services.google.com/fh/files/misc/professional_cloud_developer_exam_guide_english.pdf))"
+      },
+      "topics": [
+        {
+          "id": "topic-2-1",
+          "name": {
+            "en": "Set up the development environment",
+            "es": "Configurar el entorno de desarrollo"
+          },
+          "description": {
+            "en": "Use the Google Cloud console, Google Cloud CLI, Cloud Shell, Cloud Workstations, and Cloud Code as appropriate for development and local workflows.",
+            "es": "Usa la consola de Google Cloud, Google Cloud CLI, Cloud Shell, Cloud Workstations y Cloud Code según corresponda para el desarrollo y los flujos de trabajo locales."
+          }
+        },
+        {
+          "id": "topic-2-2",
+          "name": {
+            "en": "Emulate services and configure IDE integrations",
+            "es": "Emular servicios y configurar integraciones del IDE"
+          },
+          "description": {
+            "en": "Emulate Google Cloud services for local development and unit testing; configure IDE integrations such as Cloud SDK and AI development tools.",
+            "es": "Emula servicios de Google Cloud para el desarrollo local y las pruebas unitarias; configura integraciones del IDE como Cloud SDK y herramientas de desarrollo con IA."
+          }
+        },
+        {
+          "id": "topic-2-3",
+          "name": {
+            "en": "Build and store container images",
+            "es": "Crear y almacenar imágenes de contenedor"
+          },
+          "description": {
+            "en": "Use Cloud Build to build containers from source and Artifact Registry to store them; configure build provenance where required.",
+            "es": "Usa Cloud Build para crear contenedores a partir del código fuente y Artifact Registry para almacenarlos; configura la procedencia de compilación cuando sea necesario."
+          }
+        },
+        {
+          "id": "topic-2-4",
+          "name": {
+            "en": "Test application code and integrations",
+            "es": "Probar el código y las integraciones de la aplicación"
+          },
+          "description": {
+            "en": "Write unit tests, use AI coding assistants where useful, and execute automated integration tests in Cloud Build.",
+            "es": "Escribe pruebas unitarias, utiliza asistentes de programación con IA cuando resulte útil y ejecuta pruebas de integración automatizadas en Cloud Build."
+          }
+        }
+      ]
+    },
+    {
+      "id": "section-3",
+      "name": {
+        "en": "Configuring cloud-native applications for deployment",
+        "es": "Configuración de aplicaciones nativas de la nube para su implementación"
+      },
+      "description": {
+        "en": "Configure and deploy cloud-native applications to Cloud Run and GKE, including event triggers, API exposure, health checks, and scaling. The official guide assigns this section approximately 24% of the exam. ([services.google.com](https://services.google.com/fh/files/misc/professional_cloud_developer_exam_guide_english.pdf))",
+        "es": "Configura e implementa aplicaciones nativas de la nube en Cloud Run y GKE, incluidos los activadores de eventos, la exposición de API, las comprobaciones de estado y el escalado. La guía oficial asigna a esta sección aproximadamente el 24 % del examen. ([services.google.com](https://services.google.com/fh/files/misc/professional_cloud_developer_exam_guide_english.pdf))"
+      },
+      "topics": [
+        {
+          "id": "topic-3-1",
+          "name": {
+            "en": "Deploy applications to Cloud Run",
+            "es": "Implementar aplicaciones en Cloud Run"
+          },
+          "description": {
+            "en": "Deploy an application from source code and configure Cloud Run services to be invoked by triggers such as Eventarc or Pub/Sub.",
+            "es": "Implementa una aplicación a partir del código fuente y configura los servicios de Cloud Run para que se activen mediante Eventarc o Pub/Sub."
+          }
+        },
+        {
+          "id": "topic-3-2",
+          "name": {
+            "en": "Configure event receivers and API access",
+            "es": "Configurar receptores de eventos y acceso a API"
+          },
+          "description": {
+            "en": "Configure event receivers for Eventarc or Pub/Sub, and version, expose, and secure application APIs.",
+            "es": "Configura receptores de eventos para Eventarc o Pub/Sub, y controla las versiones, la exposición y la seguridad de las API de la aplicación."
+          }
+        },
+        {
+          "id": "topic-3-3",
+          "name": {
+            "en": "Deploy containerized applications to GKE",
+            "es": "Implementar aplicaciones en contenedores en GKE"
+          },
+          "description": {
+            "en": "Deploy containerized workloads to GKE and configure Kubernetes health checks to support application availability.",
+            "es": "Implementa cargas de trabajo en contenedores en GKE y configura comprobaciones de estado de Kubernetes para favorecer la disponibilidad de la aplicación."
+          }
+        },
+        {
+          "id": "topic-3-4",
+          "name": {
+            "en": "Configure GKE autoscaling",
+            "es": "Configurar el escalado automático de GKE"
+          },
+          "description": {
+            "en": "Apply Horizontal Pod Autoscaler attributes, including scaling behavior and metrics, to match application demand.",
+            "es": "Configura atributos de Horizontal Pod Autoscaler, incluidos el comportamiento de escalado y las métricas, para ajustarse a la demanda de la aplicación."
+          }
+        }
+      ]
+    },
+    {
+      "id": "section-4",
+      "name": {
+        "en": "Integrating applications with Google Cloud services",
+        "es": "Integración de aplicaciones con servicios de Google Cloud"
+      },
+      "description": {
+        "en": "Connect applications to data stores, messaging, Google Cloud APIs, and observability capabilities, and troubleshoot issues across services. The official guide assigns this section approximately 21% of the exam. ([services.google.com](https://services.google.com/fh/files/misc/professional_cloud_developer_exam_guide_english.pdf))",
+        "es": "Conecta aplicaciones con almacenes de datos, mensajería, API de Google Cloud y funciones de observabilidad, y diagnostica problemas entre servicios. La guía oficial asigna a esta sección aproximadamente el 21 % del examen. ([services.google.com](https://services.google.com/fh/files/misc/professional_cloud_developer_exam_guide_english.pdf))"
+      },
+      "topics": [
+        {
+          "id": "topic-4-1",
+          "name": {
+            "en": "Connect applications to data and storage services",
+            "es": "Conectar aplicaciones con servicios de datos y almacenamiento"
+          },
+          "description": {
+            "en": "Manage application connections to services such as Cloud SQL, Firestore, and Cloud Storage; read from and write to Google Cloud data sources.",
+            "es": "Administra las conexiones de aplicaciones a servicios como Cloud SQL, Firestore y Cloud Storage; lee y escribe en fuentes de datos de Google Cloud."
+          }
+        },
+        {
+          "id": "topic-4-2",
+          "name": {
+            "en": "Publish and consume messages",
+            "es": "Publicar y consumir mensajes"
+          },
+          "description": {
+            "en": "Integrate applications with messaging services so they can publish and consume data.",
+            "es": "Integra aplicaciones con servicios de mensajería para que puedan publicar y consumir datos."
+          }
+        },
+        {
+          "id": "topic-4-3",
+          "name": {
+            "en": "Call Google Cloud APIs efficiently",
+            "es": "Invocar API de Google Cloud de forma eficiente"
+          },
+          "description": {
+            "en": "Enable services and make API calls using client libraries, REST, gRPC, or API Explorer; consider batching, pagination, limiting returned data, caching, error handling, and service-account authentication.",
+            "es": "Habilita servicios y realiza llamadas mediante bibliotecas cliente, REST, gRPC o API Explorer; considera el procesamiento por lotes, la paginación, la limitación de datos devueltos, el almacenamiento en caché, el manejo de errores y la autenticación con cuentas de servicio."
+          }
+        },
+        {
+          "id": "topic-4-4",
+          "name": {
+            "en": "Troubleshoot with observability and error reporting",
+            "es": "Diagnosticar problemas con observabilidad e informes de errores"
+          },
+          "description": {
+            "en": "Instrument code with metrics, logs, and traces; investigate issues with Google Cloud Observability and Error Reporting; use trace IDs to correlate spans across services and apply AI-assisted observability.",
+            "es": "Instrumenta el código con métricas, registros y seguimientos; investiga problemas con Google Cloud Observability y Error Reporting; usa identificadores de seguimiento para correlacionar segmentos entre servicios y aprovecha la observabilidad asistida por IA."
+          }
+        }
+      ]
+    }
+  ],
+  "questions": {
+    "bank-1-1": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-1-2": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-3": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-4": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-5": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-6": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-1-7": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-1-8": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-1-9": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-10": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-1-11": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-1-12": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-1-13": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-1-14": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-1-15": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-16": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-17": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-1-18": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-1-19": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-20": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-1-21": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-22": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-1-23": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-1-24": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-1-25": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-1-26": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-1-27": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-28": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-1-29": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-30": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-31": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-1-32": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-1-33": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-1-34": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-1-35": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-1-36": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-1-37": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-1-38": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-1-39": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-1-40": {
+      "domainId": "section-3",
+      "topicId": "topic-3-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-1-41": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-1-42": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-1-43": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-44": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-1-45": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-1-46": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-1-47": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-48": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-1-49": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-1-50": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-1-51": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-52": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-53": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-1-54": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-55": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-56": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-57": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3"
+    },
+    "bank-1-58": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-1-59": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-1-60": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-1-61": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-1-62": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-1-63": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-64": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-1-65": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-66": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-1-67": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-68": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-1-69": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-1-70": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-1-71": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-1-72": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-1-73": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-1-74": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-75": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-1-76": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-1-77": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-1-78": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-1-79": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-80": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-1-81": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-82": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-1-83": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-1-84": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-85": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-1-86": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-87": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-1-88": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-1-89": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-1-90": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-1-91": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-1-92": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-93": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-94": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-1-95": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-1-96": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-97": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-98": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-99": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-1-100": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-1-101": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-1-102": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-1-103": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-1-104": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-105": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-1-106": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-1-107": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-108": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-1-109": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-1-110": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-1-111": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-1-112": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-1-113": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-114": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-115": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-1-116": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-117": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-1-118": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-1-119": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-1-120": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-1-121": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-122": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-123": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-1-124": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-1-125": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-1-126": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-1-127": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-1-128": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-1-129": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-130": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-1-131": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-132": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-1-133": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-1-134": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-1-135": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-136": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-1-137": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-1-138": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-1-139": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-140": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-1-141": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-1-142": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-1-143": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-144": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-1-145": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-1-146": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-147": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-1-148": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-1-149": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-1-150": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-151": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-1-152": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-1-153": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-1-154": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-155": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-1-156": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-1-157": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-1-158": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-1-159": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-1-160": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-1-161": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-162": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-1-163": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-1-164": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-1-165": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-1-166": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-1-167": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-1-168": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-1-169": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-1-170": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-2-1": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-2": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-2-3": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-2-4": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-2-5": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-6": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-2-7": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-8": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-2-9": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-2-10": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-11": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-12": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-13": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-2-14": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-15": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-16": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-17": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-18": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-2-19": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-20": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-2-21": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-2-22": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-2-23": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-2-24": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-2-25": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-2-26": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-2-27": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2"
+    },
+    "bank-2-28": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-29": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-30": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-2-31": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-2-32": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-2-33": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-2-34": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-35": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-2-36": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-2-37": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-2-38": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-2-39": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-2-40": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-41": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-42": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-43": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-2-44": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-2-45": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-46": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-47": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-2-48": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-2-49": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-50": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-2-51": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-2-52": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-2-53": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-2-54": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-2-55": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-56": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-2-57": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-58": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-2-59": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-2-60": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-61": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-2-62": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-2-63": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-64": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-65": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-66": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-2-67": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-68": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-2-69": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-2-70": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-71": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-2-72": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-2-73": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-2-74": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-2-75": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-2-76": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-77": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-2-78": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-2-79": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-2-80": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-2-81": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-82": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-83": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-84": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-85": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-2-86": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-87": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-2-88": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-89": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-90": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-2-91": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-92": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-2-93": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-94": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-2-95": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-2-96": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-2-97": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-2-98": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-2-99": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-100": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-2-101": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-102": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-103": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-104": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-2-105": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-2-106": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-2-107": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-2-108": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-2-109": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-110": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2"
+    },
+    "bank-2-111": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-2-112": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-2-113": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-114": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-115": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-116": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-2-117": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-2-118": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-119": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-2-120": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-121": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-2-122": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-123": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-124": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-2-125": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-2-126": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-2-127": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-2-128": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-2-129": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-2-130": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-131": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-132": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-133": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-2-134": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-2-135": {
+      "domainId": "section-3",
+      "topicId": "topic-3-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-2-136": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-2-137": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-138": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-139": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-140": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-141": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-2-142": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-2-143": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-2-144": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-2-145": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-2-146": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-147": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-2-148": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-2-149": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-150": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-2-151": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-2-152": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-153": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-2-154": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-2-155": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-2-156": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-2-157": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-158": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-2-159": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-2-160": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-2-161": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-162": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-2-163": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-2-164": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-165": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-2-166": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-2-167": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-2-168": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-2-169": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-2-170": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-3-1": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-2": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-3-3": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-4": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-5": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-3-6": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-3-7": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-3-8": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-9": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-10": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-3-11": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-3-12": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-13": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-14": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-3-15": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-16": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-3-17": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-3-18": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-19": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-3-20": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-3-21": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-22": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-23": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-3-24": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-3-25": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-26": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-3-27": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-28": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-3-29": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-3-30": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-31": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-32": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-3-33": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-3-34": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-3-35": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-3-36": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-3-37": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-3-38": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-3-39": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-3-40": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-3-41": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-42": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-3-43": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-44": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-45": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-3-46": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-3-47": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-3-48": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-3-49": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-3-50": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-3-51": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-3-52": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-53": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-3-54": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-3-55": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-56": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-3-57": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-3-58": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-3-59": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-3-60": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-61": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-3-62": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-3-63": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-64": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-3-65": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-66": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-3-67": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-3-68": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-69": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3"
+    },
+    "bank-3-70": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-3-71": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-72": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-3-73": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-74": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-3-75": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-76": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-3-77": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-3-78": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-3-79": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-3-80": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-81": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-82": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-3-83": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-84": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-3-85": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-3-86": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-3-87": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-88": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-3-89": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-3-90": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-3-91": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-3-92": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-3-93": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-94": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-3-95": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-3-96": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-97": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-3-98": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-3-99": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-100": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-3-101": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-3-102": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-103": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-3-104": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-3-105": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-3-106": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-3-107": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-108": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-109": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-3-110": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-111": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-3-112": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-3-113": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-3-114": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-3-115": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-116": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-3-117": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-118": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-3-119": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-3-120": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-3-121": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-3-122": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-3-123": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-3-124": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-3-125": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-3-126": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-127": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-3-128": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-3-129": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-3-130": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-3-131": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-3-132": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-3-133": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-3-134": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-3-135": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-3-136": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-3-137": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-138": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-3-139": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-3-140": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-3-141": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-3-142": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-3-143": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-3-144": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-3-145": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-3-146": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-3-147": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-148": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-3-149": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-3-150": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-3-151": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-3-152": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-3-153": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-3-154": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-155": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-3-156": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-3-157": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-3-158": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-3-159": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-3-160": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-3-161": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-3-162": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-3-163": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-164": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-3-165": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-3-166": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-3-167": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-3-168": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-3-169": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-3-170": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-4-1": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-2": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-4-3": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-4-4": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-4-5": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-4-6": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-4-7": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-4-8": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-4-9": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-4-10": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-4-11": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-12": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-4-13": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-4-14": {
+      "domainId": "section-3",
+      "topicId": "topic-3-4"
+    },
+    "bank-4-15": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-4-16": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-4-17": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-18": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-4-19": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-4-20": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-4-21": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-4-22": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-4-23": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-4-24": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-25": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-4-26": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-4-27": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-4-28": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-4-29": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-30": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-31": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-4-32": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-4-33": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-34": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-4-35": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-4-36": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-4-37": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-4-38": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-39": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-4-40": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-41": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-4-42": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-43": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-44": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-45": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-46": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-4-47": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-48": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-49": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-4-50": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-4-51": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-4-52": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-4-53": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-54": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-4-55": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-4-56": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-4-57": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-4-58": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-59": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-4-60": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-61": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-4-62": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-4-63": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-64": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-4-65": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-66": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-4-67": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-4-68": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-69": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-4-70": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-4-71": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-4-72": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-73": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-74": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-4-75": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-76": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-77": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-4-78": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-4-79": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-4-80": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-4-81": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-4-82": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-4-83": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-4-84": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-4-85": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-4-86": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-4-87": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-4-88": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-4-89": {
+      "domainId": "section-3",
+      "topicId": "topic-3-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-4-90": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-4-91": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-4-92": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-4-93": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-4-94": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-4-95": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-4-96": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-97": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-98": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-99": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-4-100": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-4-101": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-102": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-4-103": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-4-104": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-105": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-4-106": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-4-107": {
+      "domainId": "section-3",
+      "topicId": "topic-3-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-4-108": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-4-109": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-4-110": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-4-111": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-112": {
+      "domainId": "section-3",
+      "topicId": "topic-3-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-4-113": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-4-114": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-4-115": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-116": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-4-117": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-118": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-119": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-120": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-4-121": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-4-122": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-4-123": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-124": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-4-125": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-126": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-4-127": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-4-128": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-129": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-4-130": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-4-131": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-4-132": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-133": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-4-134": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-135": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-136": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-4-137": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-4-138": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-139": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-140": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-4-141": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-4-142": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-4-143": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-4-144": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-4-145": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-4-146": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-4-147": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-4-148": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-4-149": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-4-150": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-151": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-4-152": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-4-153": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-4-154": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-4-155": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-156": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-4-157": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-4-158": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-4-159": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-4-160": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-4-161": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-162": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-4-163": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-4-164": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-165": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-4-166": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-4-167": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-4-168": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-4-169": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-4-170": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-5-1": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-5-2": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-5-3": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-4": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-5-5": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-6": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-5-7": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-8": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-5-9": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-10": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-11": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-5-12": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-5-13": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-5-14": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-5-15": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-16": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-5-17": {
+      "domainId": "section-3",
+      "topicId": "topic-3-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-5-18": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-5-19": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-5-20": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-5-21": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-22": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-5-23": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-5-24": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-25": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-5-26": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-27": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-5-28": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-5-29": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-5-30": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-5-31": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-32": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-5-33": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-5-34": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-5-35": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-5-36": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-5-37": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-5-38": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-39": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-40": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-5-41": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-42": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-5-43": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-44": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-5-45": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-46": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-5-47": {
+      "domainId": "section-4",
+      "topicId": "topic-4-2"
+    },
+    "bank-5-48": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-5-49": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-50": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-51": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-52": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-5-53": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-54": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-55": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-5-56": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-5-57": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-58": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-5-59": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-5-60": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-5-61": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-5-62": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-5-63": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-64": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-5-65": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-5-66": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-5-67": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-68": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-5-69": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-5-70": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-5-71": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-5-72": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-5-73": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2"
+    },
+    "bank-5-74": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-5-75": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-76": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-5-77": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-78": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-5-79": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-5-80": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-5-81": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-5-82": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-83": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-5-84": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-85": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-5-86": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-5-87": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-5-88": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-5-89": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-5-90": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-5-91": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-5-92": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-5-93": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-5-94": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-5-95": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-5-96": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-5-97": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-98": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-5-99": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-100": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-5-101": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-102": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-103": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-5-104": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-5-105": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-5-106": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-5-107": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-5-108": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-5-109": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-5-110": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-5-111": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-5-112": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-113": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-5-114": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-5-115": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-5-116": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-5-117": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-118": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-5-119": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-5-120": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-121": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-5-122": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-123": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-124": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-5-125": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-5-126": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-127": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-5-128": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-129": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-5-130": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-5-131": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-132": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-133": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-134": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-5-135": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-5-136": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-5-137": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-5-138": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-5-139": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-5-140": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-5-141": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-5-142": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-5-143": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-5-144": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-5-145": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-5-146": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-5-147": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-5-148": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-5-149": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-150": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-5-151": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2"
+    },
+    "bank-5-152": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-153": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-5-154": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-5-155": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-5-156": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-157": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-5-158": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-5-159": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-160": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-161": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-5-162": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-163": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-164": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-5-165": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-5-166": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-5-167": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-5-168": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-5-169": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-5-170": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-6-1": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-6-2": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-6-3": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-6-4": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-6-5": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-6-6": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-7": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-6-8": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-6-9": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-6-10": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-6-11": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-6-12": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-6-13": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-6-14": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-6-15": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-6-16": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-6-17": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-18": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-6-19": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-6-20": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-6-21": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-22": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-23": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-6-24": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-6-25": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-6-26": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-6-27": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-6-28": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-6-29": {
+      "domainId": "section-3",
+      "topicId": "topic-3-4"
+    },
+    "bank-6-30": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-6-31": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-6-32": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-6-33": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-6-34": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-6-35": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-36": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-6-37": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-6-38": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-39": {
+      "domainId": "section-3",
+      "topicId": "topic-3-4"
+    },
+    "bank-6-40": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-41": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-6-42": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-43": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-44": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-6-45": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-6-46": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-6-47": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-6-48": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-6-49": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-6-50": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-6-51": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-52": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-6-53": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-6-54": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-6-55": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-6-56": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-57": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-6-58": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-6-59": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-60": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-61": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-6-62": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-6-63": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-6-64": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-6-65": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2"
+    },
+    "bank-6-66": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-6-67": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-6-68": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-69": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-6-70": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-6-71": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-6-72": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-6-73": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-74": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-6-75": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-6-76": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-6-77": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-78": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-79": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-80": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-6-81": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-82": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-6-83": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-84": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-85": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-6-86": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-6-87": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-6-88": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-6-89": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-6-90": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-91": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-6-92": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-6-93": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-6-94": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-95": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-96": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-6-97": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-6-98": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-99": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-6-100": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-6-101": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-6-102": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-6-103": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-6-104": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-6-105": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-6-106": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-6-107": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-6-108": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-6-109": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-6-110": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-111": {
+      "domainId": "section-3",
+      "topicId": "topic-3-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-6-112": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-6-113": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-6-114": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-6-115": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-116": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-6-117": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-118": {
+      "domainId": "section-2",
+      "topicId": "topic-2-1"
+    },
+    "bank-6-119": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-120": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-121": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-6-122": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-123": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-6-124": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-6-125": {
+      "domainId": "section-1",
+      "topicId": "topic-1-3",
+      "sourceDomain": "Building and testing applications"
+    },
+    "bank-6-126": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-6-127": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-6-128": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-129": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-130": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-6-131": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-6-132": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-133": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-6-134": {
+      "domainId": "section-2",
+      "topicId": "topic-2-4"
+    },
+    "bank-6-135": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-6-136": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-6-137": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-6-138": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-139": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-140": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-6-141": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-6-142": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-6-143": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-6-144": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-6-145": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-146": {
+      "domainId": "section-2",
+      "topicId": "topic-2-2"
+    },
+    "bank-6-147": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-6-148": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-149": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-150": {
+      "domainId": "section-1",
+      "topicId": "topic-1-2",
+      "sourceDomain": "Integrating applications with Google Cloud services"
+    },
+    "bank-6-151": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-6-152": {
+      "domainId": "section-4",
+      "topicId": "topic-4-4"
+    },
+    "bank-6-153": {
+      "domainId": "section-3",
+      "topicId": "topic-3-1"
+    },
+    "bank-6-154": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-155": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-156": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-6-157": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4",
+      "sourceDomain": "Deploying applications"
+    },
+    "bank-6-158": {
+      "domainId": "section-4",
+      "topicId": "topic-4-3"
+    },
+    "bank-6-159": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-160": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    },
+    "bank-6-161": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-162": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-163": {
+      "domainId": "section-4",
+      "topicId": "topic-4-1"
+    },
+    "bank-6-164": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-6-165": {
+      "domainId": "section-1",
+      "topicId": "topic-1-1"
+    },
+    "bank-6-166": {
+      "domainId": "section-3",
+      "topicId": "topic-3-3"
+    },
+    "bank-6-167": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-168": {
+      "domainId": "section-2",
+      "topicId": "topic-2-3"
+    },
+    "bank-6-169": {
+      "domainId": "section-1",
+      "topicId": "topic-1-5"
+    },
+    "bank-6-170": {
+      "domainId": "section-1",
+      "topicId": "topic-1-4"
+    }
+  }
+}

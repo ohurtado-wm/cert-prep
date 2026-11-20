@@ -15,11 +15,13 @@ import type {
   PracticeQuestionProgress,
 } from '@cert-prep/contracts/simulation-contracts'
 import { translate } from '../i18n/messages'
+import { RealQuestionReview } from './RealQuestionReview'
 
 const topicColors = ['#F900D3', '#00E8FA', '#1DD566', '#FFC700']
 
 export function QuizScreen({
   locale,
+  questionLanguage,
   certificationName,
   domains,
   currentQuestion,
@@ -37,6 +39,7 @@ export function QuizScreen({
   onExit,
 }: {
   locale: Locale
+  questionLanguage: Locale
   certificationName: string
   domains: GuideDomain[]
   currentQuestion: SimulationQuestion | null
@@ -94,6 +97,7 @@ export function QuizScreen({
         <QuestionCard
           key={question.id}
           locale={locale}
+          questionLanguage={questionLanguage}
           question={question}
           domain={domains.find(({ id }) => id === question.domainId)}
           simulationMode={simulationMode}
@@ -133,6 +137,7 @@ export function QuizScreen({
 
 function QuestionCard({
   locale,
+  questionLanguage,
   question,
   domain,
   simulationMode,
@@ -148,6 +153,7 @@ function QuestionCard({
   onNext,
 }: {
   locale: Locale
+  questionLanguage: Locale
   question: SimulationQuestion
   domain: GuideDomain | undefined
   simulationMode: SimulationMode
@@ -233,7 +239,7 @@ function QuestionCard({
         <p className="eyebrow">{text('questionLabel', { number: questionNumber.toString().padStart(2, '0') })}</p>
         <span className="single-answer-label">{text('singleSelection')}</span>
       </div>
-      <h2 id={`question-${question.id}`}>{question.question}</h2>
+      <h2 id={`question-${question.id}`} lang={questionLanguage}>{question.question}</h2>
 
       <fieldset className="answer-fieldset">
         <legend className="sr-only">{text('selectAnswer')}</legend>
@@ -261,7 +267,7 @@ function QuestionCard({
                   onChange={() => setSelectedAnswerId(answer.id)}
                 />
                 <span className="answer-letter" aria-hidden="true">{String.fromCharCode(65 + index)}</span>
-                <span className="answer-text">{answer.text}</span>
+                <span className="answer-text" lang={questionLanguage}>{answer.text}</span>
                 {showCorrect && <span className="answer-result">{text('correctAnswer')}</span>}
                 {showIncorrect && <span className="answer-result">{text('selectedAnswer')}</span>}
               </label>
@@ -285,9 +291,9 @@ function QuestionCard({
               {explanation && <p className="answer-explanation">{explanation}</p>}
               <div className="question-context">
                 <div><span>{text('domainLabel')}</span><strong>{domain?.name[locale] ?? question.domainId}</strong></div>
-                <div><span>{text('topicLabel')}</span><strong>{topic?.name[locale] ?? question.focus}</strong></div>
-                <div><span>{text('focusLabel')}</span><strong>{question.focus}</strong></div>
-                <div><span>{text('serviceLabel')}</span><strong>{question.service}</strong></div>
+                {topic && <div><span>{text('topicLabel')}</span><strong>{topic.name[locale]}</strong></div>}
+                {question.focus && <div><span>{text('focusLabel')}</span><strong>{question.focus}</strong></div>}
+                {question.service && <div><span>{text('serviceLabel')}</span><strong>{question.service}</strong></div>}
               </div>
             </>
           ) : (
@@ -332,6 +338,8 @@ export function ResultsScreen({
   result,
   printableQuestions,
   simulationMode,
+  questionSource,
+  sessionId,
   aiUsage,
   restarting,
   startError,
@@ -344,6 +352,8 @@ export function ResultsScreen({
   result: SimulationResult
   printableQuestions: PrintableSimulationQuestion[]
   simulationMode: SimulationMode
+  questionSource: 'ai' | 'advanced'
+  sessionId?: string
   aiUsage: AiTokenUsageData | null
   restarting: boolean
   startError: unknown | null
@@ -414,7 +424,7 @@ export function ResultsScreen({
             <article className="results-topic" key={item.id}>
               <div className="results-topic-heading">
                 <div className="results-topic-index" style={{ borderColor: topicColors[index % topicColors.length] }}>{String(index + 1).padStart(2, '0')}</div>
-                <div className="results-topic-name"><h3>{item.name}</h3><span>{item.total} {text('questionsLabel')}</span></div>
+                <div className="results-topic-name"><h3>{item.name}</h3><span>{item.total} {text('questionsLabel', { count: item.total })}</span></div>
                 <strong className="results-topic-score">{item.correct} / {item.total}</strong>
               </div>
               <div className="topic-meter result-meter" aria-hidden="true">
@@ -437,7 +447,7 @@ export function ResultsScreen({
             <article className="results-topic" key={item.id}>
               <div className="results-topic-heading">
                 <div className="results-topic-index" style={{ borderColor: topicColors[index % topicColors.length] }}>{String(index + 1).padStart(2, '0')}</div>
-                <div className="results-topic-name"><h3>{item.name}</h3><span>{item.total} {text('questionsLabel')}</span></div>
+                <div className="results-topic-name"><h3>{item.name}</h3><span>{item.total} {text('questionsLabel', { count: item.total })}</span></div>
                 <strong className="results-topic-score">{item.correct} / {item.total}</strong>
               </div>
               <div className="topic-meter result-meter" aria-hidden="true">
@@ -459,6 +469,7 @@ export function ResultsScreen({
         </div>
       </section>}
 
+      {printableQuestions.length === 20 && <RealQuestionReview locale={locale} questionLanguage={questionSource === 'advanced' ? 'en' : locale} questions={printableQuestions} source={questionSource} sessionId={sessionId} mode={simulationMode} />}
       <div className="results-actions">
         {printableQuestions.length === 20 && (
           <button className="button button-secondary" type="button" onClick={() => window.print()}>
@@ -487,5 +498,6 @@ export function ResultsScreen({
 export function simulationErrorMessage(locale: Locale, error: unknown) {
   if (error instanceof SimulationApiError && error.code === 'UNAUTHENTICATED') return translate(locale, 'authRequired')
   if (error instanceof SimulationApiError && error.code === 'SIMULATION_GENERATION_IN_PROGRESS') return translate(locale, 'simulationPreparing')
+  if (error instanceof SimulationApiError && error.code === 'ADVANCED_BANK_UNAVAILABLE') return translate(locale, 'advancedUnavailable')
   return translate(locale, 'simulationError')
 }

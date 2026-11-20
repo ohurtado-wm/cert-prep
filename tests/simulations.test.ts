@@ -221,18 +221,27 @@ describe('simulation sessions', () => {
       if (index === 19) result = body
       else {
         expect(body).not.toHaveProperty('printableQuestions')
+        expect(body).not.toHaveProperty('review')
         question = body.nextQuestion as typeof question
+        if (index === 7) {
+          const resumed = await (await app.request(`/api/v1/simulations/${session.sessionId}`)).json() as SimulationSnapshot
+          expect(resumed.currentQuestion?.id).toBe(question.id)
+          expect(JSON.stringify(resumed)).not.toMatch(/correctAnswerId|answerAttempts|review/)
+        }
       }
     }
 
     expect(result).toMatchObject({ mode: 'real', status: 'completed', result: { totalQuestions: 20, correctAnswers: 10, score: 50 } })
-    const printableQuestions = result!.printableQuestions as Array<{ question: string; answer: string }>
+    const printableQuestions = result!.printableQuestions as Array<{ question: string; answer: string; review: { outcome: string; attempts: Array<{ number: number; answer: string; correct: boolean }>; missingAttempts: number } }>
     expect(printableQuestions).toHaveLength(20)
-    expect(printableQuestions[0]).toEqual({
+    expect(printableQuestions[0]).toMatchObject({
       question: 'Which decision helps solve practical scenario 1-1?',
       answer: 'Correct option 1-1',
     })
-    expect(JSON.stringify(printableQuestions)).not.toMatch(/Incorrect alternative|explanation/)
+    expect(printableQuestions[0]).toHaveProperty('explanation')
+    expect(printableQuestions[0]!.review).toEqual({ outcome: 'first_try', attempts: [{ number: 1, answer: 'Correct option 1-1', correct: true }], missingAttempts: 0 })
+    expect(printableQuestions[1]!.review).toMatchObject({ outcome: 'incorrect', attempts: [{ number: 1, correct: false }], missingAttempts: 0 })
+    expect(printableQuestions[1]!.review.attempts[0]!.answer).toStartWith('Incorrect alternative')
     const [stored] = await db.select().from(simulationSessions)
     expect(stored?.state).toMatchObject({ status: 'completed', questions: [] })
     expect(JSON.stringify(stored?.state)).not.toMatch(/correctAnswerId|explanation|sourceUrl/)
@@ -280,10 +289,42 @@ describe('simulation sessions', () => {
     }
     expect(current.status).toBe('completed')
     expect(current.printableQuestions).toHaveLength(20)
-    expect(current.printableQuestions?.[0]).toEqual({
+    expect(current.printableQuestions?.[0]).toMatchObject({
       question: '¿Qué decisión ayuda a resolver el escenario práctico 1-1?',
       answer: 'Opción correcta 1-1',
+      review: { outcome: 'retry', attempts: [{ number: 1, correct: false }, { number: 2, correct: true, answer: 'Opción correcta 1-1' }], missingAttempts: 0 },
     })
+    expect(current.printableQuestions?.[1]?.review).toEqual({ outcome: 'revealed', attempts: [], missingAttempts: 0 })
+  })
+
+  test('resumes legacy attempts without inventing the selections that were not saved', async () => {
+    const app = makeApp()
+    const session = await start(app, 'practice')
+    const answer = (questionId: string, answerId: string) => app.request(`/api/v1/simulations/${session.sessionId}/answers`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ questionId, answerId }),
+    })
+    expect((await answer(session.currentQuestion.id, await answerChoice(session.sessionId, session.currentQuestion, false))).status).toBe(200)
+    const [row] = await db.select().from(simulationSessions).where(eq(simulationSessions.id, session.sessionId))
+    const state = StoredSimulationStateSchema.parse(row!.state)
+    if (state.status !== 'active') throw new Error('Expected active state')
+    const first = state.questions[0]!
+    expect(StoredSimulationStateSchema.safeParse({ ...state, questions: [{ ...first, answerAttempts: [{ number: 1, answerId: 'foreign-answer' }] }, ...state.questions.slice(1)] }).success).toBe(false)
+    const { answerAttempts: _legacyAttempts, ...legacyFirst } = first
+    await db.update(simulationSessions).set({ state: { ...state, questions: [legacyFirst, ...state.questions.slice(1)] } }).where(eq(simulationSessions.id, session.sessionId))
+
+    const resumed = await (await app.request(`/api/v1/simulations/${session.sessionId}`)).json() as SimulationSnapshot
+    expect(resumed.currentQuestion?.id).toBe(session.currentQuestion.id)
+    expect((await answer(session.currentQuestion.id, await answerChoice(session.sessionId, session.currentQuestion))).status).toBe(200)
+    let current = await (await app.request(`/api/v1/simulations/${session.sessionId}/next`, { method: 'POST' })).json() as SimulationSnapshot
+    for (let index = 1; index < 20; index++) {
+      const question = current.currentQuestion!
+      expect((await answer(question.id, await answerChoice(session.sessionId, question))).status).toBe(200)
+      current = await (await app.request(`/api/v1/simulations/${session.sessionId}/next`, { method: 'POST' })).json() as SimulationSnapshot
+    }
+    expect(current.printableQuestions?.[0]?.review).toEqual({
+      outcome: 'retry', attempts: [{ number: 2, answer: 'Correct option 1-1', correct: true }], missingAttempts: 1,
+    })
+    expect(current.result).toMatchObject({ correctAnswers: 19, correctAfterRetry: 1 })
   })
 
   test('invalid generated questions get one bounded repair and otherwise do not create a session', async () => {

@@ -40,11 +40,16 @@ describe('API foundation', () => {
     )
     expect(guideColumns.rows.map((column) => column.column_name)).toContain('study_path')
     expect(resultColumns.rows.map((column) => column.column_name)).toContain('topic_breakdown')
+    expect(resultColumns.rows.map((column) => column.column_name)).toContain('question_source')
+    const previousCount = await client.query<{ count: number }>(
+      'SELECT COUNT(*)::int AS count FROM "drizzle"."__drizzle_migrations"',
+    )
     await migrate(db, { migrationsFolder: './apps/api/drizzle/postgresql', migrationsSchema: 'drizzle' })
     const migrationCount = await client.query<{ count: number }>(
       'SELECT COUNT(*)::int AS count FROM "drizzle"."__drizzle_migrations"',
     )
-    expect(migrationCount.rows[0]?.count).toBe(1)
+    expect(previousCount.rows[0]?.count).toBeGreaterThan(0)
+    expect(migrationCount.rows[0]?.count).toBe(previousCount.rows[0]?.count)
   })
 
   test('identity comes from the gateway and only the stable id is persisted', async () => {
