@@ -1,4 +1,5 @@
-import { z } from 'zod'
+import type { z } from 'zod'
+import { ApiClientError, requestJson as sharedRequestJson, type Fetcher } from './request'
 import type { Locale } from '@cert-prep/contracts/certification-contracts'
 import {
   LatestStudyPlanResponseSchema,
@@ -6,36 +7,10 @@ import {
   type StudyPlan,
 } from '@cert-prep/contracts/study-plan-contracts'
 
-type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
-
-export class StudyPlanApiError extends Error {
-  constructor(readonly code: string) {
-    super(code)
-  }
-}
+export class StudyPlanApiError extends ApiClientError {}
 
 async function requestJson<T>(url: string, schema: z.ZodType<T>, init: RequestInit = {}, fetcher: Fetcher = fetch): Promise<T> {
-  let response: Response
-  try {
-    response = await fetcher(url, { ...init, headers: { accept: 'application/json', ...init.headers } })
-  } catch {
-    throw new StudyPlanApiError('REQUEST_FAILED')
-  }
-
-  let body: unknown
-  try {
-    body = await response.json()
-  } catch {
-    throw new StudyPlanApiError('INVALID_API_RESPONSE')
-  }
-  if (!response.ok) {
-    const parsed = z.object({ error: z.object({ code: z.string() }) }).safeParse(body)
-    throw new StudyPlanApiError(parsed.success ? parsed.data.error.code : 'REQUEST_FAILED')
-  }
-
-  const parsed = schema.safeParse(body)
-  if (!parsed.success) throw new StudyPlanApiError('INVALID_API_RESPONSE')
-  return parsed.data
+  return sharedRequestJson(url, schema, init, fetcher, (code, status) => new StudyPlanApiError(code, status))
 }
 
 export async function loadLatestStudyPlan(certificationId: string, fetcher: Fetcher = fetch): Promise<StudyPlan | null> {

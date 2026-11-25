@@ -172,21 +172,6 @@ function citationDiagnostics(toolResults: unknown, responseSources: unknown) {
   }
 }
 
-function collectCitationUrlsForLog(toolResults: unknown, responseSources?: unknown) {
-  const urls = new Set<string>()
-  for (const citation of collectWebSearchCitations(toolResults, responseSources)) {
-    if (citation.type !== 'url' || !citation.url) continue
-    try {
-      const url = new URL(citation.url)
-      urls.add(`${url.protocol}//${url.hostname.toLowerCase()}${url.pathname}`.slice(0, 500))
-    } catch {
-      continue
-    }
-    if (urls.size === 20) break
-  }
-  return [...urls]
-}
-
 export function buildGuidePrompt(certification: CertificationCatalogItem) {
   const provider = providerName(certification.provider)
   const examSources = certification.sources.filter((source) => (
@@ -224,7 +209,6 @@ export function createAiGuideGenerator(
   const runGenerateText = options.generateText ?? generateText
 
   return async ({ certification }) => {
-    let citationUrls: string[] = []
     let maxOutputTokens: number | undefined
     let generationDetails: Record<string, string | number | null> = {}
     let citationDetails: ReturnType<typeof citationDiagnostics> = {
@@ -272,7 +256,6 @@ export function createAiGuideGenerator(
         aiOutputCharacters: result.text.length,
       }
       citationDetails = citationDiagnostics(result.toolResults, result.sources)
-      citationUrls = collectCitationUrlsForLog(result.toolResults, result.sources)
       if (!result.output) throw new Error('The model returned no structured guide.')
       const researchSources = collectGuideResearchSources(result.toolResults, certification, result.sources)
       if (!expectedOfficialExamSourceWasCited(researchSources, certification)) {
@@ -296,9 +279,13 @@ export function createAiGuideGenerator(
         provider: certification.provider,
         stage: 'ai_generation',
         maxOutputTokens,
-        citationUrls: JSON.stringify(citationUrls),
-        ...generationDetails,
-        ...citationDetails,
+        aiInputTokens: generationDetails.aiInputTokens,
+        aiOutputTokens: generationDetails.aiOutputTokens,
+        aiTotalTokens: generationDetails.aiTotalTokens,
+        aiOutputCharacters: generationDetails.aiOutputCharacters,
+        citationToolResultCount: citationDetails.citationToolResultCount,
+        citationToolSourceCount: citationDetails.citationToolSourceCount,
+        citationResponseSourceCount: citationDetails.citationResponseSourceCount,
         ...errorLogDetails(error),
       })
       if (error instanceof ApiException) throw error

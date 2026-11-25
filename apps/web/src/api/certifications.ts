@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ApiErrorSchema } from '@cert-prep/contracts/contracts'
+import { ApiClientError, requestJson, type Fetcher } from './request'
 import {
   CertificationCatalogResponseSchema,
   CertificationGuideResponseSchema,
@@ -8,50 +8,10 @@ import {
 } from '@cert-prep/contracts/certification-contracts'
 
 const GuidePayloadSchema = z.object({ guide: CertificationGuideResponseSchema })
-type Fetcher = (input: RequestInfo | URL) => Promise<Response>
-
-function logApiFailure(path: string, status: number | null, code: string) {
-  if (import.meta.env.DEV) {
-    console.error('[cert-prep] API request failed', { path, status, code })
-  }
-}
-
-export class CertificationApiError extends Error {
-  constructor(readonly code: string) {
-    super(code)
-  }
-}
+export class CertificationApiError extends ApiClientError {}
 
 async function readJson<T>(url: string, schema: z.ZodType<T>, fetcher: Fetcher): Promise<T> {
-  let response: Response
-  try {
-    response = await fetcher(url)
-  } catch {
-    logApiFailure(url, null, 'REQUEST_FAILED')
-    throw new CertificationApiError('REQUEST_FAILED')
-  }
-
-  let body: unknown
-  try {
-    body = await response.json()
-  } catch {
-    logApiFailure(url, response.status, 'INVALID_API_RESPONSE')
-    throw new CertificationApiError('INVALID_API_RESPONSE')
-  }
-
-  if (!response.ok) {
-    const parsedError = ApiErrorSchema.safeParse(body)
-    const code = parsedError.success ? parsedError.data.error.code : 'REQUEST_FAILED'
-    logApiFailure(url, response.status, code)
-    throw new CertificationApiError(code)
-  }
-
-  const parsed = schema.safeParse(body)
-  if (!parsed.success) {
-    logApiFailure(url, response.status, 'INVALID_API_RESPONSE')
-    throw new CertificationApiError('INVALID_API_RESPONSE')
-  }
-  return parsed.data
+  return requestJson(url, schema, {}, fetcher, (code, status) => new CertificationApiError(code, status))
 }
 
 export async function loadCertificationCatalog(fetcher: Fetcher = fetch): Promise<CertificationCatalogItem[]> {

@@ -503,7 +503,7 @@ export function createSimulationService(db: DatabaseHandle, options: SimulationS
           try { currentMapping = await compatible } catch (error) { if (guideMappings.get(key) === compatible) guideMappings.delete(key); throw error }
           questions = selectBankQuestions({ bank, mapping: currentMapping, guide, domainCounts: requiredQuestionsByDomain, topicCounts: requiredQuestionsByTopic, idFactory: questionIdFactory })
         } catch (error) {
-          if (error instanceof AdvancedBankError) throw new ApiException(503, 'ADVANCED_BANK_UNAVAILABLE', 'Advanced practice is not available for the current guide.')
+          if (error instanceof AdvancedBankError) throw new ApiException(503, 'ADVANCED_BANK_UNAVAILABLE', 'Advanced practice is not available for the current guide.', { operation: 'advanced_bank', category: error.category, reason: error.reason })
           throw error
         }
       }

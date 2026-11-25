@@ -5,7 +5,15 @@ import { z } from 'zod'
 import type { CertificationGuideResponse } from '@cert-prep/contracts/certification-contracts'
 import type { StoredSimulationQuestion } from '../state'
 
-export class AdvancedBankError extends Error {}
+export type AdvancedBankFailure = 'asset' | 'mapping' | 'compatibility' | 'compatibility_provider' | 'coverage'
+export type AdvancedBankReason = AdvancedBankFailure | 'asset_read' | 'asset_invalid' | 'provider_configuration' | 'provider_timeout' | 'provider_request_failed' | 'provider_invalid_output'
+
+export class AdvancedBankError extends Error {
+  constructor(message: string, readonly category: AdvancedBankFailure = 'mapping', readonly reason: AdvancedBankReason = category) {
+    super(message)
+    this.name = 'AdvancedBankError'
+  }
+}
 
 export type BankQuestion = { id: string; domain: string; question: string; answers: string[]; correctAnswerIndex: number }
 const localizedSchema = z.object({ en: z.string(), es: z.string() })
@@ -26,25 +34,25 @@ const removeCorrectMarker = (value: string) => value.replace(/\s*[—-]\s*_corre
 
 export function parseBankFile(contents: string, fileNumber: number): BankQuestion[] {
   const pieces = contents.split(/^## Question (\d+)\s*$/m)
-  if (pieces.length !== 341) throw new AdvancedBankError(`Invalid question count in bank file ${fileNumber}`)
+  if (pieces.length !== 341) throw new AdvancedBankError(`Invalid question count in bank file ${fileNumber}`, 'asset', 'asset_invalid')
   const questions: BankQuestion[] = []
   for (let i = 1; i < pieces.length; i += 2) {
     const number = Number(pieces[i])
     const body = pieces[i + 1] ?? ''
-    if (number !== (i + 1) / 2) throw new AdvancedBankError(`Invalid numbering in bank file ${fileNumber}`)
+    if (number !== (i + 1) / 2) throw new AdvancedBankError(`Invalid numbering in bank file ${fileNumber}`, 'asset', 'asset_invalid')
     const domain = [...body.matchAll(/^\*\*Domain:\*\*\s*(.+)$/gm)]
     const question = [...body.matchAll(/^\*\*Question:\*\*\s*(.+)$/gm)]
     const correct = [...body.matchAll(/^\*\*Correct answer:\*\*\s*([A-D])\.\s*(.+)$/gm)]
     const options = [...body.matchAll(/^- \*\*([A-D])\.\*\*\s*(.+)$/gm)]
     if (domain.length !== 1 || question.length !== 1 || correct.length !== 1 || options.length !== 4
-      || options.map((option) => option[1]).join('') !== 'ABCD') throw new AdvancedBankError(`Invalid question in bank file ${fileNumber}, item ${number}`)
+      || options.map((option) => option[1]).join('') !== 'ABCD') throw new AdvancedBankError(`Invalid question in bank file ${fileNumber}, item ${number}`, 'asset', 'asset_invalid')
     const correctIndex = 'ABCD'.indexOf(correct[0]![1]!)
     const answers = options.map((option) => removeCorrectMarker(option[2]!))
     const marked = options.flatMap((option, index) => /_correct answer_\s*$/i.test(option[2]!) ? [index] : [])
     if (correctIndex < 0 || marked.length !== 1 || marked[0] !== correctIndex
       || answers[correctIndex] !== correct[0]![2]!.trim() || answers.some((answer) => !norm(answer))
       || new Set(answers.map(normAnswer)).size !== 4 || norm(question[0]![1]!).length < 20) {
-      throw new AdvancedBankError(`Invalid answers in bank file ${fileNumber}, item ${number}`)
+      throw new AdvancedBankError(`Invalid answers in bank file ${fileNumber}, item ${number}`, 'asset', 'asset_invalid')
     }
     questions.push({ id: `bank-${fileNumber}-${number}`, domain: domain[0]![1]!.trim(), question: question[0]![1]!.trim(), answers, correctAnswerIndex: correctIndex })
   }
@@ -84,7 +92,7 @@ export function selectBankQuestions(input: {
   const pools = new Map<string, BankQuestion[]>()
   const guideTopics = guide.domains.flatMap((domain) => domain.topics.map((topic) => topic.id))
   if (Object.keys(domainCounts).length !== guide.domains.length || Object.keys(topicCounts).length !== guideTopics.length
-    || guide.domains.some(({ id }) => !Object.hasOwn(domainCounts, id)) || guideTopics.some((id) => !Object.hasOwn(topicCounts, id))) throw new AdvancedBankError('Bank quotas do not match the current guide')
+    || guide.domains.some(({ id }) => !Object.hasOwn(domainCounts, id)) || guideTopics.some((id) => !Object.hasOwn(topicCounts, id))) throw new AdvancedBankError('Bank quotas do not match the current guide', 'coverage')
   for (const question of bank) {
     const item = mapping.questions[question.id]
     const domain = guide.domains.find(({ id }) => id === item?.domainId)
@@ -98,20 +106,20 @@ export function selectBankQuestions(input: {
   }
   const selected: Array<{ question: BankQuestion; domainId: string; topicId: string }> = []
   for (const domain of guide.domains) {
-    if (domain.topics.reduce((sum, topic) => sum + (topicCounts[topic.id] ?? -1000), 0) !== domainCounts[domain.id]) throw new AdvancedBankError('Topic quotas do not match domain quotas')
+    if (domain.topics.reduce((sum, topic) => sum + (topicCounts[topic.id] ?? -1000), 0) !== domainCounts[domain.id]) throw new AdvancedBankError('Topic quotas do not match domain quotas', 'coverage')
     for (const topic of domain.topics) {
       const count = topicCounts[topic.id]
       const pool = pools.get(topic.id) ?? []
-      if (!Number.isInteger(count) || count! < 0 || pool.length < count!) throw new AdvancedBankError('Not enough reviewed questions for a topic')
+      if (!Number.isInteger(count) || count! < 0 || pool.length < count!) throw new AdvancedBankError('Not enough reviewed questions for a topic', 'coverage')
       for (const question of shuffle(pool).slice(0, count)) selected.push({ question, domainId: domain.id, topicId: topic.id })
     }
   }
-  if (selected.length !== 20) throw new AdvancedBankError('Bank selection must contain 20 questions')
+  if (selected.length !== 20) throw new AdvancedBankError('Bank selection must contain 20 questions', 'coverage')
   const positions = shuffle(Array.from({ length: 20 }, (_, index) => index % 4))
   const ids = new Set<string>()
   return shuffle(selected).map(({ question, domainId, topicId }, index) => {
     const id = input.idFactory()
-    if (!id || ids.has(id)) throw new AdvancedBankError('Question identifiers must be unique')
+    if (!id || ids.has(id)) throw new AdvancedBankError('Question identifiers must be unique', 'coverage')
     ids.add(id)
     const correct = question.answers[question.correctAnswerIndex]!
     const distractors = shuffle(question.answers.filter((_, answerIndex) => answerIndex !== question.correctAnswerIndex))
@@ -125,14 +133,16 @@ export function selectBankQuestions(input: {
 export async function loadAdvancedBank(): Promise<{ bank: BankQuestion[]; mapping: ReviewedMapping }> {
   const relative = 'apps/api/src/simulations/advanced-bank'
   const bases = [resolve(process.cwd(), relative), resolve(process.cwd(), '../..', relative)]
+  let failure: AdvancedBankFailure = 'asset'
   for (const base of bases) {
     try {
       const files = await Promise.all(Array.from({ length: 6 }, (_, i) => readFile(resolve(base, 'data', `gcp-professional-cloud-developer-quiz-test #${i + 1}.md`), 'utf8')))
+      failure = 'mapping'
       const mapping = mappingSchema.parse(JSON.parse(await readFile(resolve(base, 'mapping.json'), 'utf8')))
       return { bank: files.flatMap((text, i) => parseBankFile(text, i + 1)), mapping }
     } catch (error) {
       if (error instanceof AdvancedBankError) throw error
     }
   }
-  throw new AdvancedBankError('Bank or reviewed mapping is unavailable')
+  throw new AdvancedBankError('Bank or reviewed mapping is unavailable', failure, failure === 'asset' ? 'asset_read' : 'mapping')
 }
