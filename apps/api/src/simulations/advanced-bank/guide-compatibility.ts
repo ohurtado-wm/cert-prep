@@ -1,6 +1,7 @@
 import { generateText, Output } from 'ai'
 import { z } from 'zod'
 import type { CertificationGuideResponse } from '@cert-prep/contracts/certification-contracts'
+import { ApiException } from '../../errors'
 import { createAiModel } from '../../ai/model-provider'
 import { AI_REQUEST_TIMEOUT_MS } from '../../ai/request-timeout'
 import { AdvancedBankError, bankFingerprint, guideFingerprint, type BankQuestion, type ReferenceDomain, type ReviewedMapping } from './bank'
@@ -27,7 +28,7 @@ export const checkGuideCompatibility: GuideCompatibilityChecker = async (referen
     abortSignal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
     providerOptions: { openai: { store: false } },
   })
-  return compatibilitySchema.parse(response.output)
+  return response.output
 }
 
 export async function adaptMappingToGuide(bank: BankQuestion[], mapping: ReviewedMapping, guide: CertificationGuideResponse, checker: GuideCompatibilityChecker = checkGuideCompatibility): Promise<ReviewedMapping> {
@@ -38,18 +39,33 @@ export async function adaptMappingToGuide(bank: BankQuestion[], mapping: Reviewe
   if (!reference || guideFingerprint({ domains: reference }) !== mapping.guideFingerprint) throw new AdvancedBankError('Reference guide is unavailable')
   const current = guide.domains.map(({ id, name, description, topics }) => ({ id, name, description, topics: topics.map(({ id, name, description }) => ({ id, name, description })) }))
   let checked: Compatibility
-  try { checked = compatibilitySchema.parse(await checker(reference, current)) } catch { throw new AdvancedBankError('Guide compatibility could not be checked') }
+  let output: unknown
+  try {
+    output = await checker(reference, current)
+  } catch (error) {
+    const reason = error instanceof ApiException && (error.code === 'AI_NOT_CONFIGURED' || error.code === 'AI_PROVIDER_UNSUPPORTED')
+      ? 'provider_configuration'
+      : error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')
+        ? 'provider_timeout'
+        : 'provider_request_failed'
+    throw new AdvancedBankError('Guide compatibility could not be checked', 'compatibility_provider', reason)
+  }
+  try {
+    checked = compatibilitySchema.parse(output)
+  } catch {
+    throw new AdvancedBankError('Guide compatibility response was invalid', 'compatibility_provider', 'provider_invalid_output')
+  }
   if (checked.domains.length !== reference.length || new Set(checked.domains.map(({ id }) => id)).size !== reference.length
     || checked.domains.some(({ id, compatible }) => !compatible || !reference.some((domain) => domain.id === id) || !current.some((domain) => domain.id === id))) {
-    throw new AdvancedBankError('Guide domains are incompatible')
+    throw new AdvancedBankError('Guide domains are incompatible', 'compatibility')
   }
   const sourceTopics = reference.flatMap((domain) => domain.topics.map((topic) => ({ ...topic, domainId: domain.id })))
   if (new Set(sourceTopics.map(({ id }) => id)).size !== sourceTopics.length || checked.topics.length !== sourceTopics.length
-    || new Set(checked.topics.map(({ sourceTopicId }) => sourceTopicId)).size !== sourceTopics.length) throw new AdvancedBankError('Guide topic mapping is incomplete')
+    || new Set(checked.topics.map(({ sourceTopicId }) => sourceTopicId)).size !== sourceTopics.length) throw new AdvancedBankError('Guide topic mapping is incomplete', 'compatibility')
   const mappedTopics = new Map<string, string | null>()
   for (const { sourceTopicId, targetTopicId } of checked.topics) {
     const source = sourceTopics.find(({ id }) => id === sourceTopicId)
-    if (!source || (targetTopicId !== null && !current.find(({ id }) => id === source.domainId)?.topics.some(({ id }) => id === targetTopicId))) throw new AdvancedBankError('Guide topic mapping is invalid')
+    if (!source || (targetTopicId !== null && !current.find(({ id }) => id === source.domainId)?.topics.some(({ id }) => id === targetTopicId))) throw new AdvancedBankError('Guide topic mapping is invalid', 'compatibility')
     mappedTopics.set(sourceTopicId, targetTopicId)
   }
   const questions: ReviewedMapping['questions'] = {}

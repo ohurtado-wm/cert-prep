@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { reportApiFailure } from './diagnostics'
+import { ApiClientError, requestJson as sharedRequestJson, type Fetcher } from './request'
 import { ApiErrorSchema, CurrentUserResponseSchema, type CurrentUserResponse } from '@cert-prep/contracts/contracts'
 import {
   ClearSimulationHistoryResponseSchema,
@@ -17,37 +19,10 @@ import {
 import type { Locale } from '@cert-prep/contracts/certification-contracts'
 import { WeakTopicAnalysisResponseSchema, type WeakTopicAnalysisResponse } from '@cert-prep/contracts/weak-topic-contracts'
 
-type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
-
-export class SimulationApiError extends Error {
-  constructor(readonly code: string) {
-    super(code)
-  }
-}
+export class SimulationApiError extends ApiClientError {}
 
 async function requestJson<T>(url: string, schema: z.ZodType<T>, init: RequestInit = {}, fetcher: Fetcher = fetch): Promise<T> {
-  let response: Response
-  try {
-    response = await fetcher(url, { ...init, headers: { accept: 'application/json', ...init.headers } })
-  } catch {
-    throw new SimulationApiError('REQUEST_FAILED')
-  }
-
-  let body: unknown
-  try {
-    body = await response.json()
-  } catch {
-    throw new SimulationApiError('INVALID_API_RESPONSE')
-  }
-
-  if (!response.ok) {
-    const parsed = ApiErrorSchema.safeParse(body)
-    throw new SimulationApiError(parsed.success ? parsed.data.error.code : 'REQUEST_FAILED')
-  }
-
-  const parsed = schema.safeParse(body)
-  if (!parsed.success) throw new SimulationApiError('INVALID_API_RESPONSE')
-  return parsed.data
+  return sharedRequestJson(url, schema, init, fetcher, (code, status) => new SimulationApiError(code, status))
 }
 
 function postJson(body: unknown): RequestInit {
@@ -103,10 +78,12 @@ export async function loadActiveSimulation(fetcher: Fetcher = fetch): Promise<Si
 }
 
 export async function cancelSimulation(sessionId: string, fetcher: Fetcher = fetch): Promise<void> {
+  const url = `/api/v1/simulations/${encodeURIComponent(sessionId)}`
   let response: Response
   try {
-    response = await fetcher(`/api/v1/simulations/${encodeURIComponent(sessionId)}`, { method: 'DELETE' })
+    response = await fetcher(url, { method: 'DELETE' })
   } catch {
+    reportApiFailure(url, 'REQUEST_FAILED')
     throw new SimulationApiError('REQUEST_FAILED')
   }
   if (response.status === 204) return
@@ -114,10 +91,13 @@ export async function cancelSimulation(sessionId: string, fetcher: Fetcher = fet
   try {
     body = await response.json()
   } catch {
-    throw new SimulationApiError('INVALID_API_RESPONSE')
+    reportApiFailure(url, 'INVALID_API_RESPONSE', response)
+    throw new SimulationApiError('INVALID_API_RESPONSE', response.status)
   }
   const parsed = ApiErrorSchema.safeParse(body)
-  throw new SimulationApiError(parsed.success ? parsed.data.error.code : 'REQUEST_FAILED')
+  const code = parsed.success ? parsed.data.error.code : 'REQUEST_FAILED'
+  reportApiFailure(url, code, response)
+  throw new SimulationApiError(code, response.status)
 }
 
 export async function submitSimulationAnswer(

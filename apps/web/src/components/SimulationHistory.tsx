@@ -1,3 +1,4 @@
+import { commonErrorMessage } from '../i18n/error-messages'
 import { useState } from 'react'
 import type { CertificationCatalogItem, CertificationGuideResponse, Locale } from '@cert-prep/contracts/certification-contracts'
 import type { PrintableSimulationQuestion, SimulationHistoryItem, SimulationSnapshot } from '@cert-prep/contracts/simulation-contracts'
@@ -76,11 +77,11 @@ export function SimulationHistory({
       {completedPrintableQuestions.map((item, index) => <li key={`${index}-${item.question}`}><span>{item.question}</span><p>- {item.answer}</p></li>)}
     </ol>}
     {pendingLoading && <p className="history-state" role="status">{text('pendingSessionLoading')}</p>}
-    {Boolean(pendingError) && <div className="history-state history-error" role="alert"><p>{text('pendingSessionError')}</p><button className="button button-secondary" type="button" onClick={onRetryPending}>{text('retry')}</button></div>}
+    {Boolean(pendingError) && <div className="history-state history-error" role="alert"><p>{commonErrorMessage(locale, pendingError) ?? text('pendingSessionError')}</p><button className="button button-secondary" type="button" onClick={onRetryPending}>{text('retry')}</button></div>}
     {loading && <p className="history-state" role="status">{text('historyLoading')}</p>}
-    {Boolean(error) && <div className="history-state history-error" role="alert"><p>{text('historyError')}</p><button className="button button-secondary" type="button" onClick={onRetry}>{text('retry')}</button></div>}
+    {Boolean(error) && <div className="history-state history-error" role="alert"><p>{commonErrorMessage(locale, error) ?? text('historyError')}</p><button className="button button-secondary" type="button" onClick={onRetry}>{text('retry')}</button></div>}
     {resumeError && <div className="history-state history-error" role="alert"><p>{text('pendingSessionChanged')}</p><button className="button button-secondary" type="button" onClick={() => { setResumeError(false); onRetryPending() }}>{text('retry')}</button></div>}
-    {Boolean(discardError) && <p className="history-state history-error" role="alert">{text('discardSessionError')}</p>}
+    {Boolean(discardError) && <p className="history-state history-error" role="alert">{commonErrorMessage(locale, discardError) ?? text('discardSessionError')}</p>}
     {!loading && !error && completed.length === 0 && active && <p className="history-state">{text('historyNoCompleted')}</p>}
     {(active || completed.length > 0) && <ol className="history-list">
       {active && <li className="history-card history-card-active">

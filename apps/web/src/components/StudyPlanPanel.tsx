@@ -1,6 +1,6 @@
 import type { Locale } from '@cert-prep/contracts/certification-contracts'
 import type { StudyPlan } from '@cert-prep/contracts/study-plan-contracts'
-import { StudyPlanApiError } from '../api/study-plans'
+import { commonErrorMessage, guideErrorMessage, studyPlanErrorMessage } from '../i18n/error-messages'
 import { AiTokenUsage } from './AiTokenUsage'
 import { translate } from '../i18n/messages'
 
@@ -69,7 +69,7 @@ export function StudyPlanPanel({
         <p className="history-state" role="status">{text('historyLoading')}</p>
       ) : historyError ? (
         <div className="history-state history-error" role="alert">
-          <p>{text('historyError')}</p>
+          <p>{commonErrorMessage(locale, historyError) ?? text('historyError')}</p>
           <button className="button button-secondary" type="button" onClick={onRetryHistory}>{text('retry')}</button>
         </div>
       ) : noHistory ? (
@@ -77,7 +77,7 @@ export function StudyPlanPanel({
       ) : (
         <>
           {guideLoading && <p className="history-state" role="status">{text('studyPlanWaitGuide')}</p>}
-          {!guideLoading && Boolean(guideError) && <div className="history-state history-error" role="alert"><p>{text('guideError')}</p><button className="button button-secondary" type="button" onClick={onRetryGuide}>{text('guideRetry')}</button></div>}
+          {!guideLoading && Boolean(guideError) && <div className="history-state history-error" role="alert"><p>{guideErrorMessage(locale, guideError)}</p><button className="button button-secondary" type="button" onClick={onRetryGuide}>{text('guideRetry')}</button></div>}
           {planLoading && <p className="history-state" role="status">{text('studyPlanLoading')}</p>}
           {generating && (
             <div className="study-plan-loading" role="status" aria-live="polite" aria-busy="true">
@@ -87,7 +87,7 @@ export function StudyPlanPanel({
           )}
           {error ? (
             <div className="history-state history-error" role="alert">
-              <p>{studyPlanErrorMessage(locale, error)}</p>
+              <p>{studyPlanErrorMessage(locale, error, Boolean(generationError))}</p>
               {planError !== null && !generationError && <button className="button button-secondary" type="button" onClick={onRetry}>{text('retry')}</button>}
             </div>
           ) : null}
@@ -144,21 +144,6 @@ export function StudyPlanPanel({
       )}
     </section>
   )
-}
-
-function studyPlanErrorMessage(locale: Locale, error: unknown) {
-  if (!(error instanceof StudyPlanApiError)) return translate(locale, 'studyPlanGenerateError')
-  switch (error.code) {
-    case 'STUDY_PLAN_HISTORY_EMPTY':
-      return translate(locale, 'studyPlanNoHistory')
-    case 'STUDY_PLAN_NO_REVIEW_AREAS':
-      return translate(locale, 'studyPlanNoWeakAreas')
-    case 'STUDY_PLAN_AI_UNAVAILABLE':
-    case 'STUDY_PLAN_INVALID_OUTPUT':
-      return translate(locale, 'studyPlanGenerateError')
-    default:
-      return translate(locale, 'studyPlanError')
-  }
 }
 
 function formatPlanDate(value: string, locale: Locale) {
